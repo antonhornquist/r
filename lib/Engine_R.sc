@@ -1,5 +1,7 @@
 Engine_R : CroneEngine {
+	classvar numTaps = 10;
 	var modules;
+	var <taps; // TODO: make private
 	var engineTopGroup;
 	var macros;
 	var trace=false;
@@ -7,6 +9,21 @@ Engine_R : CroneEngine {
 	*new { |context, callback| ^super.new(context, callback) }
 
 	alloc {
+		this.addCommands;
+
+		this.addDefs;
+		this.addPolls;
+
+		engineTopGroup = Group.tail(context.xg);
+
+		context.server.sync;
+
+		macros = ();
+		modules = [];
+		taps = Array.fill(numTaps, { (bus: Bus.control) });
+	}
+
+	addCommands {
 		this.addCommand('new', "ss") { |msg|
 			if (trace) {
 				[SystemClock.seconds, \newCommand, msg[1], msg[2]].debug(\received);
@@ -70,42 +87,76 @@ Engine_R : CroneEngine {
 			this.macrosetCommand(msg[1], msg[2]);
 		};
 
+		this.addCommand('tapoutlet', "is") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \tapoutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			this.tapoutletCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('tapclear', "i") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \tapclearCommand, (msg[1].asString)[0..20]].debug(\received);
+			};
+			this.tapclearCommand(msg[1]);
+		};
+
 		this.addCommand('trace', "i") { |msg|
 			trace = msg[1].asBoolean;
 		};
+	}
 
-		RModule.allSubclasses do: _.sendDefs;
+	addDefs {
+		RModule.allSubclasses do: _.addDefs;
+		
+		SynthDef(\r_tapout, { |in, out|
+			Out.kr(out, A2K.kr(In.ar(in)));
+		}).add;
 
-		engineTopGroup = Group.tail(context.xg);
-		context.server.sync;
+		SynthDef(\r_patch, { |in, out|
+			Out.ar(out, In.ar(in, 1));
+		}).add;
 
-		macros = ();
-		modules = [];
+		SynthDef(\r_patch_feedback, { |in, out|
+			Out.ar(out, InFeedback.ar(in, 1));
+		}).add;
+	}
+
+	addPolls {
+		numTaps do: { |tapIndex|
+			this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
+				taps[tapIndex].getSynchronous; // TODO: will not work with remote servers
+			});
+		}
 	}
 
 	free {
 		this.deleteAllModules;
+		taps do: { |tap|
+			tap[\bus].free;
+		};
 	}
 
 	deleteAllModules {
 		modules.collect(_.name) do: { |modulename| // collect used to dup here since deleteCommand removes entries in modules
-			this.deleteCommand(modulename)
+			this.deleteModule(modulename)
 		};
 	}
 
 	newCommand { |name, kind|
 		if (this.lookupRModuleClassByKind(kind.asSymbol).isNil) {
 			"unable to create %. invalid module type %".format(name.asString.quote, kind.asString.quote).error;
-			^nil
+			^this
 		};
 		if (this.lookupModuleByName(name).notNil) {
 			"unable to create %. module named % already exists".format(name.asString.quote, name.asString.quote).error;
-			^nil
+			^this
 		} {
 			var spec = this.getModuleSpec(kind);
 			var group = Group.tail(engineTopGroup);
 			var patchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
 			var processingGroup = Group.tail(group);
+			var tapGroup = Group.tail(group);
 			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
 			var outbusses = spec[\outputs].collect { |output| output -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
 			var module = (
@@ -115,6 +166,7 @@ Engine_R : CroneEngine {
 					group: group,
 					patchCordGroup: patchCordGroup,
 					processingGroup: processingGroup,
+					tapGroup: tapGroup,
 					inbusses: inbusses,
 					outbusses: outbusses,
 				),
@@ -143,7 +195,7 @@ Engine_R : CroneEngine {
 
 			if (sourceModule.isNil) {
 				"module named % not found among modules %".format(sourceModuleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-				^nil
+				^this
 			};
 
 			sourceModuleIndex = modules.indexOf(sourceModule);
@@ -152,7 +204,7 @@ Engine_R : CroneEngine {
 
 			if (destModule.isNil) {
 				"module named % not found among modules %".format(destModuleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-				^nil
+				^this
 			};
 
 			destModuleIndex = modules.indexOf(destModule);
@@ -173,8 +225,8 @@ Engine_R : CroneEngine {
 						this.getModuleSpec(sourceModule[\kind])[\inputs].collect{ |i| i.asString.quote }.join(", ")
 					).error;
 				} {
-					destModule[\patchCords][input.asSymbol][outlet.asSymbol] = Synth( // TODO: relies on core CroneDefs for patching, refactor to not require Crone
-						if (sourceModuleIndex >= destModuleIndex, \patch_mono_fb, \patch_mono),
+					destModule[\patchCords][input.asSymbol][outlet.asSymbol] = Synth(
+						if (sourceModuleIndex >= destModuleIndex, \r_patch_feedback, \r_patch),
 						[
 							\in, sourceModule[\serverContext][\outbusses].detect { |busAssoc| busAssoc.key == output.asSymbol }.value,
 							\out, destModule[\serverContext][\inbusses].detect { |busAssoc| busAssoc.key == input.asSymbol }.value,
@@ -209,20 +261,7 @@ Engine_R : CroneEngine {
 	}
 
 	deleteCommand { |name|
-		var moduleToDelete = this.lookupModuleByName(name);
-		if (moduleToDelete.isNil) {
-			"module named % not found among modules %".format(name.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-		} {
-			var serverContext = moduleToDelete[\serverContext];
-
-			this.disconnectModulePatchCords(moduleToDelete);
-
-			moduleToDelete[\instance].free;
-			serverContext[\group].free;
-			serverContext[\inbusses] do: { |inputBusAssoc| inputBusAssoc.value.free };
-			serverContext[\outbusses] do: { |outputBusAssoc| outputBusAssoc.value.free };
-			modules.remove(moduleToDelete);
-		};
+		this.deleteModule(name);
 	}
 
 	setCommand { |moduleparam, value|
@@ -297,6 +336,105 @@ Engine_R : CroneEngine {
 		// TODO: validate presence of macro
 		// TODO: controlSpecs are not checked here! only allow macro creation of params with same controlSpec in newmacro and constrain here?
 		macros[name.asSymbol][\bus].set(value);
+	}
+
+	ifTapIndexWithinBoundsDo { |tapIndex, func|
+		if (tapIndex < numTaps) {
+			func.value;
+		} {
+			"tap index not within bounds: tapIndex % referred, only % taps available".format(tapIndex, numTaps).error;
+		};
+	}
+
+	tapoutletCommand { |index, outlet|
+		this.ifTapIndexWithinBoundsDo(index) {
+			var moduleRef, output;
+			var module;
+
+			# moduleRef, output = outlet.asString.split($/);
+			// TODO: validate outlet exists against getModuleSpec
+
+			module = this.lookupModuleByName(moduleRef);
+
+			if (module.isNil) { // TODO: DRY
+				"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+				^this
+			};
+
+			if (this.moduleHasOutputNamed(module, output).not) {
+				"invalid output % for % module named % (possible outputs are %)".format( // TODO: DRY
+					output.asString.quote,
+					module[\kind].asString.quote,
+					module[\name].asString.quote,
+					this.getModuleSpec(module[\kind])[\outputs].collect{ |o| o.asString.quote }.join(", ")
+				).error;
+			} {
+				var moduleServerContext = module[\serverContext]; // TODO: extract this elsewhere too
+				var outletBus = moduleServerContext[\outbusses].detect { |busAssoc| busAssoc.key == output.asSymbol }.value; // TODO: DRY
+				var targetGroup = moduleServerContext[\tapGroup];
+				var tap = taps[index];
+
+				if (this.tapIsSet(index)) {
+					this.clearTap(index);
+				};
+
+				tap[\synth] = Synth(
+					defName: \r_tapout,
+					args: [\in, outletBus, \out, tap[\bus]],
+					target: targetGroup,
+					addAction: \addToHead
+				);
+				tap[\outlet] = outlet;
+			};
+		};
+	}
+
+	tapclearCommand { |index|
+		this.clearTap(index);
+	}
+
+	deleteModule { |name|
+		var moduleToDelete = this.lookupModuleByName(name);
+		if (moduleToDelete.isNil) {
+			"module named % not found among modules %".format(name.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var serverContext = moduleToDelete[\serverContext];
+
+			this.clearTapsForModule(name);
+
+			this.disconnectModulePatchCords(moduleToDelete);
+
+			moduleToDelete[\instance].free;
+			serverContext[\group].free;
+			serverContext[\inbusses] do: { |inputBusAssoc| inputBusAssoc.value.free };
+			serverContext[\outbusses] do: { |outputBusAssoc| outputBusAssoc.value.free };
+			modules.remove(moduleToDelete);
+		};
+	}
+
+	clearTapsForModule { |name|
+		taps.do { |tap, tapIndex|
+			var moduleRef, output;
+
+			# moduleRef, output = tap[\outlet].asString.split($/); // TODO: DRY
+
+			if (moduleRef == name) {
+				this.clearTap(tapIndex);
+			};
+		};
+	}
+
+	clearTap { |tapIndex|
+		this.ifTapIndexWithinBoundsDo(tapIndex) {
+			var tap = taps[tapIndex];
+			tap[\synth].free;
+			tap[\synth] = nil;
+			tap[\outlet] = nil;
+		}
+	}
+
+	tapIsSet { |index|
+		^taps[index][\outlet].notNil
 	}
 
 	moduleHasOutputNamed { |module, name|
@@ -434,7 +572,7 @@ RModule {
 	}
 	*ugenGraphFunc { ^this.subclassResponsibility(thisMethod) }
 	*defName { ^this.asSymbol }
-	*sendDefs {
+	*addDefs {
 		var defName = this.defName.asSymbol;
 		"RModule %: spawning SynthDef %...".format(this.asString.quote, defName.asString.quote).inform;
 		SynthDef(
@@ -581,12 +719,12 @@ RModule {
 			" None",
 			"\n" ++
 			params.collect { |param|
-				"\t- `" ++ param ++ "`"
+				"\t- `" ++ param ++ "`" // TODO: include description derived from ControlSpec
 			}.join($\n)
 		) ++ "\n"
 	}
 
-	*shortName { ^this.subclassResponsibility(thisMethod) } // Preferable <= 8 chars
+	*shortName { ^this.subclassResponsibility(thisMethod) } // TODO: Preferable <= 8 chars
 }
 
 // Status: tested
@@ -1260,7 +1398,7 @@ RDAmplifierModule : RModule {
 			var sig_In2 = In.ar(in_In2);
 			var sig_GainModulation = In.ar(in_GainModulation); // TODO: bipolar unmap
 
-			var curveSpec = ControlSpec.new(0, 1, 13.81523);
+			var curveSpec = ControlSpec.new(0, 1, 13.81523); // TODO: exp approximation, dunno about this?
 
 			var gainGain = SelectX.kr(param_Mode, [param_Gain, curveSpec.map(param_Gain)]); // TODO: exp hack
 			var in1Gain = SelectX.kr(param_Mode, [param_In1, curveSpec.map(param_In1)]); // TODO: exp hack
@@ -2320,25 +2458,7 @@ R4x4MatrixModule : RModule {
 	*shortName { ^'44Matrix' }
 
 	*params {
-		^[
-			'FadeTime' -> ControlSpec(0, 1000, 'lin', 0, 5, "ms"),
-			'Gate_1_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-		]
+		^RMatrixModuleCommon.generateParams(4, 4)
 	}
 
 	*ugenGraphFunc {
@@ -2413,73 +2533,7 @@ R8x8MatrixModule : RModule {
 	*shortName { ^'88Matrix' }
 
 	*params {
-		^[
-			'FadeTime' -> ControlSpec(0, 1000, 'lin', 0, 5, "ms"),
-			'Gate_1_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_1_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_2_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_3_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_4_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_5_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_6_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_7_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_1' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_2' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_3' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_4' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_5' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_6' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_7' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-			'Gate_8_8' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
-		]
+		^RMatrixModuleCommon.generateParams(8, 8)
 	}
 
 	*ugenGraphFunc {
@@ -2667,6 +2721,19 @@ R8x8MatrixModule : RModule {
 			);
 
 		}
+	}
+}
+
+RMatrixModuleCommon {
+	*generateParams { |numRows, numCols|
+		var result = [
+			'FadeTime' -> ControlSpec(0, 1000, 'lin', 0, 5, "ms")
+		] ++ numCols.collect { |colIndex|
+			numRows.collect { |rowIndex|
+					"Gate_"++(colIndex+1)++"_"++(rowIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
+			}
+		}.flatten.collect { |assoc| assoc.key.asSymbol -> assoc.value };
+		^result;
 	}
 }
 
