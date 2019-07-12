@@ -2864,3 +2864,178 @@ RFMVoiceModule : RModule {
 		}
 	}
 }
+
+// TODO: align out and param naming wrt Xyz_1 vs Xyz1
+// Status: not tested
+// Inspiration from A-155
+RSeq1Module : RModule {
+	*shortName { ^'Seq1' }
+
+	*params {
+		var numSteps = 8;
+		var numRows = 2;
+
+		var result = [
+				'Reset' -> \unipolar.asSpec.copy.step_(1), // TODO
+				'Step' -> \unipolar.asSpec.copy.step_(1), // TODO
+				'Range' -> ControlSpec.new(0, 2, nil, 1, 0), // 0 = 1V, 1 = 2V, 2 = 4V
+				'Scale' -> \unipolar.asSpec.copy.default_(1), // TODO
+				'Glide_1' -> \unipolar.asSpec, // TODO
+				'Glide_2' -> \unipolar.asSpec // TODO
+			] ++
+			(
+				numRows.collect { |rowIndex|
+					numSteps.collect { |stepIndex|
+						"Trig_"++(rowIndex+1)++"_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
+					} ++
+					numSteps.collect { |stepIndex|
+						"Value_"++(rowIndex+1)++"_"++(stepIndex+1) -> \bipolar.asSpec
+					}
+				}.flatten ++
+				numSteps.collect { |stepIndex|
+					"Gate_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
+				}
+			).collect { |assoc| assoc.key.asSymbol -> assoc.value };
+		^result; // TODO: remember bug, perform validation that ensures array includes _symbol_ -> definition associations
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_Clock,
+				in_Reset,
+				out_Trig1,
+				out_Trig2,
+				out_Gate,
+				out_PreOut1,
+				out_Out1,
+				out_PreOut2,
+				out_Out2,
+				param_Reset,
+				param_Step,
+				param_Range,
+				param_Scale,
+				param_Glide_1,
+				param_Glide_2,
+				param_Trig_1_1,
+				param_Trig_1_2,
+				param_Trig_1_3,
+				param_Trig_1_4,
+				param_Trig_1_5,
+				param_Trig_1_6,
+				param_Trig_1_7,
+				param_Trig_1_8,
+				param_Trig_2_1,
+				param_Trig_2_2,
+				param_Trig_2_3,
+				param_Trig_2_4,
+				param_Trig_2_5,
+				param_Trig_2_6,
+				param_Trig_2_7,
+				param_Trig_2_8,
+				param_Value_1_1,
+				param_Value_1_2,
+				param_Value_1_3,
+				param_Value_1_4,
+				param_Value_1_5,
+				param_Value_1_6,
+				param_Value_1_7,
+				param_Value_1_8,
+				param_Value_2_1,
+				param_Value_2_2,
+				param_Value_2_3,
+				param_Value_2_4,
+				param_Value_2_5,
+				param_Value_2_6,
+				param_Value_2_7,
+				param_Value_2_8,
+				param_Gate_1,
+				param_Gate_2,
+				param_Gate_3,
+				param_Gate_4,
+				param_Gate_5,
+				param_Gate_6,
+				param_Gate_7,
+				param_Gate_8
+			|
+
+			var sig_Clock = In.ar(in_Clock);
+			var sig_Reset = In.ar(in_Reset);
+
+			var reset = (Trig.ar(sig_Reset, 1/SampleRate.ir) + Trig.ar(param_Reset, 1/SampleRate.ir)) > 0; // TODO: remove param?
+			var step = (Trig.ar(sig_Clock, 1/SampleRate.ir) + Trig.ar(param_Step, 1/SampleRate.ir)) > 0; // TODO: remove param?
+
+			var trigSeq1 = Dseq(
+				[
+					param_Trig_1_1, param_Trig_1_2, param_Trig_1_3, param_Trig_1_4, param_Trig_1_5, param_Trig_1_6, param_Trig_1_7, param_Trig_1_8
+				],
+				inf
+			);
+
+			var trigSeq2 = Dseq(
+				[
+					param_Trig_2_1, param_Trig_2_2, param_Trig_2_3, param_Trig_2_4, param_Trig_2_5, param_Trig_2_6, param_Trig_2_7, param_Trig_2_8
+				],
+				inf
+			);
+
+			var gateSeq = Dseq(
+				[
+					param_Gate_1, param_Gate_2, param_Gate_3, param_Gate_4, param_Gate_5, param_Gate_6, param_Gate_7, param_Gate_8
+				],
+				inf
+			);
+
+			var valueSeq1 = Dseq(
+				[
+					param_Value_1_1, param_Value_1_2, param_Value_1_3, param_Value_1_4, param_Value_1_5, param_Value_1_6, param_Value_1_7, param_Value_1_8
+				],
+				inf
+			);
+
+			var valueSeq2 = Dseq(
+				[
+					param_Value_2_1, param_Value_2_2, param_Value_2_3, param_Value_2_4, param_Value_2_5, param_Value_2_6, param_Value_2_7, param_Value_2_8
+				],
+				inf
+			);
+
+			var trig1 = Demand.ar(step, reset, trigSeq1) * step;
+			var trig2 = Demand.ar(step, reset, trigSeq2) * step;
+			var gate = Latch.ar(Demand.ar(step, reset, gateSeq), step);
+			var freq1 = Demand.ar(step, reset, valueSeq1) * SelectX.kr(param_Range, [0.1, 0.2, 0.4]);
+			var freq2 = Demand.ar(step, reset, valueSeq2) * param_Scale;
+			var latchedFreq1 = Latch.ar(freq1, trig1);
+			var latchedFreq2 = Latch.ar(freq2, trig2);
+
+			Out.ar(
+				out_Trig1,
+				trig1
+			);
+			Out.ar(
+				out_Trig2,
+				trig2
+			);
+			Out.ar(
+				out_Gate,
+				gate
+			);
+			Out.ar(
+				out_PreOut1,
+				freq1
+			);
+			Out.ar(
+				out_Out1,
+				SelectX.ar(gate, [Lag.ar(latchedFreq1, param_Glide_1), latchedFreq1])
+			);
+			Out.ar(
+				out_PreOut2,
+				freq2
+			);
+			Out.ar(
+				out_Out2,
+				SelectX.ar(gate, [Lag.ar(latchedFreq2, param_Glide_2), latchedFreq2])
+			);
+		}
+	}
+}
