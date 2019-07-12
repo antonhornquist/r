@@ -1973,9 +1973,12 @@ RSampleAndHoldModule : RModule {
 				out_Out
 			|
 
+			var sig_In = In.ar(in_In);
+			var sig_Trig = In.ar(in_Trig);
+
 			Out.ar(
 				out_Out,
-				Latch.ar(In.ar(in_In), In.ar(in_Trig))
+				Latch.ar(sig_In, sig_Trig)
 			);
 		}
 	}
