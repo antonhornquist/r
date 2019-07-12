@@ -124,9 +124,12 @@ Engine_R : CroneEngine {
 
 	addPolls {
 		numTaps do: { |tapIndex|
-			this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
-				taps[tapIndex].getSynchronous; // TODO: will not work with remote servers
+			var poll = this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
+				var tap = taps[tapIndex];
+				var value = tap[\bus].getSynchronous; // TODO: will not work with remote servers
+				value
 			});
+			poll.setTime(1/60); // 60 FPS
 		}
 	}
 
