@@ -1,114 +1,166 @@
-Engine_R : CroneEngine {
-	classvar numTaps = 10;
-	var modules;
+// TODO: move LagTimes to SynthDef ugenGraphFunc
+RrrrDSL {
+	*preProcessor {
+		^{ |code, interpreter| this.convert(code, interpreter) };
+	}
+
+	*convert { |code, interpreter|
+		var lines = code.split($\n);
+		^if (
+			lines.every { |line|
+				(line == "")
+				or:
+				(line == "(")
+				or:
+				(line == ")")
+				or:
+				(line.beginsWith("//"))
+				or:
+				#[
+					new,
+					connect,
+					set,
+					disconnect,
+					tapoutlet,
+					mapcc,
+					mapnote,
+					mapnotehz
+				].includes(line.split(Char.space).first.asSymbol)
+			}
+		) {
+			(
+				if (interpreter.r.isNil) {
+					[
+						"\"Hold on, booting server, then starting R...\".inform;",
+						"s.waitForBoot {",
+						Char.tab ++ "r = Rrrr.new;"
+					]
+				} ++ lines.collect { |line|
+					var words = line.split(Char.space);
+					var command = words.first;
+
+					case { (line == "") or: (line == "(") or: (line == ")") or: line.beginsWith("//")} {
+						""
+					}
+					{ command == "new" } {
+						"r.newCommand(" ++ words[1].quote ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "connect" } {
+						"r.connectCommand(" ++ words[1].quote ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "set" } {
+						"r.setCommand(" ++ words[1].quote ++ ", " ++ words[2] ++ ");"
+					}
+					{ command == "disconnect" } {
+						"r.disconnectCommand(" ++ words[1].quote ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "tapoutlet" } {
+						"r.tapoutletCommand(" ++ words[1] ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "mapcc" } {
+						"r.mapccCommand(" ++ words[1] ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "mapnote" } {
+						"r.mapnoteCommand(" ++ words[1].quote ++ ");"
+					}
+					{ command == "mapnotehz" } {
+						"r.mapnotehzCommand(" ++ words[1].quote ++ ");"
+					}
+				} ++ if (interpreter.r.isNil) {
+					[
+						"}"
+					]
+				}
+			).join($\n)
+		} {
+			code
+		};
+	}
+}
+
+Rrrr {
+	classvar <version = "1.2";
+	var <>trace=false;
+
+	classvar defaultNumTaps = 10;
+
+	var server;
+	var parentGroup;
+	var inBus;
+	var outBus;
+
+	var topGroup;
+	var <modules;
+
 	var <taps; // TODO: make private
-	var engineTopGroup;
+
 	var macros;
-	var trace=false;
 
-	*new { |context, callback| ^super.new(context, callback) }
+	*new { |opts| ^super.new.init(opts ? ()) }
 
-	alloc {
-		this.addCommands;
+	init { |opts|
+		var group, numTaps;
+
+		# server, group, inBus, outBus, numTaps = this.prParseOpts(opts);
+
+		"R is initializing...".post;
 
 		this.addDefs;
-		this.addPolls;
 
-		engineTopGroup = Group.tail(context.xg);
+		topGroup = Group.tail(group);
 
-		context.server.sync;
+		server.sync;
 
 		macros = ();
 		modules = [];
-		taps = Array.fill(numTaps, { (bus: Bus.control) });
+		taps = Array.fill(numTaps) { (bus: Bus.control) };
+
+		" OK".postln;
+
+		"Welcome to R %. Evaluate 'help' for details.".format(version).postln;
 	}
 
-	addCommands {
-		this.addCommand('new', "ss") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \newCommand, msg[1], msg[2]].debug(\received);
-			};
-			this.newCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('delete', "s") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \deleteCommand, msg[1].asString[0..20]].debug(\received);
-			};
-			this.deleteCommand(msg[1]);
-		};
-
-		this.addCommand('connect', "ss") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \connectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			this.connectCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('disconnect', "ss") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \disconnectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			this.disconnectCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('set', "sf") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \setCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			this.setCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('bulkset', "s") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \bulksetCommand, msg[1].asString[0..20]].debug(\received);
-			};
-			this.bulksetCommand(msg[1]);
-		};
-
-		this.addCommand('newmacro', "ss") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \newmacroCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			this.newmacroCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('deletemacro', "s") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \deletemacroCommand, (msg[1].asString)[0..20]].debug(\received);
-			};
-			this.deletemacroCommand(msg[1]);
-		};
-
-		this.addCommand('macroset', "sf") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \macrosetCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			this.macrosetCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('tapoutlet', "is") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \tapoutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			this.tapoutletCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('tapclear', "i") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \tapclearCommand, (msg[1].asString)[0..20]].debug(\received);
-			};
-			this.tapclearCommand(msg[1]);
-		};
-
-		this.addCommand('trace', "i") { |msg|
-			trace = msg[1].asBoolean;
-		};
+	prParseOpts { |opts|
+		var server = opts[\server] ? Server.default;
+		^[
+			server,
+			opts[\group] ? server.defaultGroup,
+			opts[\inBus] ? server.options.numOutputBusChannels,
+			opts[\outBus] ? 0,
+			opts[\numTaps] ? defaultNumTaps
+		]
 	}
+
+/*
+	eval { |snippet|
+		var lines = snippet.split($\n);
+		lines.do { |line|
+			var words = line.split(Char.space);
+
+			case { (line == "") or: (line == "(") or: (line == ")") or: line.beginsWith("//")} {
+				""
+			}
+			{ line.beginsWith("new") } {
+				this.newCommand(words[1], words[2]);
+			}
+			{ line.beginsWith("connect") } {
+				this.connectCommand(words[1], words[2]);
+			}
+			{ line.beginsWith("set") } {
+				this.setCommand(words[1], words[2].asInteger);
+			}
+			{ line.beginsWith("disconnect") } {
+				this.disconnectCommand(words[1], words[2]);
+			}
+		}
+	}
+*/
 
 	addDefs {
-		RModule.allSubclasses do: _.addDefs;
-		
+		RModule.allSubclasses do: _.addDefs(trace);
+
+		// TODO: introduce class based alloc for each RModule, if RModule has a class one for general resources (buffers, &c)
+
 		SynthDef(\r_tapout, { |in, out|
 			Out.kr(out, A2K.kr(In.ar(in)));
 		}).add;
@@ -122,28 +174,12 @@ Engine_R : CroneEngine {
 		}).add;
 	}
 
-	addPolls {
-		numTaps do: { |tapIndex|
-			var poll = this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
-				var tap = taps[tapIndex];
-				var value = tap[\bus].getSynchronous; // TODO: will not work with remote servers
-				value
-			});
-			poll.setTime(1/60); // 60 FPS
-		}
+	numTaps {
+		^taps.size
 	}
 
-	free {
-		this.deleteAllModules;
-		taps do: { |tap|
-			tap[\bus].free;
-		};
-	}
-
-	deleteAllModules {
-		modules.collect(_.name) do: { |modulename| // collect used to dup here since deleteCommand removes entries in modules
-			this.deleteModule(modulename)
-		};
+	getTapBus { |tapIndex|
+		^taps[tapIndex]
 	}
 
 	newCommand { |name, kind|
@@ -156,8 +192,8 @@ Engine_R : CroneEngine {
 			^this
 		} {
 			var spec = this.getModuleSpec(kind);
-			var group = Group.tail(engineTopGroup);
-			var patchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
+			var group = Group.tail(topGroup);
+			var inputPatchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
 			var processingGroup = Group.tail(group);
 			var tapGroup = Group.tail(group);
 			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
@@ -167,14 +203,22 @@ Engine_R : CroneEngine {
 				kind: kind.asSymbol,
 				serverContext: (
 					group: group,
-					patchCordGroup: patchCordGroup,
+					inputPatchCordGroup: inputPatchCordGroup,
 					processingGroup: processingGroup,
 					tapGroup: tapGroup,
 					inbusses: inbusses,
 					outbusses: outbusses,
 				),
-				patchCords: spec[\inputs].collect { |input| input -> () }.asDict, // TODO: better to bundle this together with inbusses (?)
-				instance: this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses)
+				// TODO: refactor to local asDict that takes an array of associations
+				inputPatchCords: IdentityDictionary.newFrom(
+					spec[\inputs].collect { |input|
+						[
+							input, // key
+							() // value
+						]
+					}.flatten
+				), // TODO: better to bundle this together with inbusses (?)
+				instance: this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses),
 			);
 			modules = modules.add(module);
 		};
@@ -228,14 +272,14 @@ Engine_R : CroneEngine {
 						this.getModuleSpec(sourceModule[\kind])[\inputs].collect{ |i| i.asString.quote }.join(", ")
 					).error;
 				} {
-					destModule[\patchCords][input.asSymbol][outlet.asSymbol] = Synth(
+					destModule[\inputPatchCords][input.asSymbol][outlet.asSymbol] = Synth(
 						if (sourceModuleIndex >= destModuleIndex, \r_patch_feedback, \r_patch),
 						[
 							\in, sourceModule[\serverContext][\outbusses].detect { |busAssoc| busAssoc.key == output.asSymbol }.value,
 							\out, destModule[\serverContext][\inbusses].detect { |busAssoc| busAssoc.key == input.asSymbol }.value,
 							\level, 1.0
 						],
-						destModule[\serverContext][\patchCordGroup],
+						destModule[\serverContext][\inputPatchCordGroup],
 						\addToTail
 					);
 				}
@@ -256,8 +300,8 @@ Engine_R : CroneEngine {
 
 			destModule = this.lookupModuleByName(destModuleRef);
 
-			destModule[\patchCords][input.asSymbol][outlet.asSymbol].free;
-			destModule[\patchCords][input.asSymbol][outlet.asSymbol] = nil;
+			destModule[\inputPatchCords][input.asSymbol][outlet.asSymbol].free;
+			destModule[\inputPatchCords][input.asSymbol][outlet.asSymbol] = nil;
 		} {
 			"outlet % is not connected to inlet %".format(outlet.asString.quote, inlet.asString.quote).error;
 		}
@@ -265,6 +309,124 @@ Engine_R : CroneEngine {
 
 	deleteCommand { |name|
 		this.deleteModule(name);
+	}
+
+	mapccCommand { |cc, moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.cc(("r_cc_"++cc.asString++"_map").asSymbol, { |val, ctl| // TODO: make this a MIDIfunc
+					if (ctl == cc) {
+						var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(val));
+						this.setCommand(moduleparam, mappedVal);
+						(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+					};
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	mapnoteCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_note_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(note));
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	mapnotehzCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = note.midicps;
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	mapnotegateCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = note.midicps;
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
 	}
 
 	setCommand { |moduleparam, value|
@@ -287,7 +449,7 @@ Engine_R : CroneEngine {
 	}
 
 	bulksetCommand { |bundle|
-		context.server.makeBundle(nil) { // TODO: udp package size limitations and bulksetCommand
+		server.makeBundle(nil) { // TODO: udp package size limitations and bulksetCommand
 			bundle.asString.split($ ).clump(2).do { |cmd, i|
 				this.setCommand(cmd[0], cmd[1]);
 			}
@@ -303,7 +465,7 @@ Engine_R : CroneEngine {
 			bus: bus
 		);
 
-		context.server.makeBundle(nil) {
+		server.makeBundle(nil) {
 			macro[\moduleparams].do { |moduleparam|
 				var moduleRef, parameter, module, spec;
 				# moduleRef, parameter = moduleparam.asString.split($.);
@@ -339,14 +501,6 @@ Engine_R : CroneEngine {
 		// TODO: validate presence of macro
 		// TODO: controlSpecs are not checked here! only allow macro creation of params with same controlSpec in newmacro and constrain here?
 		macros[name.asSymbol][\bus].set(value);
-	}
-
-	ifTapIndexWithinBoundsDo { |tapIndex, func|
-		if (tapIndex < numTaps) {
-			func.value;
-		} {
-			"tap index not within bounds: tapIndex % referred, only % taps available".format(tapIndex, numTaps).error;
-		};
 	}
 
 	tapoutletCommand { |index, outlet|
@@ -393,7 +547,17 @@ Engine_R : CroneEngine {
 	}
 
 	tapclearCommand { |index|
-		this.clearTap(index);
+		this.ifTapIndexWithinBoundsDo(index) {
+			this.clearTap(index);
+		};
+	}
+
+	ifTapIndexWithinBoundsDo { |tapIndex, func|
+		if (tapIndex < this.numTaps) {
+			func.value;
+		} {
+			"tap index not within bounds: tapIndex % referred, only % taps available".format(tapIndex, this.numTaps).error;
+		};
 	}
 
 	deleteModule { |name|
@@ -428,12 +592,10 @@ Engine_R : CroneEngine {
 	}
 
 	clearTap { |tapIndex|
-		this.ifTapIndexWithinBoundsDo(tapIndex) {
-			var tap = taps[tapIndex];
-			tap[\synth].free;
-			tap[\synth] = nil;
-			tap[\outlet] = nil;
-		}
+		var tap = taps[tapIndex];
+		tap[\synth].free;
+		tap[\synth] = nil;
+		tap[\outlet] = nil;
 	}
 
 	tapIsSet { |index|
@@ -456,7 +618,7 @@ Engine_R : CroneEngine {
 			"module named % not found among modules %".format(destModuleRef.asString.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
 			false;
 		} {
-			var patchCordsForInlet = destModule[\patchCords][input.asSymbol];
+			var patchCordsForInlet = destModule[\inputPatchCords][input.asSymbol];
 			if (patchCordsForInlet.isNil) {
 				"input named % not valid for module named % (kind: %)".format(input.asString.quote, destModuleRef.asString.quote, destModule[\kind].asString.quote).error;
 				false;
@@ -513,27 +675,26 @@ Engine_R : CroneEngine {
 	}
 
 	instantiateModuleClass { |kind, processingGroup, inbusses, outbusses|
-		^this.lookupRModuleClassByKind(kind).new(context, processingGroup, inbusses, outbusses);
+		^this.lookupRModuleClassByKind(kind).new(
+			(
+				mainInBus: inBus,
+				mainOutBus: outBus
+			),
+			processingGroup,
+			inbusses,
+			outbusses
+		);
 	}
 
 	lookupRModuleClassByKind { |kind|
 		^this.class.allRModuleClasses.detect { |rModuleClass| rModuleClass.shortName == kind }
 	}
 
-	*generateLuaSpecs {
-		^"local specs = {}\n" ++
-		"\n" ++
-		this.allRModuleClasses.collect { |rModuleClass|
-			rModuleClass.generateLuaSpecs
-		}.join("\n")
-	}
-
-	*generateModulesDocsSection {
-		^"## Available Modules\n" ++
-		"\n" ++
-		this.allRModuleClasses.collect { |rModuleClass|
-			rModuleClass.generateModuleDocs
-		}.join("\n")
+	free {
+		this.prDeleteAllModules;
+		taps do: { |tap|
+			tap[\bus].free;
+		};
 	}
 
 	*allRModuleClasses {
@@ -541,51 +702,99 @@ Engine_R : CroneEngine {
 			a.shortName.asString < b.shortName.asString
 		}
 	}
+
+	prDeleteAllModules {
+		modules.collect(_.name) do: { |modulename| // collect used to dup here since deleteCommand removes entries in modules
+			this.deleteModule(modulename)
+		};
+	}
+
 }
 
 // Abstract superclass
 RModule {
 	var synth;
-	var context;
+	var ioContext;
+
 	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument
+
+	*getParamControlSpec { |parameterName|
+		var paramAssoc = this.params.detect { |param|
+			param.key == parameterName
+		};
+		^paramAssoc !? { // TODO: DRY this up
+			var paramAssocValue = paramAssoc.value;
+			if (paramAssocValue.class == ControlSpec) {
+				paramAssocValue
+			} {
+				// TODO: Event assumed
+				paramAssocValue[\Spec]
+			}
+		}
+	}
+
 	*paramControlSpecs {
 		^this.params !? { |params|
-			params.collect { |paramAssoc|
-				var paramAssocValue = paramAssoc.value;
-				("param_"++paramAssoc.key).asSymbol -> if (paramAssocValue.class == ControlSpec) {
-					paramAssocValue
-				} {
-					// TODO: Event assumed
-					paramAssocValue[\Spec]
-				}
-			}.asDict
+			// TODO: refactor to local asDict that takes an array of associations
+			IdentityDictionary.newFrom(
+				params.collect { |paramAssoc|
+					var paramAssocValue = paramAssoc.value;
+					[
+						("param_"++paramAssoc.key).asSymbol, // key
+						// value ...
+						if (paramAssocValue.class == ControlSpec) { // TODO: DRY this up
+							paramAssocValue
+						} {
+							// TODO: Event assumed
+							paramAssocValue[\Spec]
+						}
+					]
+				}.flatten
+			)
 		}
 	}
+
 	*paramLagTimes {
 		^this.params !? { |params|
-			params.collect { |paramAssoc|
-				var paramAssocValue = paramAssoc.value;
-				("param_"++paramAssoc.key).asSymbol -> if (paramAssocValue.class == Event) {
-					paramAssocValue[\LagTime]
-				} {
-					nil
-				}
-			}.asDict
+			// TODO: refactor to local asDict that takes an array of associations
+			IdentityDictionary.newFrom(
+				params.collect { |paramAssoc|
+					var paramAssocValue = paramAssoc.value;
+					[
+						("param_"++paramAssoc.key).asSymbol, // key
+						// value ...
+						if (paramAssocValue.class == Event) {
+							paramAssocValue[\LagTime]
+						} {
+							nil
+						}
+					];
+				}.flatten;
+			)
 		}
 	}
+
 	*ugenGraphFunc { ^this.subclassResponsibility(thisMethod) }
+
 	*defName { ^this.asSymbol }
-	*addDefs {
+
+	*addDefs { |trace|
 		var defName = this.defName.asSymbol;
-		"RModule %: spawning SynthDef %...".format(this.asString.quote, defName.asString.quote).inform;
+		if (trace) {
+			"RModule %: spawning SynthDef %...".format(this.asString.quote, defName.asString.quote).inform;
+		};
+
 		SynthDef(
 			defName,
 			this.ugenGraphFunc,
 			this.prGetLagTimes,
 			metadata: (specs: this.paramControlSpecs)
 		).add;
-		"...OK. SynthDef % was sent to server".format(defName.asString.quote).inform;
-		"".postln;
+
+		if (trace) {
+			"...OK. SynthDef % was sent to server".format(defName.asString.quote).inform;
+			"".postln;
+		};
 	}
 
 	map { |parameter, bus|
@@ -606,12 +815,12 @@ RModule {
 		}
 	}
 
-	*new { |context, processingGroup, inbusses, outbusses|
-		^super.new.initRModule(context, processingGroup, inbusses, outbusses);
+	*new { |ioContext, processingGroup, inbusses, outbusses|
+		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses);
 	}
 
-	initRModule { |argContext, group, inbusses, outbusses|
-		context = argContext;
+	initRModule { |argIOContext, group, inbusses, outbusses|
+		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
 			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses),
@@ -670,30 +879,6 @@ RModule {
 		}
 	}
 
-	*generateLuaSpecs {
-		^"specs['"++this.shortName.asString++"'] = {\n"++
-			if (this.params.isNil) {
-				""
-			} {
-				this.spec[\parameters].collect { |param| // TODO: report error when controlSpec is not found / or rely on .asSpec
-					var controlSpec = this.paramControlSpecs[("param_"++param.asString).asSymbol]; // TODO: throw error when nothing found -- will happen when *params does not comply with param_Args in ugenGraphFunc
-					"\t" ++ param.asString ++ " = " ++ if (controlSpec.class == Symbol) {
-						"\\" ++ controlSpec.asString
-					} {
-						controlSpec.asSpecifier !? { |specifier| "ControlSpec."++specifier.asString.toUpper } ? ("ControlSpec.new("++[
-							switch (controlSpec.minval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.minval,
-							switch (controlSpec.maxval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.maxval,
-							controlSpec.warp.asSpecifier.asString.quote,
-							controlSpec.step,
-							switch (controlSpec.default) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.default,
-							controlSpec.units.quote
-						].join(", ")++")")
-					}
-				}.join(",\n") ++ "\n"
-			} ++
-		"}" ++ "\n";
-	}
-
 	*generateModuleDocs {
 		var inputs = this.spec[\inputs];
 		var outputs = this.spec[\outputs];
@@ -739,23 +924,24 @@ RSoundInModule : RModule {
 			|
 				out_Left,
 				out_Right,
-				sys_in
+				internal_In
 			|
 
- 			var in = In.ar(sys_in, 2);
+ 			var in = In.ar(internal_In, 2);
 			Out.ar(out_Left, in[0]);
 			Out.ar(out_Right, in[1]);
 		}
 	}
 
-	// override required to add sys_in argument. TODO: or do a synth.set(\sys_in, ...); instead?
-	initRModule { |argContext, group, inbusses, outbusses|
-		context = argContext;
+	// override required to add internal_In argument. TODO: or do a synth.set(\internal_In, ...); instead?
+	// TODO: DRY
+	initRModule { |argIOContext, group, inbusses, outbusses|
+		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
 			(
 				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses) ++
-				[\sys_in, context.in_b] // here
+				[\internal_In, ioContext[\mainInBus]] // here
 			).flatten,
 			target: group
 		);
@@ -781,22 +967,22 @@ RSoundOutModule : RModule {
 				in_Left,
 				in_Right,
 				// TODO param_Gain,
-				sys_out
+				internal_Out
 			|
 
 			var amp = 1; // TODO param_Gain.dbamp;
-			Out.ar(sys_out, [In.ar(in_Left) * amp, In.ar(in_Right) * amp]);
+			Out.ar(internal_Out, [In.ar(in_Left) * amp, In.ar(in_Right) * amp]);
 		}
 	}
 
-	// override required to add sys_out argument. TODO: or do a synth.set(\sys_out, ...); instead?
-	initRModule { |argContext, group, inbusses, outbusses|
-		context = argContext;
+	// override required to add internal_Out argument. TODO: or do a synth.set(\internal_Out, ...); instead?
+	initRModule { |argIOContext, group, inbusses, outbusses|
+		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
 			(
 				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses) ++
-				[\sys_out, context.out_b] // here
+				[\internal_Out, ioContext[\mainOutBus]] // here
 			).flatten,
 			target: group
 		);
@@ -811,11 +997,11 @@ RMultiOscillatorModule : RModule {
 	*params {
 		^[
 			'Range' -> (
-				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
 				LagTime: 0.01
 			),
 			'Tune' -> (
-				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
 				LagTime: 0.01
 			),
 			'PulseWidth' -> (
@@ -852,7 +1038,7 @@ RMultiOscillatorModule : RModule {
 			var sig_FM = In.ar(in_FM);
 			var sig_PWM = In.ar(in_PWM);
 
-			var fullRange = ControlSpec(12.midicps, 120.midicps);
+			var fullRange = ControlSpec.new(12.midicps, 120.midicps);
 
 			var frequency = fullRange.constrain(
 				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
@@ -865,7 +1051,8 @@ RMultiOscillatorModule : RModule {
 
 			var pulseWidth = (
 				param_PulseWidth + (sig_PWM * param_PWM)
-			).clip(0, 1);
+			// ).clip(0, 1); // TODO: remove ?
+			).linlin(0, 1, 0.05, 0.95); // TODO: ??add to other Pulse oscs too
 
 			Out.ar(
 				out_Sine,
@@ -897,11 +1084,11 @@ RSineOscillatorModule : RModule {
 	*params {
 		^[
 			'Range' -> (
-				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
 				LagTime: 0.01
 			),
 			'Tune' -> (
-				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
 				LagTime: 0.01
 			),
 			'FM' -> (
@@ -949,11 +1136,11 @@ RTriangleOscillatorModule : RModule {
 	*params {
 		^[
 			'Range' -> (
-				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
 				LagTime: 0.01
 			),
 			'Tune' -> (
-				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
 				LagTime: 0.01
 			),
 			'FM' -> (
@@ -1001,11 +1188,11 @@ RSawtoothOscillatorModule : RModule {
 	*params {
 		^[
 			'Range' -> (
-				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
 				LagTime: 0.01
 			),
 			'Tune' -> (
-				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
 				LagTime: 0.01
 			),
 			'FM' -> (
@@ -1053,11 +1240,11 @@ RPulseOscModule : RModule {
 	*params {
 		^[
 			'Range' -> (
-				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
 				LagTime: 0.01
 			),
 			'Tune' -> (
-				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
 				LagTime: 0.01
 			),
 			'PulseWidth' -> (
@@ -1144,7 +1331,8 @@ RMultiLFOModule : RModule {
 
 			var sig_Reset = In.ar(in_Reset);
 
-			var retrig = (Trig.ar(sig_Reset) + Trig.kr(param_Reset)) > 0; // TODO: remove param?
+			// TODO: remove var retrig = (Trig.ar(sig_Reset) + Trig.kr(param_Reset)) > 0; // TODO: remove param?
+			var retrig = (Trig.ar(sig_Reset, 1/SampleRate.ir) + Trig.ar(param_Reset, 1/SampleRate.ir)) > 0; // TODO: remove param?
 
 			var invSawPhase = Phasor.ar(retrig, -1/SampleRate.ir*param_Frequency, 0.5, -0.5, 0.5); // TODO: Retrig in middle of saw ramp?
 			var invSawSig = invSawPhase * 0.5; // +- 2.5V
@@ -1215,7 +1403,8 @@ RSineLFOModule : RModule {
 
 			var sig_Reset = In.ar(in_Reset);
 
-			var retrig = (Trig.ar(sig_Reset) + Trig.kr(param_Reset)) > 0; // TODO: remove param?
+			// TODO: remove var retrig = (Trig.ar(sig_Reset) + Trig.kr(param_Reset)) > 0; // TODO: remove param?
+			var retrig = (Trig.ar(sig_Reset, 1/SampleRate.ir) + Trig.ar(param_Reset, 1/SampleRate.ir)) > 0; // TODO: remove param?
 
 			var sinePhase = Phasor.ar(retrig, 1/SampleRate.ir*param_Frequency);
 			var sineSig = SinOsc.ar(0, sinePhase.linlin(0, 1, 0, 2pi), 0.25); // +- 2.5V
@@ -1419,6 +1608,7 @@ RDAmplifierModule : RModule {
 }
 
 // Status: tested
+// TODO: test Exp input more
 RAmplifierModule : RModule {
 	*shortName { ^'Amp' }
 
@@ -1509,13 +1699,14 @@ RSVFMultiModeFilterModule : RModule {
 			var frequencySpec = \widefreq.asSpec;
 			var resonanceSpec = \unipolar.asSpec;
 
+			var sig_In_Atten = sig_In * param_AudioLevel;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
 			Out.ar(
 				out_Notch,
 				SVF.ar(
-					sig_In * param_AudioLevel,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 0,
@@ -1528,7 +1719,7 @@ RSVFMultiModeFilterModule : RModule {
 			Out.ar(
 				out_Highpass,
 				SVF.ar(
-					sig_In,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 0,
@@ -1541,7 +1732,7 @@ RSVFMultiModeFilterModule : RModule {
 			Out.ar(
 				out_Bandpass,
 				SVF.ar(
-					sig_In,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 0,
@@ -1554,7 +1745,7 @@ RSVFMultiModeFilterModule : RModule {
 			Out.ar(
 				out_Lowpass,
 				SVF.ar(
-					sig_In,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 1,
@@ -1618,13 +1809,14 @@ RSVFLowpassFilterModule : RModule {
 			var frequencySpec = \widefreq.asSpec;
 			var resonanceSpec = \unipolar.asSpec;
 
+			var sig_In_Atten = sig_In * param_AudioLevel;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
 			Out.ar(
 				out_Out,
 				SVF.ar(
-					sig_In * param_AudioLevel,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 1,
@@ -1688,13 +1880,14 @@ RSVFHighpassFilterModule : RModule {
 			var frequencySpec = \widefreq.asSpec;
 			var resonanceSpec = \unipolar.asSpec;
 
+			var sig_In_Atten = sig_In * param_AudioLevel;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
 			Out.ar(
 				out_Out,
 				SVF.ar(
-					sig_In * param_AudioLevel,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 0,
@@ -1758,13 +1951,14 @@ RSVFBandpassFilterModule : RModule {
 			var frequencySpec = \widefreq.asSpec;
 			var resonanceSpec = \unipolar.asSpec;
 
+			var sig_In_Atten = sig_In * param_AudioLevel;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
 			Out.ar(
 				out_Out,
 				SVF.ar(
-					sig_In * param_AudioLevel,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 0,
@@ -1828,13 +2022,14 @@ RSVFBandrejectFilterModule : RModule {
 			var frequencySpec = \widefreq.asSpec;
 			var resonanceSpec = \unipolar.asSpec;
 
+			var sig_In_Atten = sig_In * param_AudioLevel;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
 			Out.ar(
 				out_Out,
 				SVF.ar(
-					sig_In * param_AudioLevel,
+					sig_In_Atten,
 					frequency,
 					resonance,
 					lowpass: 0,
@@ -1928,7 +2123,7 @@ RADSREnvelopeModule : RModule {
 				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
 				LagTime: 0.1
 			),
-			'Gate' -> ControlSpec(0, 1, step: 1, default: 0)
+			'Gate' -> ControlSpec(0, 1, step: 1, default: 0) // TODO: DRY the gate/reset/boolean specs
 //			'Curve' -> ControlSpec(-10, 10, 'lin', -4), TODO
 		]
 	}
@@ -1937,8 +2132,9 @@ RADSREnvelopeModule : RModule {
 		^{
 			|
 				in_Gate,
-				// TODO: Retrig
+				// TODO: in_Retrig,
 				out_Out,
+				// TODO: out_OutInverse,
 				param_Attack,
 				param_Decay,
 				param_Sustain,
@@ -1947,13 +2143,14 @@ RADSREnvelopeModule : RModule {
 				param_Curve TODO */
 			|
 
-			var sig_Gate = In.ar(in_Gate);
+			var sig_Gate = In.ar(in_Gate); // TODO: gate threshold on A-148 is 3V = 0.3
 			var curve = -4; // TODO: default is -4, exp approximation -13.81523 !?
 			Out.ar(
 				out_Out,
 				EnvGen.ar(
 					Env.adsr(param_Attack/1000, param_Decay/1000, param_Sustain, param_Release/1000, curve: curve),
-					((sig_Gate > 0) + (param_Gate > 0)) > 0,
+					// TODO ((sig_Gate > 0) + (param_Gate > 0)) > 0,
+					((sig_Gate > 0) + (K2A.ar(param_Gate) > 0)) > 0, // TODO: Is K2A really needed?
 					levelScale: 0.8 // TODO: ~ 8 V
 				)
 			);
@@ -1961,6 +2158,65 @@ RADSREnvelopeModule : RModule {
 	}
 }
 
+// status: untested
+// TODO: This is ADSREnv with Retrig input for testing
+RADSREnvelope2Module : RModule {
+	*shortName { ^'ADSREnv2' }
+
+	*params {
+		^[
+			'Attack' -> (
+				Spec: ControlSpec(0.1, 2000, 'exp', 0, 5, "ms"),
+				LagTime: 0.1
+			),
+			'Decay' -> (
+				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
+				LagTime: 0.1
+			),
+			'Sustain' -> (
+				Spec: ControlSpec(0, 1, 'lin', 0, 0.5, ""),
+				LagTime: 0.1
+			),
+			'Release' -> (
+				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
+				LagTime: 0.1
+			)
+//			'Curve' -> ControlSpec(-10, 10, 'lin', -4), TODO
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_Gate,
+				in_Retrig,
+				out_Out,
+				// TODO: out_OutInverse,
+				param_Attack,
+				param_Decay,
+				param_Sustain,
+				param_Release
+				/* param_Curve TODO */
+			|
+
+			var sig_Gate = In.ar(in_Gate);
+			var sig_Retrig = In.ar(in_Retrig);
+			var curve = -4; // TODO: default is -4, exp approximation -13.81523 !?
+
+			var gate = (sig_Gate > 0) + ((-1)*Trig1.ar(sig_Retrig, 1/SampleRate.ir));
+			Out.ar(
+				out_Out,
+				EnvGen.ar(
+					Env.adsr(param_Attack/1000, param_Decay/1000, param_Sustain, param_Release/1000, curve: curve),
+					// TODO ((sig_Gate > 0) + (param_Gate > 0)) > 0,
+					// ((sig_Gate > 0) + (K2A.ar(param_Gate) > 0)) > 0,
+					gate,
+					levelScale: 0.8 // TODO: ~ 8 V
+				)
+			);
+		}
+	}
+}
 // Status: partly tested
 RSampleAndHoldModule : RModule {
 	*shortName { ^'SampHold' }
@@ -2072,7 +2328,7 @@ RFreqGateModule : RModule {
 	*params {
 		^[
 			'Frequency' -> \freq.asSpec,
-			'Gate' -> ControlSpec(0, 1, step: 1, default: 0)
+			'Gate' -> ControlSpec(0, 1, step: 1, default: 0) // TODO: DRY the gate/reset/boolean specs
 		]
 	}
 
@@ -2090,7 +2346,7 @@ RFreqGateModule : RModule {
 			var octs = ((param_Frequency.cpsoct-3)/10).clip(-0.5, 0.5); // 0.1 = 1 oct
 			Out.ar(out_Frequency, K2A.ar(octs));
 			Out.ar(out_Gate, sig_Gate);
-			Out.ar(out_Gate, Trig.ar(sig_Gate));
+			Out.ar(out_Trig, Trig.ar(sig_Gate, 1/SampleRate.ir)); // TODO: too short a trig? Do the 1/60 thing?
 		}
 	}
 }
@@ -2744,6 +3000,7 @@ RMatrixModuleCommon {
 }
 
 // Status: not tested
+// TODO: Fix parameter names
 RFMVoiceModule : RModule {
 	classvar numOscs = 3;
 
@@ -2786,7 +3043,7 @@ RFMVoiceModule : RModule {
 			|
 				in_Modulation,
 				out_Out,
-				param_Freq,
+				param_Freq, // TODO: Frequency
 				param_Timbre,
 				param_Osc1Gain,
 				param_Osc1Partial,
@@ -2875,19 +3132,75 @@ RFMVoiceModule : RModule {
 // Status: not tested
 // Inspiration from A-155
 RSeq1Module : RModule {
+	classvar numSteps = 8;
+
 	*shortName { ^'Seq1' }
 
+	*ins {
+		^(
+			'Clock': (
+				Description: ""
+			),
+			'Reset': (
+				Description: ""
+			),
+			'SampleAndHoldCtrl1': (
+				Description: ""
+			),
+			'GlideCtrl1': (
+				Description: ""
+			),
+			'SampleAndHoldCtrl2': (
+				Description: ""
+			),
+			'GlideCtrl2': (
+				Description: ""
+			)
+		)
+	}
+
+	*outs {
+		^(
+			'Trig1': (
+				Description: ""
+			),
+			'Trig2': (
+				Description: ""
+			),
+			'Gate': (
+				Description: ""
+			),
+			'PreOut1': (
+				Description: ""
+			),
+			'Out1': (
+				Description: ""
+			),
+			'PreOut2': (
+				Description: ""
+			),
+			'Out2': (
+				Description: ""
+			),
+			'Phase': (
+				Description: ""
+			)
+		)
+	}
+
 	*params {
-		var numSteps = 8;
 		var numRows = 2;
 
 		var result = [
-				'Reset' -> \unipolar.asSpec.copy.step_(1), // TODO
+				'Reset' -> (
+					Spec: \unipolar.asSpec.copy.step_(1), // TODO
+					Description: ""
+				),
 				'Step' -> \unipolar.asSpec.copy.step_(1), // TODO
-				'Range' -> ControlSpec.new(0, 2, nil, 1, 0), // 0 = 1V, 1 = 2V, 2 = 4V
+				'Range' -> ControlSpec.new(0, 2, step: 1, default: 0), // 0 = 1V, 1 = 2V, 2 = 4V
 				'Scale' -> \unipolar.asSpec.copy.default_(1), // TODO
-				'Glide_1' -> \unipolar.asSpec, // TODO
-				'Glide_2' -> \unipolar.asSpec // TODO
+				'Glide_1' -> \unipolar.asSpec, // TODO: longer, up to 10 seconds lag as in Softube slew
+				'Glide_2' -> \unipolar.asSpec // TODO: longer, up to 10 seconds lag as in Softube slew
 			] ++
 			(
 				numRows.collect { |rowIndex|
@@ -2895,11 +3208,11 @@ RSeq1Module : RModule {
 						"Trig_"++(rowIndex+1)++"_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
 					} ++
 					numSteps.collect { |stepIndex|
-						"Value_"++(rowIndex+1)++"_"++(stepIndex+1) -> \bipolar.asSpec
+						"Value_"++(rowIndex+1)++"_"++(stepIndex+1) -> \bipolar.asSpec // TODO: probably make this unipolar to comply with original module
 					}
 				}.flatten ++
 				numSteps.collect { |stepIndex|
-					"Gate_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
+					"Gate_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "") // TODO: DRY the gate/reset/boolean specs
 				}
 			).collect { |assoc| assoc.key.asSymbol -> assoc.value };
 		^result; // TODO: remember bug, perform validation that ensures array includes _symbol_ -> definition associations
@@ -2910,6 +3223,10 @@ RSeq1Module : RModule {
 			|
 				in_Clock,
 				in_Reset,
+				in_SampleAndHoldCtrl1,
+				in_GlideCtrl1,
+				in_SampleAndHoldCtrl2,
+				in_GlideCtrl2,
 				out_Trig1,
 				out_Trig2,
 				out_Gate,
@@ -2917,6 +3234,7 @@ RSeq1Module : RModule {
 				out_Out1,
 				out_PreOut2,
 				out_Out2,
+				out_Phase,
 				param_Reset,
 				param_Step,
 				param_Range,
@@ -2967,9 +3285,14 @@ RSeq1Module : RModule {
 
 			var sig_Clock = In.ar(in_Clock);
 			var sig_Reset = In.ar(in_Reset);
+			var sig_SampleAndHoldCtrl1 = In.ar(in_SampleAndHoldCtrl1);
+			var sig_GlideCtrl1 = In.ar(in_GlideCtrl1);
+			var sig_SampleAndHoldCtrl2 = In.ar(in_SampleAndHoldCtrl2);
+			var sig_GlideCtrl2 = In.ar(in_GlideCtrl2);
 
-			var reset = (Trig.ar(sig_Reset, 1/SampleRate.ir) + Trig.ar(param_Reset, 1/SampleRate.ir)) > 0; // TODO: remove param?
-			var step = (Trig.ar(sig_Clock, 1/SampleRate.ir) + Trig.ar(param_Step, 1/SampleRate.ir)) > 0; // TODO: remove param?
+			var reset = (Trig1.ar(sig_Reset, 1/SampleRate.ir) + Trig.ar(param_Reset, 1/SampleRate.ir)) > 0; // TODO: remove param?
+
+			var clock = (Trig1.ar(sig_Clock, 1/SampleRate.ir) + Trig.ar(param_Step, 1/SampleRate.ir)) > 0; // TODO: remove param?
 
 			var trigSeq1 = Dseq(
 				[
@@ -3006,21 +3329,37 @@ RSeq1Module : RModule {
 				inf
 			);
 
-			var trig1 = Demand.ar(step, reset, trigSeq1) * step;
-			var trig2 = Demand.ar(step, reset, trigSeq2) * step;
-			var gate = Latch.ar(Demand.ar(step, reset, gateSeq), step);
-			var freq1 = Demand.ar(step, reset, valueSeq1) * SelectX.kr(param_Range, [0.1, 0.2, 0.4]);
-			var freq2 = Demand.ar(step, reset, valueSeq2) * param_Scale;
-			var latchedFreq1 = Latch.ar(freq1, trig1);
-			var latchedFreq2 = Latch.ar(freq2, trig2);
+			var trig1 = Demand.ar(clock, reset, trigSeq1) * clock; // TODO: clock usage here means trig length is determined by outside clock signal. right or wrong?
+			// var trig1 = Trig.ar(Demand.ar(clock, reset, trigSeq1) * clock, 1/SampleRate.ir);
+
+			var trig2 = Demand.ar(clock, reset, trigSeq2) * clock; // TODO: clock usage here means trig length is determined by outside clock signal. right or wrong?
+			// var trig2 = Trig.ar(Demand.ar(clock, reset, trigSeq2) * clock, 1/SampleRate.ir);
+
+			var gate = Latch.ar(Demand.ar(clock, reset, gateSeq), clock);
+			var freq1 = Demand.ar(clock, reset, valueSeq1) * SelectX.kr(param_Range, [0.1, 0.2, 0.4]);
+			var freq2 = Demand.ar(clock, reset, valueSeq2) * param_Scale; // TODO: Scale 0 .. 6.5V ?
+
+			// var latchedFreq1 = Latch.ar(freq1, trig1);
+			var latchedFreq1 = Latch.ar(freq1, sig_SampleAndHoldCtrl1); // TODO: consider semi-modular
+
+			// var latchedFreq2 = Latch.ar(freq2, trig2);
+			var latchedFreq2 = Latch.ar(freq2, sig_SampleAndHoldCtrl2); // TODO: consider semi-modular
+
+			// TODO: remove phase
+			var phaseSeq = Dseq([ 0, 1, 2, 3, 4, 5, 6, 7 ], inf);
+			var phase = Demand.ar(clock, reset, phaseSeq);
+			Out.ar(
+				out_Phase,
+				phase/8
+			);
 
 			Out.ar(
 				out_Trig1,
-				trig1
+				Trig1.ar(trig1, 1/60) * 0.5 // TODO: ~5V, TODO: 1/60 second trig length
 			);
 			Out.ar(
 				out_Trig2,
-				trig2
+				Trig1.ar(trig2, 1/60) * 0.5 // TODO: ~5V, TODO: 1/60 second trig length
 			);
 			Out.ar(
 				out_Gate,
@@ -3032,7 +3371,7 @@ RSeq1Module : RModule {
 			);
 			Out.ar(
 				out_Out1,
-				SelectX.ar(gate, [Lag.ar(latchedFreq1, param_Glide_1), latchedFreq1])
+				SelectX.ar(sig_GlideCtrl1, [Lag.ar(latchedFreq1, param_Glide_1), latchedFreq1])
 			);
 			Out.ar(
 				out_PreOut2,
@@ -3040,8 +3379,332 @@ RSeq1Module : RModule {
 			);
 			Out.ar(
 				out_Out2,
-				SelectX.ar(gate, [Lag.ar(latchedFreq2, param_Glide_2), latchedFreq2])
+				SelectX.ar(sig_GlideCtrl2, [Lag.ar(latchedFreq2, param_Glide_2), latchedFreq2])
 			);
 		}
+	}
+}
+
+RSPVoiceModule : RModule {
+	*shortName { ^'SPVoice' }
+
+	*params {
+		^[
+			'Bufnum' -> ControlSpec(0, 128), // TODO
+			'Gate' -> ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
+			'SampleStart' -> \unipolar.asSpec,
+			'SampleEnd' -> \unipolar.asSpec.copy.default_(1),
+			'LoopPoint' -> \unipolar.asSpec,
+			'LoopEnable' -> ControlSpec(0, 1, step: 1, default: 0),
+			'Frequency' -> \freq.asSpec,
+			'RootFrequency' -> \freq.asSpec, // default root is 440 = A4
+			'Volume' -> \db.asSpec.copy.default_(-10),
+			'Pan' -> \pan.asSpec,
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar? nah: enfore unipolar on other modules
+				LagTime: 0.01
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_Gate,
+				in_FM,
+				out_Left,
+				out_Right,
+				param_Bufnum, // TODO
+				param_Gate,
+				param_SampleStart, // start point of playing back sample normalized to 0..1
+				param_SampleEnd, // end point of playing back sample normalized to 0..1. sampleEnd prior to sampleStart will play sample reversed
+				param_LoopPoint, // loop point position between sampleStart and sampleEnd expressed in 0..1
+				param_LoopEnable, // loop enabled switch (1 = play looped, 0 = play oneshot). argument is initial rate so it cannot be changed after a synth starts to play
+				param_Frequency,
+				param_RootFrequency,
+				param_Volume,
+				param_Pan,
+				param_FM
+			|
+
+			var sig_Gate = In.ar(in_Gate);
+			var sig_FM = In.ar(in_FM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps); // TODO: nicked from Osc implementations
+
+			var frequency = fullRange.constrain( // TODO: variant of version in Osc implementations
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					param_Frequency.cpsoct +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+			var gate = ((sig_Gate > 0) + (K2A.ar(param_Gate) > 0)) > 0;
+
+			var latched_sampleStart = Latch.ar(K2A.ar(param_SampleStart), gate); // parameter only has effect at time synth goes from gate 0 to 1
+			var latched_sampleEnd = Latch.ar(K2A.ar(param_SampleEnd), gate); // parameter only has effect at time synth goes from gate 0 to 1
+			var latched_loopPoint = Latch.ar(K2A.ar(param_LoopPoint), gate); // parameter only has effect at time synth goes from gate 0 to 1
+			var latched_loopEnable = Latch.ar(K2A.ar(param_LoopEnable), gate); // parameter only has effect at time synth goes from gate 0 to 1
+			var latched_bufnum = Latch.ar(K2A.ar(param_Bufnum), gate); // parameter only has effect at time synth goes from gate 0 to 1
+
+			var rate = frequency/param_RootFrequency;
+			var direction = (latched_sampleEnd-latched_sampleStart).sign; // 1 = forward, -1 = backward
+			var leftmostSamplePosExtent = min(latched_sampleStart, latched_sampleEnd);
+			var rightmostSamplePosExtent = max(latched_sampleStart, latched_sampleEnd);
+
+			// var onset = Latch.ar(sampleStart, Impulse.ar(0)); // "fixes" onset to sample start at the time of spawning the synth, whereas sample end and *absolute* loop position (calculated from possibly modulating start and end positions) may vary
+			var onset = Latch.ar(latched_sampleStart, gate); // "fixes" onset to sample start at the time of spawning the synth, whereas sample end and *absolute* loop position (calculated from possibly modulating start and end positions) may vary
+
+			var bufDur = BufDur.kr(latched_bufnum);
+			var bufDurDiv = Select.kr(bufDur > 0, [1, bufDur]); // weird way to avoid divide by zero in second sweep argument in the rare case of a buffer having 0 samples which stalls scsynth. there's gotta be a better way to work around this (by not dividing by bufDur) ... TODO
+			var sweep = Sweep.ar(gate, rate/bufDurDiv*direction); // sample duration normalized to 0..1 (sweeping 0..1 sweeps entire sample).
+			var oneshotPhase = onset + sweep; // align phase to actual onset (fixed sample start at the time of spawning the synth)
+
+			var fwdOneshotPhaseDone = ((oneshotPhase > latched_sampleEnd) * (direction > (-1))) > 0; // condition fulfilled if phase is above current sample end and direction is positive
+			var revOneshotPhaseDone = ((oneshotPhase < latched_sampleEnd) * (direction < 0)) > 0; // condition fulfilled if phase is above current sample end and direction is positive
+			var loopPhaseStartTrig = (fwdOneshotPhaseDone + revOneshotPhaseDone) > 0;
+
+			var oneshotSize = rightmostSamplePosExtent-leftmostSamplePosExtent;
+			var loopOffset = latched_loopPoint*oneshotSize; // loop point normalized to entire sample 0..1
+			var loopSize = (1-latched_loopPoint)*oneshotSize; // TODO: this should be fixed / latch for every initialized loop phase / run
+			var absoluteLoopPoint = latched_sampleStart + (loopOffset * direction); // TODO: this should be fixed / latch for every initialized loop phase / run
+
+			var loopPhaseOnset = Latch.ar(oneshotPhase, loopPhaseStartTrig);
+			var loopPhase = (oneshotPhase-loopPhaseOnset).wrap(0, loopSize * direction) + absoluteLoopPoint; // TODO
+			// var loopPhase = oneshotPhase.wrap(sampleStart, sampleEnd);
+
+			/*
+			TODO: debugging
+			loopPhaseStartTrig.poll(label: 'loopPhaseStartTrig');
+			absoluteLoopPoint.poll(label: 'absoluteLoopPoint');
+			loopPhaseOnset.poll(label: 'loopPhaseOnset');
+			oneshotPhase.poll(label: 'oneshotPhase');
+			loopPhase.poll(label: 'loopPhase');
+			loopSize.poll(label: 'loopSize');
+			*/
+
+			var phase = Select.ar(loopPhaseStartTrig, [oneshotPhase, loopPhase]);
+			var sig = BufRd.ar(
+				2, // TODO: Mono, refactor
+				latched_bufnum,
+				phase.linlin(0, 1, 0, BufFrames.kr(latched_bufnum)),
+				interpolation: 4
+			); // TODO: tryout BLBufRd
+
+			//SendTrig.kr(Impulse.kr(60),0,phase);
+			/*
+			var sig = BLBufRd.ar(
+			bufnum,
+			phase.linlin(0, 1, 0, BufFrames.kr(bufnum)),
+			2
+			) ! 2; // TODO: tryout BLBufRd
+			*/
+
+/*
+			sig = sig * (((fwdOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0); // basically: as long as direction is forward and phaseFromStart < sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+			sig = sig * (((revOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0); // basically: as long as direction is backward and phaseFromStart > sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+*/
+			sig = sig * (((fwdOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0) * gate; // basically: as long as direction is forward and phaseFromStart < sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+			sig = sig * (((revOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0) * gate; // basically: as long as direction is backward and phaseFromStart > sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+
+			sig = Balance2.ar(sig[0], sig[1], param_Pan);
+
+			sig = sig * param_Volume.dbamp;
+			Out.ar(out_Left, sig[0]);
+			Out.ar(out_Right, sig[1]);
+		}
+	}
+}
+
+REnvFModule : RModule {
+	*shortName { ^'EnvF' }
+
+	*params {
+		^[
+			'Attack' -> ControlSpec(0, 1, default: 0.1),
+			'Decay' -> ControlSpec(0, 1, default: 0.2),
+			'Sensitivity' -> ControlSpec(0, 1, default: 0.5),
+			'Threshold' -> ControlSpec(0, 1, default: 0.5)
+		]
+	}
+
+	*ugenGraphFunc {
+
+		^{ |
+				param_Attack=0.1,
+				param_Decay=0.2,
+				param_Sensitivity=0.5,
+				param_Threshold=0.5,
+				in_In,
+				out_Env,
+				out_Gate
+			|
+			var sig_In = In.ar(in_In, 1);
+			var env = Lag3UD.ar(abs(sig_In), param_Attack, param_Decay) * 5 * param_Sensitivity;
+			Out.ar(out_Env, env);
+			Out.ar(out_Gate, Trig1.ar(abs(sig_In) > param_Threshold));
+		}
+	}
+}
+
+Engine_R : CroneEngine {
+	var rrrr;
+
+	var trace=false;
+
+	*new { |context, callback| ^super.new(context, callback) }
+
+	alloc {
+		rrrr = Rrrr.new(
+			(
+				server: context.server,
+				group: context.xg,
+				inBus: context.in_b,
+				outBus: context.out_b,
+				numTaps: 10
+			)
+		);
+
+		this.addCommands;
+		this.addPolls;
+	}
+
+	addCommands {
+		this.addCommand('new', "ss") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \newCommand, msg[1], msg[2]].debug(\received);
+			};
+			rrrr.newCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('delete', "s") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \deleteCommand, msg[1].asString[0..20]].debug(\received);
+			};
+			rrrr.deleteCommand(msg[1]);
+		};
+
+		this.addCommand('connect', "ss") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \connectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.connectCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('disconnect', "ss") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \disconnectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.disconnectCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('set', "sf") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \setCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.setCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('bulkset', "s") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \bulksetCommand, msg[1].asString[0..20]].debug(\received);
+			};
+			rrrr.bulksetCommand(msg[1]);
+		};
+
+		this.addCommand('newmacro', "ss") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \newmacroCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.newmacroCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('deletemacro', "s") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \deletemacroCommand, (msg[1].asString)[0..20]].debug(\received);
+			};
+			rrrr.deletemacroCommand(msg[1]);
+		};
+
+		this.addCommand('macroset', "sf") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \macrosetCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.macrosetCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('tapoutlet', "is") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \tapoutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.tapoutletCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('tapclear', "i") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \tapclearCommand, (msg[1].asString)[0..20]].debug(\received);
+			};
+			rrrr.tapclearCommand(msg[1]);
+		};
+
+		this.addCommand('trace', "i") { |msg|
+			trace = msg[1].asBoolean;
+		};
+	}
+
+	addPolls {
+		rrrr.numTaps do: { |tapIndex|
+			var poll = this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
+				var tapBus = rrrr.getTapBus(tapIndex);
+				var value = tapBus.getSynchronous; // TODO: will not work with remote servers
+				value
+			});
+			poll.setTime(1/60); // 60 FPS
+		}
+	}
+
+	free {
+		rrrr.free;
+	}
+
+	*generateLuaSpecs {
+		^"local specs = {}\n" ++
+		"\n" ++
+		Rrrr.allRModuleClasses.collect { |rModuleClass|
+			rModuleClass.generateLuaSpecs
+		}.join("\n")
+	}
+
+	*generateModulesDocsSection {
+		^"## Available Modules\n" ++
+		"\n" ++
+		Rrrr.allRModuleClasses.collect { |rModuleClass|
+			rModuleClass.generateModuleDocs
+		}.join("\n")
+	}
+}
+
++ RModule {
+	*generateLuaSpecs {
+		^"specs['"++this.shortName.asString++"'] = {\n"++
+			if (this.params.isNil) {
+				""
+			} {
+				this.spec[\parameters].collect { |param| // TODO: report error when controlSpec is not found / or rely on .asSpec
+					var controlSpec = this.paramControlSpecs[("param_"++param.asString).asSymbol]; // TODO: throw error when nothing found -- will happen when *params does not comply with param_Args in ugenGraphFunc
+					"\t" ++ param.asString ++ " = " ++ if (controlSpec.class == Symbol) {
+						"\\" ++ controlSpec.asString
+					} {
+						controlSpec.asSpecifier !? { |specifier| "ControlSpec."++specifier.asString.toUpper } ? ("ControlSpec.new("++[
+							switch (controlSpec.minval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.minval,
+							switch (controlSpec.maxval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.maxval,
+							controlSpec.warp.asSpecifier.asString.quote,
+							controlSpec.step,
+							switch (controlSpec.default) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.default,
+							controlSpec.units.quote
+						].join(", ")++")")
+					}
+				}.join(",\n") ++ "\n"
+			} ++
+		"}" ++ "\n";
 	}
 }
