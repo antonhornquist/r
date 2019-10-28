@@ -3520,8 +3520,18 @@ REnvFModule : RModule {
 
 	*params {
 		^[
-			'Attack' -> ControlSpec(0, 1, default: 0.1),
-			'Decay' -> ControlSpec(0, 1, default: 0.2),
+/*
+			'Attack' -> (
+				Spec: ControlSpec(0.1, 2000, 'exp', 0, 100, "ms"),
+				LagTime: 0.1
+			),
+			'Decay' -> (
+				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
+				LagTime: 0.1
+			),
+*/
+			'Attack' -> ControlSpec(0.1, 2000, 'exp', 0, 100, "ms"),
+			'Decay' -> ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
 			'Sensitivity' -> ControlSpec(0, 1, default: 0.5),
 			'Threshold' -> ControlSpec(0, 1, default: 0.5)
 		]
@@ -3530,16 +3540,16 @@ REnvFModule : RModule {
 	*ugenGraphFunc {
 
 		^{ |
-				param_Attack=0.1,
-				param_Decay=0.2,
-				param_Sensitivity=0.5,
-				param_Threshold=0.5,
+				param_Attack,
+				param_Decay,
+				param_Sensitivity,
+				param_Threshold,
 				in_In,
 				out_Env,
 				out_Gate
 			|
 			var sig_In = In.ar(in_In, 1);
-			var env = Lag3UD.ar(abs(sig_In), param_Attack, param_Decay) * 5 * param_Sensitivity;
+			var env = Lag3UD.ar(abs(sig_In), param_Attack/1000, param_Decay/1000) * 5 * param_Sensitivity;
 			Out.ar(out_Env, env);
 			Out.ar(out_Gate, Trig1.ar(abs(sig_In) > param_Threshold));
 		}
