@@ -179,7 +179,7 @@ Rrrr {
 	}
 
 	getTapBus { |tapIndex|
-		^taps[tapIndex]
+		^taps[tapIndex][\bus]
 	}
 
 	newCommand { |name, kind|
@@ -1438,7 +1438,7 @@ RLinMixerModule : RModule {
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1
 			),
-			'Out' -> (
+			'Out' -> ( // TODO: 0 is default, is that right?
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1
 			)
@@ -1653,7 +1653,7 @@ RSVFMultiModeFilterModule : RModule {
 	*params {
 		^[
 			'AudioLevel' -> (
-				Spec: \amp.asSpec,
+				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1
 			),
 			'Frequency' -> (
@@ -1766,7 +1766,7 @@ RSVFLowpassFilterModule : RModule {
 	*params {
 		^[
 			'AudioLevel' -> (
-				Spec: \amp.asSpec,
+				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1
 			),
 			'Frequency' -> (
@@ -1837,7 +1837,7 @@ RSVFHighpassFilterModule : RModule {
 	*params {
 		^[
 			'AudioLevel' -> (
-				Spec: \amp.asSpec,
+				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1
 			),
 			'Frequency' -> (
@@ -1908,7 +1908,7 @@ RSVFBandpassFilterModule : RModule {
 	*params {
 		^[
 			'AudioLevel' -> (
-				Spec: \amp.asSpec,
+				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1
 			),
 			'Frequency' -> (
@@ -1979,7 +1979,7 @@ RSVFBandrejectFilterModule : RModule {
 	*params {
 		^[
 			'AudioLevel' -> (
-				Spec: \amp.asSpec,
+				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1
 			),
 			'Frequency' -> (
