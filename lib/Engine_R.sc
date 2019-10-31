@@ -92,6 +92,7 @@ Rrrr {
 	var topGroup;
 	var <modules;
 
+	var <voidControlBus;
 	var <taps; // TODO: make private
 
 	var macros;
@@ -113,6 +114,7 @@ Rrrr {
 
 		macros = ();
 		modules = [];
+		voidControlBus = Bus.control;
 		taps = Array.fill(numTaps) { (bus: Bus.control) };
 
 		" OK".postln;
@@ -505,10 +507,10 @@ Rrrr {
 
 	tapoutletCommand { |index, outlet|
 		this.ifTapIndexWithinBoundsDo(index) {
-			var moduleRef, output;
+			var moduleRef, outputName;
 			var module;
 
-			# moduleRef, output = outlet.asString.split($/);
+			# moduleRef, outputName = outlet.asString.split($/);
 			// TODO: validate outlet exists against getModuleSpec
 
 			module = this.lookupModuleByName(moduleRef);
@@ -518,16 +520,16 @@ Rrrr {
 				^this
 			};
 
-			if (this.moduleHasOutputNamed(module, output).not) {
+			if (this.moduleHasOutputNamed(module, outputName).not) {
 				"invalid output % for % module named % (possible outputs are %)".format( // TODO: DRY
-					output.asString.quote,
+					outputName.asString.quote,
 					module[\kind].asString.quote,
 					module[\name].asString.quote,
 					this.getModuleSpec(module[\kind])[\outputs].collect{ |o| o.asString.quote }.join(", ")
 				).error;
 			} {
 				var moduleServerContext = module[\serverContext]; // TODO: extract this elsewhere too
-				var outletBus = moduleServerContext[\outbusses].detect { |busAssoc| busAssoc.key == output.asSymbol }.value; // TODO: DRY
+				var outletBus = moduleServerContext[\outbusses].detect { |busAssoc| busAssoc.key == outputName.asSymbol }.value; // TODO: DRY
 				var targetGroup = moduleServerContext[\tapGroup];
 				var tap = taps[index];
 
@@ -542,6 +544,45 @@ Rrrr {
 					addAction: \addToHead
 				);
 				tap[\outlet] = outlet;
+				tap[\type] = \out;
+			};
+		};
+	}
+
+	tapvisualCommand { |index, visual|
+		this.ifTapIndexWithinBoundsDo(index) {
+			var moduleRef, visualName;
+			var module;
+
+			# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
+			// TODO: validate visual exists against getModuleSpec
+
+			module = this.lookupModuleByName(moduleRef);
+
+			if (module.isNil) { // TODO: DRY
+				"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+				^this
+			};
+
+			if (this.moduleHasVisualNamed(module, visualName).not) {
+				"invalid visual % for % module named % (possible outputs are %)".format( // TODO: DRY
+					visualName.asString.quote,
+					module[\kind].asString.quote,
+					module[\name].asString.quote,
+					this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
+				).error;
+			} {
+				var moduleInstance = module[\instance];
+				var tap = taps[index];
+
+				if (this.tapIsSet(index)) {
+					this.clearTap(index);
+				};
+
+				moduleInstance.setVisualBus(visualName, tap[\bus]);
+				tap[\moduleInstance] = moduleInstance;
+				tap[\visual] = visual;
+				tap[\type] = \visual;
 			};
 		};
 	}
@@ -593,17 +634,34 @@ Rrrr {
 
 	clearTap { |tapIndex|
 		var tap = taps[tapIndex];
-		tap[\synth].free;
-		tap[\synth] = nil;
-		tap[\outlet] = nil;
+		switch (tap[\type]) 
+		{ \out } {
+			tap[\synth].free;
+			tap[\synth] = nil;
+			tap[\outlet] = nil;
+			tap[\type] = nil;
+		}
+		{ \visual } {
+			var moduleRef, visualName;
+
+			# moduleRef, visualName = tap[\visual].asString.split($.); // TODO: DRY
+			tap[\moduleInstance].setVisualBus(visualName, voidControlBus);
+			tap[\moduleInstance] = nil;
+			tap[\visual] = nil;
+			tap[\type] = nil;
+		}
 	}
 
 	tapIsSet { |index|
-		^taps[index][\outlet].notNil
+		^taps[index][\type].notNil
 	}
 
 	moduleHasOutputNamed { |module, name|
 		^this.getModuleSpec(module[\kind])[\outputs].any { |output| output == name.asSymbol }
+	}
+
+	moduleHasVisualNamed { |module, name|
+		^this.getModuleSpec(module[\kind])[\visuals].any { |visual| visual == name.asSymbol }
 	}
 
 	moduleHasInputNamed { |module, name|
@@ -678,7 +736,8 @@ Rrrr {
 		^this.lookupRModuleClassByKind(kind).new(
 			(
 				mainInBus: inBus,
-				mainOutBus: outBus
+				mainOutBus: outBus,
+				voidControlBus: voidControlBus
 			),
 			processingGroup,
 			inbusses,
@@ -692,6 +751,7 @@ Rrrr {
 
 	free {
 		this.prDeleteAllModules;
+		voidControlBus.free;
 		taps do: { |tap|
 			tap[\bus].free;
 		};
@@ -717,6 +777,8 @@ RModule {
 	var ioContext;
 
 	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument
+
+	*visuals { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec) associations where name correspond to SynthDef ugenGraphFunc argument
 
 	*getParamControlSpec { |parameterName|
 		var paramAssoc = this.params.detect { |param|
@@ -805,7 +867,7 @@ RModule {
 		}
 	}
 
-	set { |parameter, value|
+	set { |parameter, value| // TODO: rename to setParam
 		this.class.params.detect { |param| param.key == parameter.asSymbol } !? { |param| // TODO: DRY
 			var name, controlSpec, constrainedParamValue;
 			name = ("param_"++param.key.asString).asSymbol;
@@ -813,6 +875,12 @@ RModule {
 			constrainedParamValue = controlSpec.constrain(value);
 			synth.set(name, constrainedParamValue);
 		}
+	}
+
+	setVisualBus { |visual, controlBus| // TODO: rename to something better
+		var name;
+		name = ("visual_"++visual.asString).asSymbol;
+		synth.set(name, controlBus);
 	}
 
 	*new { |ioContext, processingGroup, inbusses, outbusses|
@@ -823,7 +891,7 @@ RModule {
 		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
-			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses),
+			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, ioContext[\voidControlBus]),
 			target: group
 		);
 	}
@@ -836,7 +904,8 @@ RModule {
 		^(
 			inputs: this.prLookupArgNameSuffixesPrefixedBy('in_'),
 			outputs: this.prLookupArgNameSuffixesPrefixedBy('out_'),
-			parameters: this.prLookupArgNameSuffixesPrefixedBy('param_')
+			parameters: this.prLookupArgNameSuffixesPrefixedBy('param_'),
+			visuals: this.prLookupArgNameSuffixesPrefixedBy('visual_')
 		)
 	}
 
@@ -848,7 +917,7 @@ RModule {
 		};
 	}
 
-	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses|
+	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, voidControlBus|
 		^(
 			this.spec[\inputs].collect { |inputName|
 				[
@@ -866,6 +935,10 @@ RModule {
 				var name = ("param_"++parameterName.asString).asSymbol;
 				var controlSpec = this.paramControlSpecs[name]; // TODO: report error when controlSpec is not found / or rely on .asSpec
 				[name, controlSpec.default]
+			} ++
+			this.spec[\visuals].collect { |visualName|
+				var name = ("visual_"++visualName.asString).asSymbol;
+				[name, voidControlBus]
 			}
 		).flatten
 	}
@@ -940,7 +1013,7 @@ RSoundInModule : RModule {
 		synth = Synth(
 			this.class.defName.asSymbol,
 			(
-				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses) ++
+				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, ioContext[\voidControlBus]) ++
 				[\internal_In, ioContext[\mainInBus]] // here
 			).flatten,
 			target: group
@@ -981,7 +1054,7 @@ RSoundOutModule : RModule {
 		synth = Synth(
 			this.class.defName.asSymbol,
 			(
-				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses) ++
+				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, ioContext[\voidControlBus]) ++
 				[\internal_Out, ioContext[\mainOutBus]] // here
 			).flatten,
 			target: group
@@ -1675,6 +1748,14 @@ RSVFMultiModeFilterModule : RModule {
 		]
 	}
 
+	*visuals {
+		^[
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -1689,7 +1770,8 @@ RSVFMultiModeFilterModule : RModule {
 				param_Frequency,
 				param_Resonance,
 				param_FM,
-				param_ResonanceModulation
+				param_ResonanceModulation,
+				visual_Frequency
 			|
 
 			var sig_In = In.ar(in_In);
@@ -1702,6 +1784,8 @@ RSVFMultiModeFilterModule : RModule {
 			var sig_In_Atten = sig_In * param_AudioLevel;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
+
+			Out.kr(visual_Frequency, frequency);
 
 			Out.ar(
 				out_Notch,
@@ -3218,6 +3302,14 @@ RSeq1Module : RModule {
 		^result; // TODO: remember bug, perform validation that ensures array includes _symbol_ -> definition associations
 	}
 
+	*visuals {
+		^[
+			'Position' -> (
+				Spec: \widefreq.asSpec,
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -3234,7 +3326,6 @@ RSeq1Module : RModule {
 				out_Out1,
 				out_PreOut2,
 				out_Out2,
-				out_Phase,
 				param_Reset,
 				param_Step,
 				param_Range,
@@ -3280,7 +3371,8 @@ RSeq1Module : RModule {
 				param_Gate_5,
 				param_Gate_6,
 				param_Gate_7,
-				param_Gate_8
+				param_Gate_8,
+				visual_Position
 			|
 
 			var sig_Clock = In.ar(in_Clock);
@@ -3348,10 +3440,8 @@ RSeq1Module : RModule {
 			// TODO: remove phase
 			var phaseSeq = Dseq([ 0, 1, 2, 3, 4, 5, 6, 7 ], inf);
 			var phase = Demand.ar(clock, reset, phaseSeq);
-			Out.ar(
-				out_Phase,
-				phase/8
-			);
+
+			Out.kr(visual_Position, phase);
 
 			Out.ar(
 				out_Trig1,
@@ -3557,7 +3647,7 @@ REnvFModule : RModule {
 }
 
 Engine_R : CroneEngine {
-	var rrrr;
+	var <rrrr;
 
 	var trace=false;
 
@@ -3647,6 +3737,13 @@ Engine_R : CroneEngine {
 				[SystemClock.seconds, \tapoutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
 			};
 			rrrr.tapoutletCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('tapvisual', "is") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \tapvisualCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.tapvisualCommand(msg[1], msg[2]);
 		};
 
 		this.addCommand('tapclear', "i") { |msg|
