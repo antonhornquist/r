@@ -184,6 +184,34 @@ Rrrr {
 		^taps[tapIndex][\bus]
 	}
 
+	getVisualBus { |visual|
+		var moduleRef, visualName;
+		var module;
+
+		# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
+		// TODO: validate visual exists against getModuleSpec
+
+		module = this.lookupModuleByName(moduleRef);
+
+		if (module.isNil) { // TODO: DRY
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+			^this
+		};
+
+		if (this.moduleHasVisualNamed(module, visualName).not) {
+			"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
+				visualName.asString.quote,
+				module[\kind].asString.quote,
+				module[\name].asString.quote,
+				this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
+			).error;
+		} {
+			var moduleInstance = module[\instance];
+			var bus = moduleInstance.getVisualBus(visualName);
+			bus
+		};
+	}
+
 	newCommand { |name, kind|
 		if (this.lookupRModuleClassByKind(kind.asSymbol).isNil) {
 			"unable to create %. invalid module type %".format(name.asString.quote, kind.asString.quote).error;
@@ -313,6 +341,7 @@ Rrrr {
 		this.deleteModule(name);
 	}
 
+	// TODO: this is merely for testing in SuperCollider, no unmap available
 	mapccCommand { |cc, moduleparam|
 		var moduleRef, parameter, module;
 
@@ -344,6 +373,7 @@ Rrrr {
 		}
 	}
 
+	// TODO: this is merely for testing in SuperCollider, no unmap available
 	mapnoteCommand { |moduleparam|
 		var moduleRef, parameter, module;
 
@@ -373,6 +403,7 @@ Rrrr {
 		}
 	}
 
+	// TODO: this is merely for testing in SuperCollider, no unmap available
 	mapnotehzCommand { |moduleparam|
 		var moduleRef, parameter, module;
 
@@ -402,6 +433,7 @@ Rrrr {
 		}
 	}
 
+	// TODO: this is merely for testing in SuperCollider, no unmap available
 	mapnotegateCommand { |moduleparam|
 		var moduleRef, parameter, module;
 
@@ -549,6 +581,7 @@ Rrrr {
 		};
 	}
 
+/*
 	tapvisualCommand { |index, visual|
 		this.ifTapIndexWithinBoundsDo(index) {
 			var moduleRef, visualName;
@@ -565,7 +598,7 @@ Rrrr {
 			};
 
 			if (this.moduleHasVisualNamed(module, visualName).not) {
-				"invalid visual % for % module named % (possible outputs are %)".format( // TODO: DRY
+				"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
 					visualName.asString.quote,
 					module[\kind].asString.quote,
 					module[\name].asString.quote,
@@ -586,6 +619,7 @@ Rrrr {
 			};
 		};
 	}
+*/
 
 	tapclearCommand { |index|
 		this.ifTapIndexWithinBoundsDo(index) {
@@ -3651,6 +3685,10 @@ Engine_R : CroneEngine {
 
 	var trace=false;
 
+	var numPolls = 10;
+
+	var pollConfigs;
+
 	*new { |context, callback| ^super.new(context, callback) }
 
 	alloc {
@@ -3732,6 +3770,7 @@ Engine_R : CroneEngine {
 			rrrr.macrosetCommand(msg[1], msg[2]);
 		};
 
+/*
 		this.addCommand('tapoutlet', "is") { |msg|
 			if (trace) {
 				[SystemClock.seconds, \tapoutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
@@ -3752,6 +3791,28 @@ Engine_R : CroneEngine {
 			};
 			rrrr.tapclearCommand(msg[1]);
 		};
+*/
+
+		this.addCommand('polloutlet', "is") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \polloutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.tapoutletCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
+			if (trace) {
+				[SystemClock.seconds, \pollvisualCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+			};
+			rrrr.tapvisualCommand(msg[1], msg[2]);
+		};
+
+		this.addCommand('pollclear', "i") { |msg|
+			if (trace) {
+				[SystemClock.seconds, \pollclearCommand, (msg[1].asString)[0..20]].debug(\received);
+			};
+			rrrr.tapclearCommand(msg[1]);
+		};
 
 		this.addCommand('trace', "i") { |msg|
 			trace = msg[1].asBoolean;
@@ -3759,18 +3820,39 @@ Engine_R : CroneEngine {
 	}
 
 	addPolls {
+/*
 		rrrr.numTaps do: { |tapIndex|
 			var poll = this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
+				var pollConfig = pollConfigs[
 				var tapBus = rrrr.getTapBus(tapIndex);
-				var value = tapBus.getSynchronous; // TODO: will not work with remote servers
+				var value = tapBus.getSynchronous; // note: getSynchronous does not work with remote servers
 				value
 			});
 			poll.setTime(1/60); // 60 FPS
-		}
+		};
+*/
+		pollConfigs = [];
+
+		numPolls do: { |pollIndex|
+			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol, {
+				var pollConfig = pollConfigs[pollIndex];
+				var bus, value;
+
+				if (pollConfig[\type] == \out) {
+					bus = rrrr.getTapBus(pollConfig[\tapIndex]);
+				} {
+					bus = rrrr.getVisualBus(pollConfig[\visual]);
+				};
+				value = bus.getSynchronous; // note: getSynchronous does not work with remote servers
+				value
+			});
+			poll.setTime(1/60); // 60 FPS
+		};
 	}
 
 	free {
 		rrrr.free;
+		// TODO: remove polls?
 	}
 
 	*generateLuaSpecs {
