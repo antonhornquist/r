@@ -114,12 +114,11 @@ Rrrr {
 
 		macros = ();
 		modules = [];
-		voidControlBus = Bus.control;
-		taps = Array.fill(numTaps) { (bus: Bus.control) };
+		taps = Array.fill(numTaps) { (bus: Bus.control, active: false) };
 
 		" OK".postln;
 
-		"Welcome to R %. Evaluate 'help' for details.".format(version).postln;
+		// TODO "Welcome to R %. Evaluate 'help' for details.".format(version).postln;
 	}
 
 	prParseOpts { |opts|
@@ -206,9 +205,11 @@ Rrrr {
 				this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
 			).error;
 		} {
-			var moduleInstance = module[\instance];
-			var bus = moduleInstance.getVisualBus(visualName);
-			bus
+			var serverContext, visualbusses, bus;
+			serverContext = module[\serverContext];
+			visualbusses = serverContext[\visualbusses];
+			bus = visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value;
+			^bus
 		};
 	}
 
@@ -228,6 +229,7 @@ Rrrr {
 			var tapGroup = Group.tail(group);
 			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
 			var outbusses = spec[\outputs].collect { |output| output -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
+			var visualbusses = spec[\visuals].collect { |visual| visual -> Bus.control };
 			var module = (
 				name: name.asSymbol, // TODO: validate name, should be [a-zA-Z0-9_]
 				kind: kind.asSymbol,
@@ -238,6 +240,7 @@ Rrrr {
 					tapGroup: tapGroup,
 					inbusses: inbusses,
 					outbusses: outbusses,
+					visualbusses: visualbusses
 				),
 				// TODO: refactor to local asDict that takes an array of associations
 				inputPatchCords: IdentityDictionary.newFrom(
@@ -248,7 +251,7 @@ Rrrr {
 						]
 					}.flatten
 				), // TODO: better to bundle this together with inbusses (?)
-				instance: this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses),
+				instance: this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses, visualbusses),
 			);
 			modules = modules.add(module);
 		};
@@ -576,50 +579,10 @@ Rrrr {
 					addAction: \addToHead
 				);
 				tap[\outlet] = outlet;
-				tap[\type] = \out;
+				tap[\active] = true;
 			};
 		};
 	}
-
-/*
-	tapvisualCommand { |index, visual|
-		this.ifTapIndexWithinBoundsDo(index) {
-			var moduleRef, visualName;
-			var module;
-
-			# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
-			// TODO: validate visual exists against getModuleSpec
-
-			module = this.lookupModuleByName(moduleRef);
-
-			if (module.isNil) { // TODO: DRY
-				"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-				^this
-			};
-
-			if (this.moduleHasVisualNamed(module, visualName).not) {
-				"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
-					visualName.asString.quote,
-					module[\kind].asString.quote,
-					module[\name].asString.quote,
-					this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
-				).error;
-			} {
-				var moduleInstance = module[\instance];
-				var tap = taps[index];
-
-				if (this.tapIsSet(index)) {
-					this.clearTap(index);
-				};
-
-				moduleInstance.setVisualBus(visualName, tap[\bus]);
-				tap[\moduleInstance] = moduleInstance;
-				tap[\visual] = visual;
-				tap[\type] = \visual;
-			};
-		};
-	}
-*/
 
 	tapclearCommand { |index|
 		this.ifTapIndexWithinBoundsDo(index) {
@@ -650,6 +613,7 @@ Rrrr {
 			serverContext[\group].free;
 			serverContext[\inbusses] do: { |inputBusAssoc| inputBusAssoc.value.free };
 			serverContext[\outbusses] do: { |outputBusAssoc| outputBusAssoc.value.free };
+			serverContext[\visualbusses] do: { |visualBusAssoc| visualBusAssoc.value.free };
 			modules.remove(moduleToDelete);
 		};
 	}
@@ -668,26 +632,13 @@ Rrrr {
 
 	clearTap { |tapIndex|
 		var tap = taps[tapIndex];
-		switch (tap[\type]) 
-		{ \out } {
-			tap[\synth].free;
-			tap[\synth] = nil;
-			tap[\outlet] = nil;
-			tap[\type] = nil;
-		}
-		{ \visual } {
-			var moduleRef, visualName;
-
-			# moduleRef, visualName = tap[\visual].asString.split($.); // TODO: DRY
-			tap[\moduleInstance].setVisualBus(visualName, voidControlBus);
-			tap[\moduleInstance] = nil;
-			tap[\visual] = nil;
-			tap[\type] = nil;
-		}
+		tap[\synth].free;
+		tap[\synth] = nil;
+		tap[\outlet] = nil;
 	}
 
 	tapIsSet { |index|
-		^taps[index][\type].notNil
+		^taps[index][\active];
 	}
 
 	moduleHasOutputNamed { |module, name|
@@ -766,16 +717,16 @@ Rrrr {
 		^this.lookupRModuleClassByKind(kind.asSymbol) !? _.spec;
 	}
 
-	instantiateModuleClass { |kind, processingGroup, inbusses, outbusses|
+	instantiateModuleClass { |kind, processingGroup, inbusses, outbusses, visualbusses|
 		^this.lookupRModuleClassByKind(kind).new(
 			(
 				mainInBus: inBus,
-				mainOutBus: outBus,
-				voidControlBus: voidControlBus
+				mainOutBus: outBus
 			),
 			processingGroup,
 			inbusses,
-			outbusses
+			outbusses,
+			visualbusses
 		);
 	}
 
@@ -785,7 +736,6 @@ Rrrr {
 
 	free {
 		this.prDeleteAllModules;
-		voidControlBus.free;
 		taps do: { |tap|
 			tap[\bus].free;
 		};
@@ -917,15 +867,15 @@ RModule {
 		synth.set(name, controlBus);
 	}
 
-	*new { |ioContext, processingGroup, inbusses, outbusses|
-		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses);
+	*new { |ioContext, processingGroup, inbusses, outbusses, visualbusses|
+		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses, visualbusses);
 	}
 
-	initRModule { |argIOContext, group, inbusses, outbusses|
+	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses|
 		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
-			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, ioContext[\voidControlBus]),
+			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses),
 			target: group
 		);
 	}
@@ -951,7 +901,7 @@ RModule {
 		};
 	}
 
-	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, voidControlBus|
+	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, visualbusses|
 		^(
 			this.spec[\inputs].collect { |inputName|
 				[
@@ -972,7 +922,10 @@ RModule {
 			} ++
 			this.spec[\visuals].collect { |visualName|
 				var name = ("visual_"++visualName.asString).asSymbol;
-				[name, voidControlBus]
+				[
+					name,
+					visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value
+				]
 			}
 		).flatten
 	}
@@ -1042,12 +995,12 @@ RSoundInModule : RModule {
 
 	// override required to add internal_In argument. TODO: or do a synth.set(\internal_In, ...); instead?
 	// TODO: DRY
-	initRModule { |argIOContext, group, inbusses, outbusses|
+	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses|
 		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
 			(
-				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, ioContext[\voidControlBus]) ++
+				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses) ++
 				[\internal_In, ioContext[\mainInBus]] // here
 			).flatten,
 			target: group
@@ -1083,12 +1036,12 @@ RSoundOutModule : RModule {
 	}
 
 	// override required to add internal_Out argument. TODO: or do a synth.set(\internal_Out, ...); instead?
-	initRModule { |argIOContext, group, inbusses, outbusses|
+	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses|
 		ioContext = argIOContext;
 		synth = Synth(
 			this.class.defName.asSymbol,
 			(
-				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, ioContext[\voidControlBus]) ++
+				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses) ++
 				[\internal_Out, ioContext[\mainOutBus]] // here
 			).flatten,
 			target: group
@@ -3687,7 +3640,7 @@ Engine_R : CroneEngine {
 
 	var numPolls = 10;
 
-	var pollConfigs;
+	var <pollConfigs;
 
 	*new { |context, callback| ^super.new(context, callback) }
 
@@ -3794,24 +3747,29 @@ Engine_R : CroneEngine {
 */
 
 		this.addCommand('polloutlet', "is") { |msg|
+			var index = msg[1];
+			var outlet = msg[2];
 			if (trace) {
-				[SystemClock.seconds, \polloutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+				[SystemClock.seconds, \polloutletCommand, (index.asString + outlet.asString)[0..20]].debug(\received);
 			};
-			rrrr.tapoutletCommand(msg[1], msg[2]);
+			this.polloutletCommand(index, outlet);
 		};
 
 		this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
+			var index = msg[1];
+			var outlet = msg[2];
 			if (trace) {
-				[SystemClock.seconds, \pollvisualCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
+				[SystemClock.seconds, \pollvisualCommand, (index.asString + outlet.asString)[0..20]].debug(\received);
 			};
-			rrrr.tapvisualCommand(msg[1], msg[2]);
+			this.pollvisualCommand(index, outlet);
 		};
 
 		this.addCommand('pollclear', "i") { |msg|
+			var index = msg[1];
 			if (trace) {
-				[SystemClock.seconds, \pollclearCommand, (msg[1].asString)[0..20]].debug(\received);
+				[SystemClock.seconds, \pollclearCommand, (index.asString)[0..20]].debug(\received);
 			};
-			rrrr.tapclearCommand(msg[1]);
+			this.pollclearCommand(index);
 		};
 
 		this.addCommand('trace', "i") { |msg|
@@ -3819,32 +3777,52 @@ Engine_R : CroneEngine {
 		};
 	}
 
-	addPolls {
-/*
-		rrrr.numTaps do: { |tapIndex|
-			var poll = this.addPoll(("tap" ++ (tapIndex+1)).asSymbol, {
-				var pollConfig = pollConfigs[
-				var tapBus = rrrr.getTapBus(tapIndex);
-				var value = tapBus.getSynchronous; // note: getSynchronous does not work with remote servers
-				value
-			});
-			poll.setTime(1/60); // 60 FPS
+	polloutletCommand { |index, outlet|
+		var pollConfig = pollConfigs[index];
+		if (pollConfig[\type].notNil) {
+			this.pollclearCommand(index);
 		};
-*/
-		pollConfigs = [];
+		rrrr.tapoutletCommand(index, outlet);
+		pollConfig[\type] = \out;
+		pollConfig[\outlet] = outlet;
+		pollConfig[\bus] = rrrr.getTapBus(index);
+	}
+
+	pollvisualCommand { |index, visual|
+		var pollConfig = pollConfigs[index];
+		if (pollConfig[\type].notNil) {
+			this.pollclearCommand(index);
+		};
+		pollConfig[\type] = \visual;
+		pollConfig[\visual] = visual;
+		pollConfig[\bus] = rrrr.getVisualBus(visual);
+	}
+
+	pollclearCommand { |index|
+		var pollConfig = pollConfigs[index];
+		if (pollConfig[\type] == \out) {
+			rrrr.tapclearCommand(index);
+		};
+		pollConfig[\type] = nil;
+		pollConfig[\outlet] = nil;
+		pollConfig[\visual] = nil;
+		pollConfig[\bus] = nil;
+	}
+
+	addPolls {
+		pollConfigs = () ! numPolls;
 
 		numPolls do: { |pollIndex|
-			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol, {
+			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol.debug(\addingPoll), {
 				var pollConfig = pollConfigs[pollIndex];
 				var bus, value;
 
-				if (pollConfig[\type] == \out) {
-					bus = rrrr.getTapBus(pollConfig[\tapIndex]);
-				} {
-					bus = rrrr.getVisualBus(pollConfig[\visual]);
+				bus = pollConfig[\bus];
+				if (bus.notNil) {
+					value = bus.getSynchronous; // note: getSynchronous does not work with remote servers
 				};
-				value = bus.getSynchronous; // note: getSynchronous does not work with remote servers
-				value
+
+				value;
 			});
 			poll.setTime(1/60); // 60 FPS
 		};
