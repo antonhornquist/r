@@ -204,6 +204,7 @@ Rrrr {
 				module[\name].asString.quote,
 				this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
 			).error;
+			// TODO: if no visuals are applicable don't say "possible visuals are ", but "module has no visuals". same with parameters and ins / outs
 		} {
 			var serverContext, visualbusses, bus;
 			serverContext = module[\serverContext];
@@ -2139,6 +2140,14 @@ RLadderLowpassFilterModule : RModule {
 		]
 	}
 
+	*visuals {
+		^[
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -2149,7 +2158,8 @@ RLadderLowpassFilterModule : RModule {
 				param_Frequency,
 				param_Resonance,
 				param_FM,
-				param_ResonanceModulation
+				param_ResonanceModulation,
+				visual_Frequency
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2159,6 +2169,7 @@ RLadderLowpassFilterModule : RModule {
 			var frequencySpec = \widefreq.asSpec;
 			var resonanceSpec = \unipolar.asSpec;
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
+
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 			var sig = MoogLadder.ar(
 				sig_In,
@@ -2166,6 +2177,7 @@ RLadderLowpassFilterModule : RModule {
 				resonance,
 			);
 			Out.ar(out_Out, sig);
+			Out.kr(visual_Frequency, frequency);
 		}
 	}
 }
@@ -3824,7 +3836,8 @@ Engine_R : CroneEngine {
 
 				value;
 			});
-			poll.setTime(1/60); // 60 FPS
+			//poll.setTime(1/60); // 60 FPS
+			poll.setTime(1/120); // 120 times/sec
 		};
 	}
 
