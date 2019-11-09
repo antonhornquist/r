@@ -3836,8 +3836,7 @@ Engine_R : CroneEngine {
 
 				value;
 			});
-			//poll.setTime(1/60); // 60 FPS
-			poll.setTime(1/120); // 120 times/sec
+			poll.setTime(1/30); // 30 FPS
 		};
 	}
 
