@@ -106,7 +106,7 @@ Rrrr {
 
 		"R is initializing...".post;
 
-		this.addDefs;
+		this.addDefs; // TODO: it should be possible to decrease load up time by sending synthdefs lazily to server (set this as an option?)
 
 		topGroup = Group.tail(group);
 
@@ -131,31 +131,6 @@ Rrrr {
 			opts[\numTaps] ? defaultNumTaps
 		]
 	}
-
-/*
-	eval { |snippet|
-		var lines = snippet.split($\n);
-		lines.do { |line|
-			var words = line.split(Char.space);
-
-			case { (line == "") or: (line == "(") or: (line == ")") or: line.beginsWith("//")} {
-				""
-			}
-			{ line.beginsWith("new") } {
-				this.newCommand(words[1], words[2]);
-			}
-			{ line.beginsWith("connect") } {
-				this.connectCommand(words[1], words[2]);
-			}
-			{ line.beginsWith("set") } {
-				this.setCommand(words[1], words[2].asInteger);
-			}
-			{ line.beginsWith("disconnect") } {
-				this.disconnectCommand(words[1], words[2]);
-			}
-		}
-	}
-*/
 
 	addDefs {
 		RModule.allSubclasses do: _.addDefs(trace);
@@ -188,7 +163,7 @@ Rrrr {
 		var module;
 
 		# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
-		// TODO: validate visual exists against getModuleSpec
+		// TODO: validate visual exists against getModuleSpec - done in all occurences since moduleHas** is used?
 
 		module = this.lookupModuleByName(moduleRef);
 
@@ -231,6 +206,18 @@ Rrrr {
 			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
 			var outbusses = spec[\outputs].collect { |output| output -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
 			var visualbusses = spec[\visuals].collect { |visual| visual -> Bus.control };
+			var sampleSlotBuffers = spec[\sampleSlots].collect { |sampleSlotAssoc|
+				var sampleSlotName = sampleSlotAssoc.key;
+				var sampleSlotSpec = sampleSlotAssoc.value;
+				sampleSlotName -> sampleSlotSpec[\Channels].collect { |channelCount|
+					var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message
+					if (trace) {
+						"buffer % created for sample slot % (channel count %)".format(buffer.bufnum, (name++":"++sampleSlotName).quote, channelCount).debug;
+					};
+
+					channelCount -> buffer;
+				};
+			};
 			var module = (
 				name: name.asSymbol, // TODO: validate name, should be [a-zA-Z0-9_]
 				kind: kind.asSymbol,
@@ -241,7 +228,8 @@ Rrrr {
 					tapGroup: tapGroup,
 					inbusses: inbusses,
 					outbusses: outbusses,
-					visualbusses: visualbusses
+					visualbusses: visualbusses,
+					sampleSlotBuffers: sampleSlotBuffers
 				),
 				// TODO: refactor to local asDict that takes an array of associations
 				inputPatchCords: IdentityDictionary.newFrom(
@@ -252,9 +240,22 @@ Rrrr {
 						]
 					}.flatten
 				), // TODO: better to bundle this together with inbusses (?)
-				instance: this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses, visualbusses),
 			);
-			modules = modules.add(module);
+
+			var finalizeFunc = {
+				module[\instance] = this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers);
+				modules = modules.add(module);
+			};
+
+			if (module[\serverContext][\sampleSlotBuffers].notEmpty) {
+				fork { // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
+					server.sync;
+					finalizeFunc.value;
+				};
+			} {
+				finalizeFunc.value;
+			}
+
 		};
 	}
 
@@ -268,9 +269,9 @@ Rrrr {
 			var sourceModuleIndex, destModuleIndex;
 
 			# sourceModuleRef, output = outlet.asString.split($/);
-			// TODO: validate outlet exists against getModuleSpec
+			// TODO: validate outlet exists against getModuleSpec - done? see below
 			# destModuleRef, input = inlet.asString.split($/);
-			// TODO: validate inlet exists against getModuleSpec
+			// TODO: validate inlet exists against getModuleSpec - done? see below
 
 			sourceModule = this.lookupModuleByName(sourceModuleRef);
 
@@ -328,9 +329,9 @@ Rrrr {
 			var destModule;
 
 			# sourceModuleRef, output = outlet.asString.split($/);
-			// TODO: validate outlet exists against getModuleSpec
+			// TODO: validate outlet exists against getModuleSpec - uh, can be implied due to this.isConnected call
 			# destModuleRef, input = inlet.asString.split($/);
-			// TODO: validate inlet exists against getModuleSpec
+			// TODO: validate inlet exists against getModuleSpec - uh, can be implied due to this.isConnected call
 
 			destModule = this.lookupModuleByName(destModuleRef);
 
@@ -345,6 +346,101 @@ Rrrr {
 		this.deleteModule(name);
 	}
 
+	readsampleCommand { |sampleSlot, path|
+		// TODO: this.lookupSampleSlot(...)
+		var moduleRef, sampleSlotName;
+		var module;
+
+		# moduleRef, sampleSlotName = sampleSlot.asString.split($:);
+		// TODO: validate sampleSlot exists against getModuleSpec -- done? below
+
+		module = this.lookupModuleByName(moduleRef);
+
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+			^this
+		};
+
+		if (this.moduleHasSampleSlotNamed(module, sampleSlotName).not) {
+			"invalid sample slot % for % module named % (possible sample slots are %)".format(
+				sampleSlotName.asString.quote,
+				module[\kind].asString.quote,
+				module[\name].asString.quote,
+				this.getModuleSpec(module[\kind])[\sampleSlots].collect{ |s| s.key.asString.quote }.join(", ") // TODO: if none, this looks weird, fix so that it says "no possible sample slots"
+			).error;
+		} {
+			if (File.exists(path).not) {
+				"file % does not exist.".format(path.quote).error;
+			} {
+				var sampleSlotBuffers = this.lookupSampleSlotBuffersByName(module, sampleSlotName); // TODO: naming, for clarity, this is not the complete sampleslotbuffers object, but only for one sampleslot
+
+				// TODO: ensure that path is a soundfile?
+
+				var channelCount = this.getSoundFileNumChannels(path);
+
+				if (channelCount.isNil) {
+					"file % is not a sound file.".format(path.quote).error;
+				} {
+					if (sampleSlotBuffers.keys.includes(channelCount).not) {
+						"sample slot % for % module named % does not support channel count % (supported channel counts are %)".format(
+							sampleSlotName.asString.quote,
+							module[\kind].asString.quote,
+							module[\name].asString.quote,
+							channelCount,
+							sampleSlotBuffers.keys.join(", ")
+						).error;
+					} {
+						var buffer = sampleSlotBuffers[channelCount];
+
+						buffer.allocRead(path);
+
+						fork {
+							server.sync;
+							buffer.updateInfo(path);
+							server.sync;
+							if (trace) {
+								"sample % (% channels) loaded into sample slot % (buffer %)"
+									.format(path.quote, channelCount, (module[\name].asString++":"++sampleSlotName).quote, buffer.bufnum, moduleRef).inform;
+							};
+							module[\instance].setSampleSlotChannelCount(sampleSlotName, channelCount);
+						};
+					}
+				}
+			}
+		}
+	}
+
+/*
+	TODO
+	how to know what buffer (channel count) to use?
+	writesampleCommand { |sampleSlot, path|
+	}
+*/
+
+	getSoundFileNumChannels { |path|
+		var numChannels;
+		var soundFile = SoundFile.openRead(path);
+
+		// TODO: ensure that path is a soundfile
+
+		if (soundFile.notNil) {
+			numChannels = soundFile.numChannels;
+			soundFile.close;
+		};
+		^numChannels;
+	}
+
+	lookupSampleSlotBuffersByName { |module, sampleSlotName|
+		var sampleSlotBufferDict = module[\serverContext][\sampleSlotBuffers].asDict;
+		^sampleSlotBufferDict[sampleSlotName.asSymbol].asDict;
+	}
+
+/*
+	TODO
+	lookupSampleSlot { |sampleSlot|
+	}
+*/
+
 	// TODO: this is merely for testing in SuperCollider, no unmap available
 	mapccCommand { |cc, moduleparam|
 		var moduleRef, parameter, module;
@@ -353,7 +449,7 @@ Rrrr {
 
 		module = this.lookupModuleByName(moduleRef);
 		if (module.isNil) {
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error; // TODO: if no modules at all, say "no modules" not just empty string
 		} {
 			var spec, paramControlSpec;
 
@@ -481,7 +577,7 @@ Rrrr {
 			if (spec[\parameters].includes(parameter.asSymbol)) {
 				module[\instance].set(parameter, value);
 			} {
-				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+				"parameter % not valid for module named % (kind: % has parameters %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote, spec[\parameters].collect { |parameterName| parameterName.asString.quote }.join(", ")).error; // TODO: add clarifying array to all other parameter % not valid occurrences
 			}
 		}
 	}
@@ -547,7 +643,7 @@ Rrrr {
 			var module;
 
 			# moduleRef, outputName = outlet.asString.split($/);
-			// TODO: validate outlet exists against getModuleSpec
+			// TODO: validate outlet exists against getModuleSpec - done below?
 
 			module = this.lookupModuleByName(moduleRef);
 
@@ -602,7 +698,7 @@ Rrrr {
 	deleteModule { |name|
 		var moduleToDelete = this.lookupModuleByName(name);
 		if (moduleToDelete.isNil) {
-			"module named % not found among modules %".format(name.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+			"module named % not found among modules %".format(name.asString.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error; // TODO: if no modules have been created this still says "among modules    "
 		} {
 			var serverContext = moduleToDelete[\serverContext];
 
@@ -615,7 +711,24 @@ Rrrr {
 			serverContext[\inbusses] do: { |inputBusAssoc| inputBusAssoc.value.free };
 			serverContext[\outbusses] do: { |outputBusAssoc| outputBusAssoc.value.free };
 			serverContext[\visualbusses] do: { |visualBusAssoc| visualBusAssoc.value.free };
-			modules.remove(moduleToDelete);
+
+			fork {
+				server.sync; // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
+				serverContext[\sampleSlotBuffers] do: { |sampleSlotAssoc|
+					var sampleSlotName = sampleSlotAssoc.key;
+					var sampleSlotBuffers = sampleSlotAssoc.value;
+					sampleSlotBuffers do: { |sampleSlotBufferAssoc|
+						var channelCount = sampleSlotBufferAssoc.key;
+						var buffer = sampleSlotBufferAssoc.value;
+						var bufnum = buffer.bufnum;
+						buffer.free;
+						if (trace) {
+							"buffer % for sample slot % (channel count %) freed".format(bufnum, (moduleToDelete[\name]++":"++sampleSlotName).quote, channelCount).debug;
+						};
+					}
+				};
+				modules.remove(moduleToDelete);
+			}
 		};
 	}
 
@@ -642,6 +755,10 @@ Rrrr {
 		^taps[index][\active];
 	}
 
+	moduleHasInputNamed { |module, name|
+		^this.getModuleSpec(module[\kind])[\inputs].any { |input| input == name.asSymbol }
+	}
+
 	moduleHasOutputNamed { |module, name|
 		^this.getModuleSpec(module[\kind])[\outputs].any { |output| output == name.asSymbol }
 	}
@@ -650,9 +767,12 @@ Rrrr {
 		^this.getModuleSpec(module[\kind])[\visuals].any { |visual| visual == name.asSymbol }
 	}
 
-	moduleHasInputNamed { |module, name|
-		^this.getModuleSpec(module[\kind])[\inputs].any { |input| input == name.asSymbol }
+	moduleHasSampleSlotNamed { |module, name|
+		^this.getModuleSpec(module[\kind])[\sampleSlots].any { |sampleSlotAssoc|
+			sampleSlotAssoc.key == name.asSymbol
+		}
 	}
+
 
 	isConnected { |outlet, inlet|
 		var destModuleRef, input, destModule;
@@ -718,7 +838,7 @@ Rrrr {
 		^this.lookupRModuleClassByKind(kind.asSymbol) !? _.spec;
 	}
 
-	instantiateModuleClass { |kind, processingGroup, inbusses, outbusses, visualbusses|
+	instantiateModuleClass { |kind, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers|
 		^this.lookupRModuleClassByKind(kind).new(
 			(
 				mainInBus: inBus,
@@ -727,7 +847,8 @@ Rrrr {
 			processingGroup,
 			inbusses,
 			outbusses,
-			visualbusses
+			visualbusses,
+			sampleSlotBuffers
 		);
 	}
 
@@ -761,9 +882,11 @@ RModule {
 	var synth;
 	var ioContext;
 
-	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument
+	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument suffix
 
-	*visuals { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec) associations where name correspond to SynthDef ugenGraphFunc argument
+	*visuals { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec) associations where name correspond to SynthDef ugenGraphFunc argument suffix
+
+	*sampleSlots { ^nil } // specified as name -> (Channels: [Integer, Integer]) associations where Channels depict supported number of channels and name correspond to SynthDef ugenGraphFunc argument suffix
 
 	*getParamControlSpec { |parameterName|
 		var paramAssoc = this.params.detect { |param|
@@ -821,6 +944,16 @@ RModule {
 		}
 	}
 
+	/*
+		ugenGraphFunc argument name prefixes follow the following standard
+			in_* - input (audio bus number)
+			out_* - output (audio bus number)
+			param_* - parameter
+			visual_* - visual feedback (control bus number)
+			numchannels_* - number of channels for sample currently loaded in sample slot 
+			bufnums_* - array of buffer numbers for buffers for every channel count (mono, stereo) possible to load for sample slot
+			internal_ - internal arguments (ie. main in/out used for SoundIn/SoundOut)
+	*/
 	*ugenGraphFunc { ^this.subclassResponsibility(thisMethod) }
 
 	*defName { ^this.asSymbol }
@@ -868,20 +1001,26 @@ RModule {
 		synth.set(name, controlBus);
 	}
 
-	*new { |ioContext, processingGroup, inbusses, outbusses, visualbusses|
-		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses, visualbusses);
+	setSampleSlotChannelCount { |sampleSlotName, channelCount|
+		var name;
+		name = ("numchannels_"++sampleSlotName.asString).asSymbol;
+		synth.set(name, channelCount.asInteger);
 	}
 
-	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses|
-		ioContext = argIOContext;
+	*new { |ioContext, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers|
+		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers);
+	}
+
+	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses, sampleSlotBuffers|
+		ioContext = argIOContext; // TODO: not sure this needs to be stored as a class variable
 		synth = Synth(
 			this.class.defName.asSymbol,
-			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses),
+			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers),
 			target: group
 		);
 	}
 
-	free { // TODO: typically overridden by subclass if more than one synth is spawned in init { }
+	free {
 		synth.free;
 	}
 
@@ -890,7 +1029,12 @@ RModule {
 			inputs: this.prLookupArgNameSuffixesPrefixedBy('in_'),
 			outputs: this.prLookupArgNameSuffixesPrefixedBy('out_'),
 			parameters: this.prLookupArgNameSuffixesPrefixedBy('param_'),
-			visuals: this.prLookupArgNameSuffixesPrefixedBy('visual_')
+			visuals: this.prLookupArgNameSuffixesPrefixedBy('visual_'),
+			sampleSlots: this.prLookupArgNameSuffixesPrefixedBy('numchannels_').collect { |sampleSlotName|
+				var sampleSlotDict = this.sampleSlots.asDict; // TODO: ugly cast every time, fix, no need to repeat this
+				var spec = sampleSlotDict[sampleSlotName];
+				sampleSlotName -> spec
+			},
 		)
 	}
 
@@ -902,7 +1046,7 @@ RModule {
 		};
 	}
 
-	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, visualbusses|
+	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers|
 		^(
 			this.spec[\inputs].collect { |inputName|
 				[
@@ -928,6 +1072,30 @@ RModule {
 					visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value
 				]
 			}
+			++
+			sampleSlotBuffers.collect { |sampleSlotBuffersPerChannelAssoc|
+				var sampleSlotName = sampleSlotBuffersPerChannelAssoc.key;
+				var buffersPerChannel = sampleSlotBuffersPerChannelAssoc.value;
+				[
+					("bufnums_"++sampleSlotName.asString).asSymbol,
+					buffersPerChannel.collect { |channelCountBufferAssoc|
+						var buffer = channelCountBufferAssoc.value;
+						buffer
+					}
+				]
+			}
+/*
+		if (sampleSlotBuffers.notEmpty) {
+			sampleSlotBuffers do: { |sampleSlotBufferDict|
+				synth.setn(\bufnum_);
+			}
+		};
+	TODO: this is to be set up after synth instantiation using Node.setn(\bufnums_[Name], [firstbufnum, secondbufnum, &c])
+			++
+			this.spec[\sampleSlots].collect { |sampleSlotName|
+				var name = ("bufnums_"++visualName.asString).asSymbol;
+			}
+*/
 		).flatten
 	}
 
@@ -994,18 +1162,9 @@ RSoundInModule : RModule {
 		}
 	}
 
-	// override required to add internal_In argument. TODO: or do a synth.set(\internal_In, ...); instead?
-	// TODO: DRY
-	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses|
-		ioContext = argIOContext;
-		synth = Synth(
-			this.class.defName.asSymbol,
-			(
-				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses) ++
-				[\internal_In, ioContext[\mainInBus]] // here
-			).flatten,
-			target: group
-		);
+	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers|
+		^super.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers) ++
+				[\internal_In, ioContext[\mainInBus]]
 	}
 }
 
@@ -1036,17 +1195,9 @@ RSoundOutModule : RModule {
 		}
 	}
 
-	// override required to add internal_Out argument. TODO: or do a synth.set(\internal_Out, ...); instead?
-	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses|
-		ioContext = argIOContext;
-		synth = Synth(
-			this.class.defName.asSymbol,
-			(
-				this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses) ++
-				[\internal_Out, ioContext[\mainOutBus]] // here
-			).flatten,
-			target: group
-		);
+	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers|
+		^super.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers) ++
+				[\internal_Out, ioContext[\mainOutBus]]
 	}
 }
 
@@ -3264,9 +3415,6 @@ RSeq1Module : RModule {
 			),
 			'Out2': (
 				Description: ""
-			),
-			'Phase': (
-				Description: ""
 			)
 		)
 	}
@@ -3304,7 +3452,7 @@ RSeq1Module : RModule {
 	*visuals {
 		^[
 			'Position' -> (
-				Spec: \widefreq.asSpec,
+				Spec: \unipolar.asSpec,
 			),
 		]
 	}
@@ -3479,7 +3627,6 @@ RSPVoiceModule : RModule {
 
 	*params {
 		^[
-			'Bufnum' -> ControlSpec(0, 128), // TODO
 			'Gate' -> ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
 			'SampleStart' -> \unipolar.asSpec,
 			'SampleEnd' -> \unipolar.asSpec.copy.default_(1),
@@ -3496,6 +3643,28 @@ RSPVoiceModule : RModule {
 		]
 	}
 
+	*sampleSlots {
+		^[
+			'Sample' -> (
+				Channels: [1, 2]
+			) // TODO: include metadata on whether samples are supposed to be enabled for read, write or both, and whether to set a default size for initial sample(s) (to set up a fixed recording buffer, etc)
+		]
+	}
+
+	*visuals {
+		^[
+			'Phase' -> (
+				Spec: \unipolar.asSpec,
+			),
+			'Gate' -> (
+				Spec: ControlSpec(0, 1, step: 1) // TODO: DRY the gate/reset/boolean specs
+			),
+			'Playing' -> (
+				Spec: ControlSpec(0, 1, step: 1) // TODO: DRY the gate/reset/boolean specs
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -3503,17 +3672,22 @@ RSPVoiceModule : RModule {
 				in_FM,
 				out_Left,
 				out_Right,
-				param_Bufnum, // TODO
+				// param_Bufnum, // TODO
 				param_Gate,
 				param_SampleStart, // start point of playing back sample normalized to 0..1
 				param_SampleEnd, // end point of playing back sample normalized to 0..1. sampleEnd prior to sampleStart will play sample reversed
 				param_LoopPoint, // loop point position between sampleStart and sampleEnd expressed in 0..1
-				param_LoopEnable, // loop enabled switch (1 = play looped, 0 = play oneshot). argument is initial rate so it cannot be changed after a synth starts to play
+				param_LoopEnable, // loop enabled switch (1 = play looped, 0 = play oneshot). argument is fixed once gated
 				param_Frequency,
 				param_RootFrequency,
 				param_Volume,
 				param_Pan,
-				param_FM
+				param_FM,
+				visual_Phase,
+				visual_Gate,
+				visual_Playing,
+				numchannels_Sample,
+				bufnums_Sample=#[0, 0]
 			|
 
 			var sig_Gate = In.ar(in_Gate);
@@ -3527,23 +3701,50 @@ RSPVoiceModule : RModule {
 					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
 				).octcps
 			);
+			// var gate = param_Gate;
 			var gate = ((sig_Gate > 0) + (K2A.ar(param_Gate) > 0)) > 0;
 
 			var latched_sampleStart = Latch.ar(K2A.ar(param_SampleStart), gate); // parameter only has effect at time synth goes from gate 0 to 1
 			var latched_sampleEnd = Latch.ar(K2A.ar(param_SampleEnd), gate); // parameter only has effect at time synth goes from gate 0 to 1
 			var latched_loopPoint = Latch.ar(K2A.ar(param_LoopPoint), gate); // parameter only has effect at time synth goes from gate 0 to 1
 			var latched_loopEnable = Latch.ar(K2A.ar(param_LoopEnable), gate); // parameter only has effect at time synth goes from gate 0 to 1
-			var latched_bufnum = Latch.ar(K2A.ar(param_Bufnum), gate); // parameter only has effect at time synth goes from gate 0 to 1
+
+			// TODO: remove, bufnums are to be constant var latched_bufnum = Latch.ar(K2A.ar(param_Bufnum), gate); // parameter only has effect at time synth goes from gate 0 to 1
 
 			var rate = frequency/param_RootFrequency;
 			var direction = (latched_sampleEnd-latched_sampleStart).sign; // 1 = forward, -1 = backward
 			var leftmostSamplePosExtent = min(latched_sampleStart, latched_sampleEnd);
 			var rightmostSamplePosExtent = max(latched_sampleStart, latched_sampleEnd);
 
+			var mono_bufnum = bufnums_Sample[0];
+			var stereo_bufnum = bufnums_Sample[1];
+
+/*
+			var monoSampleIsLoaded = Latch.ar(
+				(numchannels_Sample > 0) * (numchannels_Sample < 2),
+				gate
+			);
+			var stereoSampleIsLoaded = Latch.ar(
+				(numchannels_Sample > 1) * (numchannels_Sample < 3),
+				gate
+			);
+
+			var bufnum = Latch.ar(
+				(monoSampleIsLoaded * mono_bufnum)
+				+ 
+				(stereoSampleIsLoaded * stereo_bufnum),
+				gate
+			); // "fixes" bufnum to correct channelcount
+*/
+			var monoSampleIsLoaded = (numchannels_Sample > 0) * (numchannels_Sample < 2);
+			var stereoSampleIsLoaded = (numchannels_Sample > 1) * (numchannels_Sample < 3);
+			var bufnum = (monoSampleIsLoaded * mono_bufnum) + (stereoSampleIsLoaded * stereo_bufnum);
+
 			// var onset = Latch.ar(sampleStart, Impulse.ar(0)); // "fixes" onset to sample start at the time of spawning the synth, whereas sample end and *absolute* loop position (calculated from possibly modulating start and end positions) may vary
 			var onset = Latch.ar(latched_sampleStart, gate); // "fixes" onset to sample start at the time of spawning the synth, whereas sample end and *absolute* loop position (calculated from possibly modulating start and end positions) may vary
 
-			var bufDur = BufDur.kr(latched_bufnum);
+			//var bufDur = BufDur.kr(bufnums_Sample);
+			var bufDur = BufDur.kr(bufnum);
 			var bufDurDiv = Select.kr(bufDur > 0, [1, bufDur]); // weird way to avoid divide by zero in second sweep argument in the rare case of a buffer having 0 samples which stalls scsynth. there's gotta be a better way to work around this (by not dividing by bufDur) ... TODO
 			var sweep = Sweep.ar(gate, rate/bufDurDiv*direction); // sample duration normalized to 0..1 (sweeping 0..1 sweeps entire sample).
 			var oneshotPhase = onset + sweep; // align phase to actual onset (fixed sample start at the time of spawning the synth)
@@ -3571,13 +3772,56 @@ RSPVoiceModule : RModule {
 			loopSize.poll(label: 'loopSize');
 			*/
 
+/*
+			var phases = Select.ar(loopPhaseStartTrig, [oneshotPhase, loopPhase]);
+
+			var mono_phase = phases[0];
+			var stereo_phase = phases[1];
+
+			var sig = (
+				(
+					BufRd.ar( // TODO: tryout BLBufRd
+						1,
+						mono_bufnum,
+						mono_phase.linlin(0, 1, 0, BufFrames.kr(mono_bufnum)),
+						interpolation: 4
+					) ! 2 * monoSampleIsLoaded
+				) + 
+				(
+					BufRd.ar( // TODO: tryout BLBufRd
+						2,
+						stereo_bufnum,
+						stereo_phase.linlin(0, 1, 0, BufFrames.kr(stereo_bufnum)),
+						interpolation: 4
+					) * stereoSampleIsLoaded
+				)
+			);
+*/
 			var phase = Select.ar(loopPhaseStartTrig, [oneshotPhase, loopPhase]);
-			var sig = BufRd.ar(
-				2, // TODO: Mono, refactor
-				latched_bufnum,
-				phase.linlin(0, 1, 0, BufFrames.kr(latched_bufnum)),
-				interpolation: 4
-			); // TODO: tryout BLBufRd
+
+			var isForwardDirectionAndOkPlaying = ((fwdOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0; // basically: as long as direction is forward and phaseFromStart < sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+			var isReversedDirectionAndOkPlaying = ((revOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0; // basically: as long as direction is backward and phaseFromStart > sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+
+			var stillPlaying = (1 min: (isForwardDirectionAndOkPlaying * isReversedDirectionAndOkPlaying * gate));
+
+			var sig = (
+				(
+					BufRd.ar( // TODO: tryout BLBufRd
+						1,
+						mono_bufnum,
+						phase.linlin(0, 1, 0, BufFrames.kr(mono_bufnum)),
+						interpolation: 4
+					) ! 2 * monoSampleIsLoaded
+				) + 
+				(
+					BufRd.ar( // TODO: tryout BLBufRd
+						2,
+						stereo_bufnum,
+						phase.linlin(0, 1, 0, BufFrames.kr(stereo_bufnum)),
+						interpolation: 4
+					) * stereoSampleIsLoaded
+				)
+			);
 
 			//SendTrig.kr(Impulse.kr(60),0,phase);
 			/*
@@ -3592,14 +3836,20 @@ RSPVoiceModule : RModule {
 			sig = sig * (((fwdOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0); // basically: as long as direction is forward and phaseFromStart < sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
 			sig = sig * (((revOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0); // basically: as long as direction is backward and phaseFromStart > sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
 */
+/*
 			sig = sig * (((fwdOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0) * gate; // basically: as long as direction is forward and phaseFromStart < sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
 			sig = sig * (((revOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0) * gate; // basically: as long as direction is backward and phaseFromStart > sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
+*/
+			sig = sig * stillPlaying;
 
 			sig = Balance2.ar(sig[0], sig[1], param_Pan);
 
 			sig = sig * param_Volume.dbamp;
 			Out.ar(out_Left, sig[0]);
 			Out.ar(out_Right, sig[1]);
+			Out.kr(visual_Phase, Gate.ar(phase, stillPlaying));
+			Out.kr(visual_Gate, gate);
+			Out.kr(visual_Playing, stillPlaying);
 		}
 	}
 }
@@ -3645,10 +3895,107 @@ REnvFModule : RModule {
 	}
 }
 
+// From https://en.wikibooks.org/wiki/Designing_Sound_in_SuperCollider/Schroeder_reverb
+RReverb1Module : RModule {
+	*shortName { ^'Rev1' }
+
+	*params {
+		^[
+			'Volume' -> (
+				Spec: \db.asSpec.copy.maxval_(12).default_(-10),
+				LagTime: 0.1
+			),
+			'PreDelay' -> (
+				Spec: ControlSpec(1, 1000, default: 64, units: "ms"),
+				LagTime: 0.5
+			),
+			'DelTime_1' -> (
+				Spec: ControlSpec(64, 1000, default: 101, units: "ms"), // minimum = s.options.blockize
+				LagTime: 0.5
+			),
+			'DelTime_2' -> (
+				Spec: ControlSpec(64, 1000, default: 143, units: "ms"), // minimum = s.options.blockize
+				LagTime: 0.5
+			),
+			'DelTime_3' -> (
+				Spec: ControlSpec(64, 1000, default: 165, units: "ms"), // minimum = s.options.blockize
+				LagTime: 0.5
+			),
+			'DelTime_4' -> (
+				Spec: ControlSpec(64, 1000, default: 177, units: "ms"), // minimum = s.options.blockize
+				LagTime: 0.5
+			),
+			'DelAtten_1' -> (
+				Spec: \unipolar.asSpec.copy.maxval_(0.5).default_(0.4),
+				LagTime: 0.1
+			),
+			'DelAtten_2' -> (
+				Spec: \unipolar.asSpec.copy.maxval_(0.5).default_(0.37),
+				LagTime: 0.1
+			),
+			'DelAtten_3' -> (
+				Spec: \unipolar.asSpec.copy.maxval_(0.5).default_(0.333),
+				LagTime: 0.1
+			),
+			'DelAtten_4' -> (
+				Spec: \unipolar.asSpec.copy.maxval_(0.5).default_(0.3),
+				LagTime: 0.1
+			)
+		]
+	}
+
+	*ugenGraphFunc {
+
+		^{ |
+				param_Volume,
+				param_PreDelay,
+				param_DelTime_1,
+				param_DelTime_2,
+				param_DelTime_3,
+				param_DelTime_4,
+				param_DelAtten_1,
+				param_DelAtten_2,
+				param_DelAtten_3,
+				param_DelAtten_4,
+				in_Left,
+				in_Right,
+				out_Left,
+				out_Right
+			|
+			var sig_Left = In.ar(in_Left, 1);
+			var sig_Right = In.ar(in_Right, 1);
+			var amp = param_Volume.dbamp;
+
+			// Here we give delay times in milliseconds, convert to seconds,
+			// then compensate with ControlDur for the one-block delay
+			// which is always introduced when using the LocalIn/Out fdbk loop
+			var deltimes = [param_DelTime_1, param_DelTime_2, param_DelTime_3, param_DelTime_4] * 0.001 - ControlDur.ir;
+
+			// Read our 4-channel delayed signals back from the feedback loop
+			var delrd = LocalIn.ar(4);
+
+			// This will be our eventual output, which will also be recirculated
+			var output = [sig_Left, sig_Right] + delrd[[0,1]];
+
+			// Cross-fertilise the four delay lines with each other:
+			var sig = [output[0]+output[1], output[0]-output[1], delrd[2]+delrd[3], delrd[2]-delrd[3]];
+			sig = [sig[0]+sig[2], sig[1]+sig[3], sig[0]-sig[2], sig[1]-sig[3]];
+			// Attenutate the delayed signals so they decay:
+			sig = sig * [param_DelAtten_1, param_DelAtten_2, param_DelAtten_3, param_DelAtten_4];
+
+			// Apply the delays and send the signals into the feedback loop
+			LocalOut.ar(DelayC.ar(sig, deltimes, deltimes));
+
+			output = DelayC.ar(output, 1, param_PreDelay/1000);
+
+			Out.ar(out_Left, output[0] * amp);
+			Out.ar(out_Right, output[1] * amp);
+		}
+	}
+}
+
 Engine_R : CroneEngine {
 	var <rrrr;
-
-	var trace=false;
 
 	var numPolls = 10;
 
@@ -3673,95 +4020,72 @@ Engine_R : CroneEngine {
 
 	addCommands {
 		this.addCommand('new', "ss") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \newCommand, msg[1], msg[2]].debug(\received);
 			};
 			rrrr.newCommand(msg[1], msg[2]);
 		};
 
 		this.addCommand('delete', "s") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \deleteCommand, msg[1].asString[0..20]].debug(\received);
 			};
 			rrrr.deleteCommand(msg[1]);
 		};
 
 		this.addCommand('connect', "ss") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \connectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
 			};
 			rrrr.connectCommand(msg[1], msg[2]);
 		};
 
 		this.addCommand('disconnect', "ss") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \disconnectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
 			};
 			rrrr.disconnectCommand(msg[1], msg[2]);
 		};
 
 		this.addCommand('set', "sf") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \setCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
 			};
 			rrrr.setCommand(msg[1], msg[2]);
 		};
 
 		this.addCommand('bulkset', "s") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \bulksetCommand, msg[1].asString[0..20]].debug(\received);
 			};
 			rrrr.bulksetCommand(msg[1]);
 		};
 
 		this.addCommand('newmacro', "ss") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \newmacroCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
 			};
 			rrrr.newmacroCommand(msg[1], msg[2]);
 		};
 
 		this.addCommand('deletemacro', "s") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \deletemacroCommand, (msg[1].asString)[0..20]].debug(\received);
 			};
 			rrrr.deletemacroCommand(msg[1]);
 		};
 
 		this.addCommand('macroset', "sf") { |msg|
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \macrosetCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
 			};
 			rrrr.macrosetCommand(msg[1], msg[2]);
 		};
 
-/*
-		this.addCommand('tapoutlet', "is") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \tapoutletCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.tapoutletCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('tapvisual', "is") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \tapvisualCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.tapvisualCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('tapclear', "i") { |msg|
-			if (trace) {
-				[SystemClock.seconds, \tapclearCommand, (msg[1].asString)[0..20]].debug(\received);
-			};
-			rrrr.tapclearCommand(msg[1]);
-		};
-*/
-
 		this.addCommand('polloutlet', "is") { |msg|
 			var index = msg[1];
 			var outlet = msg[2];
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \polloutletCommand, (index.asString + outlet.asString)[0..20]].debug(\received);
 			};
 			this.polloutletCommand(index, outlet);
@@ -3770,7 +4094,7 @@ Engine_R : CroneEngine {
 		this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
 			var index = msg[1];
 			var outlet = msg[2];
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \pollvisualCommand, (index.asString + outlet.asString)[0..20]].debug(\received);
 			};
 			this.pollvisualCommand(index, outlet);
@@ -3778,14 +4102,23 @@ Engine_R : CroneEngine {
 
 		this.addCommand('pollclear', "i") { |msg|
 			var index = msg[1];
-			if (trace) {
+			if (rrrr.trace) {
 				[SystemClock.seconds, \pollclearCommand, (index.asString)[0..20]].debug(\received);
 			};
 			this.pollclearCommand(index);
 		};
 
+		this.addCommand('readsample', "ss") { |msg|
+			var sampleSlot = msg[1];
+			var path = msg[2];
+			if (rrrr.trace) {
+				[SystemClock.seconds, \readsampleCommand, (sampleSlot.asString + path.asString)[0..20]].debug(\received);
+			};
+			rrrr.readsampleCommand(sampleSlot, path.asString);
+		};
+
 		this.addCommand('trace', "i") { |msg|
-			trace = msg[1].asBoolean;
+			rrrr.trace = msg[1].asBoolean;
 		};
 	}
 
@@ -3825,7 +4158,7 @@ Engine_R : CroneEngine {
 		pollConfigs = () ! numPolls;
 
 		numPolls do: { |pollIndex|
-			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol.debug(\addingPoll), {
+			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol, {
 				var pollConfig = pollConfigs[pollIndex];
 				var bus, value;
 
