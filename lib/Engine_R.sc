@@ -1,3 +1,59 @@
+/*
+
+work on some terminology
+
+what to call it - input or inlet, output or outlet?
+
+moduleRef = a module name: ie. "Filter", "Osc"
+inletRef = a module name and input name joined with a "/": ie. "Filter/In", "Osc/FM"
+outletRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
+parameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
+visualRef = a module name and visual name joined with a ".": ie. "Filter.Frequency", "Seq1.Position"
+sampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
+macroRef = a macro name: ie. "Tune"
+
+moduleRef = a module name: ie. "Filter", "Osc"
+inletRef = a module name and input name joined with a "*": ie. "Filter*In", "Osc*FM"
+outletRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
+parameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
+visualRef = a module name and visual name joined with a ".": ie. "Filter=Frequency", "Seq1=Position"
+sampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
+macroRef = a macro name: ie. "Tune"
+
+new ss <modulename> <moduletype> - creates a uniquely named module of given type (refer to section "Modules" for available types).
+Examples: new Osc MultiOsc, new Out SoundOut
+
+connect ss <modulename-output> <modulename*input> - connects a module output to a module input.
+Examples: connect Osc/Pulse Out*Left, connect Osc/Pulse Out*Right
+
+disconnect ss <modulename-output> <modulename*input> - disconnects a module output from a module input.
+Example: disconnect Osc/Out Out*Left
+
+set sf <modulename.parameter> <value> - sets a module parameter to the given value.
+Examples: set Osc.Tune -13, set Osc.PulseWidth 0.5
+
+delete s <modulename> - removes a module.
+Example: delete Osc
+
+pollvisual is <pollindex> <modulename=visual> - routes a visual to an indexed poll TODO: index starts from 0 or 1? 0 in SC!
+Example: pollvisual 0 Osc-Frequency
+
+TODO: rename to polloutput or pollout?
+polloutlet is <pollindex> <modulename-outlet> - routes a signal output to an indexed poll TODO: index starts from 0 or 1? 0 in SC!
+Example: polloutlet 0 LFO/InvSaw
+
+TODO: consider adding to pollinput or pollin?
+
+pollclear i <pollindex> - clears routing to an indexed poll TODO: index starts from 0 or 1? 0 in SC!
+Example: pollclear 0
+
+*/
+
+// TODO: come to think of it - move all syntax out of Rrrr class
+// TODO: also refactor all midi map* commands out of main Rrrr class
+
+// TODO: validation method that checks metadata against SynthDescLib
+
 // TODO: move LagTimes to SynthDef ugenGraphFunc
 RrrrDSL {
 	*preProcessor {
@@ -148,45 +204,6 @@ Rrrr {
 		SynthDef(\r_patch_feedback, { |in, out|
 			Out.ar(out, InFeedback.ar(in, 1));
 		}).add;
-	}
-
-	numTaps {
-		^taps.size
-	}
-
-	getTapBus { |tapIndex|
-		^taps[tapIndex][\bus]
-	}
-
-	getVisualBus { |visual|
-		var moduleRef, visualName;
-		var module;
-
-		# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
-		// TODO: validate visual exists against getModuleSpec - done in all occurences since moduleHas** is used?
-
-		module = this.lookupModuleByName(moduleRef);
-
-		if (module.isNil) { // TODO: DRY
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-			^this
-		};
-
-		if (this.moduleHasVisualNamed(module, visualName).not) {
-			"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
-				visualName.asString.quote,
-				module[\kind].asString.quote,
-				module[\name].asString.quote,
-				this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
-			).error;
-			// TODO: if no visuals are applicable don't say "possible visuals are ", but "module has no visuals". same with parameters and ins / outs
-		} {
-			var serverContext, visualbusses, bus;
-			serverContext = module[\serverContext];
-			visualbusses = serverContext[\visualbusses];
-			bus = visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value;
-			^bus
-		};
 	}
 
 	newCommand { |name, kind|
@@ -417,152 +434,6 @@ Rrrr {
 	}
 */
 
-	getSoundFileNumChannels { |path|
-		var numChannels;
-		var soundFile = SoundFile.openRead(path);
-
-		// TODO: ensure that path is a soundfile
-
-		if (soundFile.notNil) {
-			numChannels = soundFile.numChannels;
-			soundFile.close;
-		};
-		^numChannels;
-	}
-
-	lookupSampleSlotBuffersByName { |module, sampleSlotName|
-		var sampleSlotBufferDict = module[\serverContext][\sampleSlotBuffers].asDict;
-		^sampleSlotBufferDict[sampleSlotName.asSymbol].asDict;
-	}
-
-/*
-	TODO
-	lookupSampleSlot { |sampleSlot|
-	}
-*/
-
-	// TODO: this is merely for testing in SuperCollider, no unmap available
-	mapccCommand { |cc, moduleparam|
-		var moduleRef, parameter, module;
-
-		# moduleRef, parameter = moduleparam.asString.split($.);
-
-		module = this.lookupModuleByName(moduleRef);
-		if (module.isNil) {
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error; // TODO: if no modules at all, say "no modules" not just empty string
-		} {
-			var spec, paramControlSpec;
-
-			spec = this.getModuleSpec(module[\kind]);
-
-			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
-
-			if (spec[\parameters].includes(parameter.asSymbol)) {
-				MIDIIn.connectAll;
-
-				MIDIdef.cc(("r_cc_"++cc.asString++"_map").asSymbol, { |val, ctl| // TODO: make this a MIDIfunc
-					if (ctl == cc) {
-						var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(val));
-						this.setCommand(moduleparam, mappedVal);
-						(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
-					};
-				});
-			} {
-				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
-			}
-		}
-	}
-
-	// TODO: this is merely for testing in SuperCollider, no unmap available
-	mapnoteCommand { |moduleparam|
-		var moduleRef, parameter, module;
-
-		# moduleRef, parameter = moduleparam.asString.split($.);
-
-		module = this.lookupModuleByName(moduleRef);
-		if (module.isNil) {
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-		} {
-			var spec, paramControlSpec;
-
-			spec = this.getModuleSpec(module[\kind]);
-
-			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
-
-			if (spec[\parameters].includes(parameter.asSymbol)) {
-				MIDIIn.connectAll;
-
-				MIDIdef.noteOn(("r_note_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
-					var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(note));
-					this.setCommand(moduleparam, mappedVal);
-					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
-				});
-			} {
-				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
-			}
-		}
-	}
-
-	// TODO: this is merely for testing in SuperCollider, no unmap available
-	mapnotehzCommand { |moduleparam|
-		var moduleRef, parameter, module;
-
-		# moduleRef, parameter = moduleparam.asString.split($.);
-
-		module = this.lookupModuleByName(moduleRef);
-		if (module.isNil) {
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-		} {
-			var spec, paramControlSpec;
-
-			spec = this.getModuleSpec(module[\kind]);
-
-			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
-
-			if (spec[\parameters].includes(parameter.asSymbol)) {
-				MIDIIn.connectAll;
-
-				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
-					var mappedVal = note.midicps;
-					this.setCommand(moduleparam, mappedVal);
-					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
-				});
-			} {
-				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
-			}
-		}
-	}
-
-	// TODO: this is merely for testing in SuperCollider, no unmap available
-	mapnotegateCommand { |moduleparam|
-		var moduleRef, parameter, module;
-
-		# moduleRef, parameter = moduleparam.asString.split($.);
-
-		module = this.lookupModuleByName(moduleRef);
-		if (module.isNil) {
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-		} {
-			var spec, paramControlSpec;
-
-			spec = this.getModuleSpec(module[\kind]);
-
-			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
-
-			if (spec[\parameters].includes(parameter.asSymbol)) {
-				MIDIIn.connectAll;
-
-				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
-					var mappedVal = note.midicps;
-					this.setCommand(moduleparam, mappedVal);
-					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
-				});
-			} {
-				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
-			}
-		}
-	}
-
 	setCommand { |moduleparam, value|
 		var moduleRef, parameter, module, spec;
 
@@ -594,6 +465,7 @@ Rrrr {
 		var macro;
 		var bus = Bus.control;
 
+		// TODO: properly validate that parameter references are valid, and properly validate they adhere to the same spec range (min/max values)
 		macro = (
 			moduleparams: bundle.asString.split($ ),
 			bus: bus
@@ -684,6 +556,69 @@ Rrrr {
 	tapclearCommand { |index|
 		this.ifTapIndexWithinBoundsDo(index) {
 			this.clearTap(index);
+		};
+	}
+
+	getSoundFileNumChannels { |path|
+		var numChannels;
+		var soundFile = SoundFile.openRead(path);
+
+		// TODO: ensure that path is a soundfile
+
+		if (soundFile.notNil) {
+			numChannels = soundFile.numChannels;
+			soundFile.close;
+		};
+		^numChannels;
+	}
+
+	lookupSampleSlotBuffersByName { |module, sampleSlotName|
+		var sampleSlotBufferDict = module[\serverContext][\sampleSlotBuffers].asDict;
+		^sampleSlotBufferDict[sampleSlotName.asSymbol].asDict;
+	}
+
+/*
+	TODO
+	lookupSampleSlot { |sampleSlot|
+	}
+*/
+
+	numTaps {
+		^taps.size
+	}
+
+	getTapBus { |tapIndex|
+		^taps[tapIndex][\bus]
+	}
+
+	getVisualBus { |visual|
+		var moduleRef, visualName;
+		var module;
+
+		# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
+		// TODO: validate visual exists against getModuleSpec - done in all occurences since moduleHas** is used?
+
+		module = this.lookupModuleByName(moduleRef);
+
+		if (module.isNil) { // TODO: DRY
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+			^this
+		};
+
+		if (this.moduleHasVisualNamed(module, visualName).not) {
+			"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
+				visualName.asString.quote,
+				module[\kind].asString.quote,
+				module[\name].asString.quote,
+				this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
+			).error;
+			// TODO: if no visuals are applicable don't say "possible visuals are ", but "module has no visuals". same with parameters and ins / outs
+		} {
+			var serverContext, visualbusses, bus;
+			serverContext = module[\serverContext];
+			visualbusses = serverContext[\visualbusses];
+			bus = visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value;
+			^bus
 		};
 	}
 
@@ -875,12 +810,19 @@ Rrrr {
 		};
 	}
 
+	*generateModulesDocsSection {
+		^Rrrr.allRModuleClasses.collect { |rModuleClass|
+			rModuleClass.generateModuleDocs
+		}.join("\n")
+	}
 }
 
 // Abstract superclass
 RModule {
 	var synth;
-	var ioContext;
+
+	*ins { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted.
+	*outs { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted.
 
 	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument suffix
 
@@ -1011,8 +953,7 @@ RModule {
 		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers);
 	}
 
-	initRModule { |argIOContext, group, inbusses, outbusses, visualbusses, sampleSlotBuffers|
-		ioContext = argIOContext; // TODO: not sure this needs to be stored as a class variable
+	initRModule { |ioContext, group, inbusses, outbusses, visualbusses, sampleSlotBuffers|
 		synth = Synth(
 			this.class.defName.asSymbol,
 			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers),
@@ -1148,6 +1089,20 @@ RModule {
 RSoundInModule : RModule {
 	*shortName { ^'SoundIn' }
 
+	*example {
+		^[
+			"Channel reverser",
+			nil,
+			"Create modules",
+			('new' -> ['In', 'SoundIn']),
+			('new' -> ['Out', 'SoundOut']),
+			nil,
+			"Reverse channels",
+			('connect' -> ['In/Left', 'Out*Right']),
+			('connect' -> ['In/Right', 'Out*Left']),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -1171,6 +1126,20 @@ RSoundInModule : RModule {
 // Status: tested
 RSoundOutModule : RModule {
 	*shortName { ^'SoundOut' }
+
+	*example {
+		^[
+			"Audition a sine oscillator",
+			nil,
+			"Create modules",
+			('new' -> ['Osc', 'SineOsc']),
+			('new' -> ['Out', 'SoundOut']),
+			nil,
+			"Connect modules",
+			('connect' -> ['Osc/Out', 'Out*Right']),
+			('connect' -> ['Osc/Out', 'Out*Left']),
+		]
+	}
 
 /*
 	TODO
@@ -1253,7 +1222,7 @@ RMultiOscillatorModule : RModule {
 			var fullRange = ControlSpec.new(12.midicps, 120.midicps);
 
 			var frequency = fullRange.constrain(
-				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+				( // TODO: optimization possibility - implement overridable set handlers and do this calculation in sclang rather than server?
 					3 +
 					param_Range +
 					(param_Tune / 1200) +
@@ -1325,7 +1294,7 @@ RSineOscillatorModule : RModule {
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
 
 			var frequency = fullRange.constrain(
-				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+				( // TODO: optimization possibility - implement overridable set handlers and do this calculation in sclang rather than server?
 					3 +
 					param_Range +
 					(param_Tune / 1200) +
@@ -1377,7 +1346,7 @@ RTriangleOscillatorModule : RModule {
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
 
 			var frequency = fullRange.constrain(
-				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+				( // TODO: optimization possibility - implement overridable set handlers and do this calculation in sclang rather than server?
 					3 +
 					param_Range +
 					(param_Tune / 1200) +
@@ -1429,7 +1398,7 @@ RSawtoothOscillatorModule : RModule {
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
 
 			var frequency = fullRange.constrain(
-				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+				( // TODO: optimization possibility - implement overridable set handlers and do this calculation in sclang rather than server?
 					3 +
 					param_Range +
 					(param_Tune / 1200) +
@@ -1518,13 +1487,47 @@ RPulseOscModule : RModule {
 RMultiLFOModule : RModule {
 	*shortName { ^'MultiLFO' }
 
+	*ins {
+		^[
+			'Reset': (
+				Description: "Patchable LFO reset trigger",
+				Range: [0, 1]
+			),
+		]
+	}
+
+	*outs {
+		^[
+			'InvSaw': (
+				Description: "Inverted Saw",
+				Range: [-0.25, 0.25]
+			),
+			'Saw': (
+				Description: "Saw",
+				Range: [-0.25, 0.25]
+			),
+			'Sine': (
+				Description: "Sine",
+				Range: [-0.25, 0.25]
+			),
+			'Triangle': (
+				Description: "Triangle",
+				Range: [-0.25, 0.25]
+			),
+		]
+	}
+
 	*params {
 		^[
 			'Frequency' -> (
+				Description: "LFO Frequency",
 				Spec: ControlSpec(0.01, 50, 'exp', 0, 1, "Hz"),
 				LagTime: 0.01
 			),
-			'Reset' -> \unipolar.asSpec.copy.step_(1), // TODO
+			'Reset' -> (
+				Description: "Manual LFO reset trigger",
+				Spec: \unipolar.asSpec.copy.step_(1), // TODO: generalize booleans (or triggers)
+			)
 		]
 	}
 
@@ -1628,6 +1631,7 @@ RSineLFOModule : RModule {
 		}
 	}
 }
+
 // Status: tested
 RLinMixerModule : RModule {
 	*shortName { ^'LinMixer' }
@@ -1635,7 +1639,7 @@ RLinMixerModule : RModule {
 	*params {
 		^[
 			'In1' -> (
-				Spec: \unipolar.asSpec,
+				Spec: \unipolar.asSpec, // TODO: maxval 4?
 				LagTime: 0.1
 			),
 			'In2' -> (
@@ -1648,6 +1652,68 @@ RLinMixerModule : RModule {
 			),
 			'In4' -> (
 				Spec: \unipolar.asSpec,
+				LagTime: 0.1
+			),
+			'Out' -> ( // TODO: 0 is default, is that right?
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1
+			)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In1,
+				in_In2,
+				in_In3,
+				in_In4,
+				out_Out,
+				param_In1,
+				param_In2,
+				param_In3,
+				param_In4,
+				param_Out
+			|
+
+			var sig_In1 = In.ar(in_In1);
+			var sig_In2 = In.ar(in_In2);
+			var sig_In3 = In.ar(in_In3);
+			var sig_In4 = In.ar(in_In4);
+
+			Out.ar(
+				out_Out,
+				(
+					(sig_In1 * param_In1) +
+					(sig_In2 * param_In2) +
+					(sig_In3 * param_In3) +
+					(sig_In4 * param_In4)
+				) * param_Out
+			);
+		}
+	}
+}
+
+// Status: tested
+RPolMixerModule : RModule { // TODO: or just extend LinMixer, make it bipolar?
+	*shortName { ^'PolMixer' }
+
+	*params {
+		^[
+			'In1' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.1
+			),
+			'In2' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.1
+			),
+			'In3' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.1
+			),
+			'In4' -> (
+				Spec: \bipolar.asSpec,
 				LagTime: 0.1
 			),
 			'Out' -> ( // TODO: 0 is default, is that right?
@@ -3994,229 +4060,126 @@ RReverb1Module : RModule {
 	}
 }
 
-Engine_R : CroneEngine {
-	var <rrrr;
++ Rrrr {
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapccCommand { |cc, moduleparam|
+		var moduleRef, parameter, module;
 
-	var numPolls = 10;
+		# moduleRef, parameter = moduleparam.asString.split($.);
 
-	var <pollConfigs;
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error; // TODO: if no modules at all, say "no modules" not just empty string
+		} {
+			var spec, paramControlSpec;
 
-	*new { |context, callback| ^super.new(context, callback) }
+			spec = this.getModuleSpec(module[\kind]);
 
-	alloc {
-		rrrr = Rrrr.new(
-			(
-				server: context.server,
-				group: context.xg,
-				inBus: context.in_b,
-				outBus: context.out_b,
-				numTaps: 10
-			)
-		);
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
 
-		this.addCommands;
-		this.addPolls;
-	}
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
 
-	addCommands {
-		this.addCommand('new', "ss") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \newCommand, msg[1], msg[2]].debug(\received);
-			};
-			rrrr.newCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('delete', "s") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \deleteCommand, msg[1].asString[0..20]].debug(\received);
-			};
-			rrrr.deleteCommand(msg[1]);
-		};
-
-		this.addCommand('connect', "ss") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \connectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.connectCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('disconnect', "ss") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \disconnectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.disconnectCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('set', "sf") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \setCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.setCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('bulkset', "s") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \bulksetCommand, msg[1].asString[0..20]].debug(\received);
-			};
-			rrrr.bulksetCommand(msg[1]);
-		};
-
-		this.addCommand('newmacro', "ss") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \newmacroCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.newmacroCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('deletemacro', "s") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \deletemacroCommand, (msg[1].asString)[0..20]].debug(\received);
-			};
-			rrrr.deletemacroCommand(msg[1]);
-		};
-
-		this.addCommand('macroset', "sf") { |msg|
-			if (rrrr.trace) {
-				[SystemClock.seconds, \macrosetCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-			};
-			rrrr.macrosetCommand(msg[1], msg[2]);
-		};
-
-		this.addCommand('polloutlet', "is") { |msg|
-			var index = msg[1];
-			var outlet = msg[2];
-			if (rrrr.trace) {
-				[SystemClock.seconds, \polloutletCommand, (index.asString + outlet.asString)[0..20]].debug(\received);
-			};
-			this.polloutletCommand(index, outlet);
-		};
-
-		this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
-			var index = msg[1];
-			var outlet = msg[2];
-			if (rrrr.trace) {
-				[SystemClock.seconds, \pollvisualCommand, (index.asString + outlet.asString)[0..20]].debug(\received);
-			};
-			this.pollvisualCommand(index, outlet);
-		};
-
-		this.addCommand('pollclear', "i") { |msg|
-			var index = msg[1];
-			if (rrrr.trace) {
-				[SystemClock.seconds, \pollclearCommand, (index.asString)[0..20]].debug(\received);
-			};
-			this.pollclearCommand(index);
-		};
-
-		this.addCommand('readsample', "ss") { |msg|
-			var sampleSlot = msg[1];
-			var path = msg[2];
-			if (rrrr.trace) {
-				[SystemClock.seconds, \readsampleCommand, (sampleSlot.asString + path.asString)[0..20]].debug(\received);
-			};
-			rrrr.readsampleCommand(sampleSlot, path.asString);
-		};
-
-		this.addCommand('trace', "i") { |msg|
-			rrrr.trace = msg[1].asBoolean;
-		};
-	}
-
-	polloutletCommand { |index, outlet|
-		var pollConfig = pollConfigs[index];
-		if (pollConfig[\type].notNil) {
-			this.pollclearCommand(index);
-		};
-		rrrr.tapoutletCommand(index, outlet);
-		pollConfig[\type] = \out;
-		pollConfig[\outlet] = outlet;
-		pollConfig[\bus] = rrrr.getTapBus(index);
-	}
-
-	pollvisualCommand { |index, visual|
-		var pollConfig = pollConfigs[index];
-		if (pollConfig[\type].notNil) {
-			this.pollclearCommand(index);
-		};
-		pollConfig[\type] = \visual;
-		pollConfig[\visual] = visual;
-		pollConfig[\bus] = rrrr.getVisualBus(visual);
-	}
-
-	pollclearCommand { |index|
-		var pollConfig = pollConfigs[index];
-		if (pollConfig[\type] == \out) {
-			rrrr.tapclearCommand(index);
-		};
-		pollConfig[\type] = nil;
-		pollConfig[\outlet] = nil;
-		pollConfig[\visual] = nil;
-		pollConfig[\bus] = nil;
-	}
-
-	addPolls {
-		pollConfigs = () ! numPolls;
-
-		numPolls do: { |pollIndex|
-			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol, {
-				var pollConfig = pollConfigs[pollIndex];
-				var bus, value;
-
-				bus = pollConfig[\bus];
-				if (bus.notNil) {
-					value = bus.getSynchronous; // note: getSynchronous does not work with remote servers
-				};
-
-				value;
-			});
-			poll.setTime(1/30); // 30 FPS
-		};
-	}
-
-	free {
-		rrrr.free;
-		// TODO: remove polls?
-	}
-
-	*generateLuaSpecs {
-		^"local specs = {}\n" ++
-		"\n" ++
-		Rrrr.allRModuleClasses.collect { |rModuleClass|
-			rModuleClass.generateLuaSpecs
-		}.join("\n")
-	}
-
-	*generateModulesDocsSection {
-		^"## Available Modules\n" ++
-		"\n" ++
-		Rrrr.allRModuleClasses.collect { |rModuleClass|
-			rModuleClass.generateModuleDocs
-		}.join("\n")
-	}
-}
-
-+ RModule {
-	*generateLuaSpecs {
-		^"specs['"++this.shortName.asString++"'] = {\n"++
-			if (this.params.isNil) {
-				""
+				MIDIdef.cc(("r_cc_"++cc.asString++"_map").asSymbol, { |val, ctl| // TODO: make this a MIDIfunc
+					if (ctl == cc) {
+						var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(val));
+						this.setCommand(moduleparam, mappedVal);
+						(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+					};
+				});
 			} {
-				this.spec[\parameters].collect { |param| // TODO: report error when controlSpec is not found / or rely on .asSpec
-					var controlSpec = this.paramControlSpecs[("param_"++param.asString).asSymbol]; // TODO: throw error when nothing found -- will happen when *params does not comply with param_Args in ugenGraphFunc
-					"\t" ++ param.asString ++ " = " ++ if (controlSpec.class == Symbol) {
-						"\\" ++ controlSpec.asString
-					} {
-						controlSpec.asSpecifier !? { |specifier| "ControlSpec."++specifier.asString.toUpper } ? ("ControlSpec.new("++[
-							switch (controlSpec.minval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.minval,
-							switch (controlSpec.maxval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.maxval,
-							controlSpec.warp.asSpecifier.asString.quote,
-							controlSpec.step,
-							switch (controlSpec.default) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.default,
-							controlSpec.units.quote
-						].join(", ")++")")
-					}
-				}.join(",\n") ++ "\n"
-			} ++
-		"}" ++ "\n";
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapnoteCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_note_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(note));
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapnotehzCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = note.midicps;
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapnotegateCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split($.);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = note.midicps;
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
 	}
 }
