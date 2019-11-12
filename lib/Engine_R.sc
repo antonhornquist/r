@@ -1870,19 +1870,19 @@ RSVFMultiModeFilterModule : RModule {
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 		]
 	}
@@ -1994,19 +1994,19 @@ RSVFLowpassFilterModule : RModule {
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 		]
 	}
@@ -2065,19 +2065,19 @@ RSVFHighpassFilterModule : RModule {
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 		]
 	}
@@ -2136,19 +2136,19 @@ RSVFBandpassFilterModule : RModule {
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 		]
 	}
@@ -2207,19 +2207,19 @@ RSVFBandrejectFilterModule : RModule {
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 		]
 	}
@@ -2274,19 +2274,19 @@ RLadderLowpassFilterModule : RModule {
 		^[
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.01
 			),
 		]
 	}
