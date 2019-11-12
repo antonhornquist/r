@@ -49,10 +49,40 @@ Example: pollclear 0
 
 */
 
+/*
+
+; scheme sketch
+
+(define new r/new)
+(define connect r/connect)
+(define set r/set)
+(define disconnect r/disconnect)
+(define delete r/delete)
+
+(new 'Sampler 'SPVoice)
+(new 'Out 'SoundOut)
+(connect 'Sampler/Left 'Out*Left)
+(connect 'Sampler/Right 'Out*Right)
+(readsample 'Sampler:Sample "C:/Users/AHorSE/OneDrive - IFS/Desktop/Life/XR-20/Hit/XR-20_510.wav")
+
+(define gate (lambda (on) (set 'Sampler.Gate on)))
+
+(gate 1) ; trigger sample
+(gate 0)
+
+(new 'Reverb 'Rev1)
+(connect 'Sampler/Left 'Reverb*Left)
+(connect 'Sampler/Right 'Reverb*Right)
+(connect 'Reverb/Left 'Out*Left)
+(connect 'Reverb/Right 'Out*Right)
+(set 'Reverb.Volume -15)
+
+*/
+
 // TODO: come to think of it - move all syntax out of Rrrr class
 // TODO: also refactor all midi map* commands out of main Rrrr class
 
-// TODO: validation method that checks metadata against SynthDescLib
+// TODO: add validation method that checks module metadata against a SynthDescLib populated with the ugen
 
 // TODO: move LagTimes to SynthDef ugenGraphFunc
 RrrrDSL {
@@ -162,7 +192,7 @@ Rrrr {
 
 		"R is initializing...".post;
 
-		this.addDefs; // TODO: it should be possible to decrease load up time by sending synthdefs lazily to server (set this as an option?)
+		this.addDefs; // TODO: it should be possible to decrease r init time by sending synthdefs lazily to server (add this as an option?)
 
 		topGroup = Group.tail(group);
 
@@ -220,8 +250,8 @@ Rrrr {
 			var inputPatchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
 			var processingGroup = Group.tail(group);
 			var tapGroup = Group.tail(group);
-			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
-			var outbusses = spec[\outputs].collect { |output| output -> Bus.audio }; // TODO: defer allocation / lazily allocate busses
+			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio };
+			var outbusses = spec[\outputs].collect { |output| output -> Bus.audio };
 			var visualbusses = spec[\visuals].collect { |visual| visual -> Bus.control };
 			var sampleSlotBuffers = spec[\sampleSlots].collect { |sampleSlotAssoc|
 				var sampleSlotName = sampleSlotAssoc.key;
@@ -363,77 +393,6 @@ Rrrr {
 		this.deleteModule(name);
 	}
 
-	readsampleCommand { |sampleSlot, path|
-		// TODO: this.lookupSampleSlot(...)
-		var moduleRef, sampleSlotName;
-		var module;
-
-		# moduleRef, sampleSlotName = sampleSlot.asString.split($:);
-		// TODO: validate sampleSlot exists against getModuleSpec -- done? below
-
-		module = this.lookupModuleByName(moduleRef);
-
-		if (module.isNil) {
-			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-			^this
-		};
-
-		if (this.moduleHasSampleSlotNamed(module, sampleSlotName).not) {
-			"invalid sample slot % for % module named % (possible sample slots are %)".format(
-				sampleSlotName.asString.quote,
-				module[\kind].asString.quote,
-				module[\name].asString.quote,
-				this.getModuleSpec(module[\kind])[\sampleSlots].collect{ |s| s.key.asString.quote }.join(", ") // TODO: if none, this looks weird, fix so that it says "no possible sample slots"
-			).error;
-		} {
-			if (File.exists(path).not) {
-				"file % does not exist.".format(path.quote).error;
-			} {
-				var sampleSlotBuffers = this.lookupSampleSlotBuffersByName(module, sampleSlotName); // TODO: naming, for clarity, this is not the complete sampleslotbuffers object, but only for one sampleslot
-
-				// TODO: ensure that path is a soundfile?
-
-				var channelCount = this.getSoundFileNumChannels(path);
-
-				if (channelCount.isNil) {
-					"file % is not a sound file.".format(path.quote).error;
-				} {
-					if (sampleSlotBuffers.keys.includes(channelCount).not) {
-						"sample slot % for % module named % does not support channel count % (supported channel counts are %)".format(
-							sampleSlotName.asString.quote,
-							module[\kind].asString.quote,
-							module[\name].asString.quote,
-							channelCount,
-							sampleSlotBuffers.keys.join(", ")
-						).error;
-					} {
-						var buffer = sampleSlotBuffers[channelCount];
-
-						buffer.allocRead(path);
-
-						fork {
-							server.sync;
-							buffer.updateInfo(path);
-							server.sync;
-							if (trace) {
-								"sample % (% channels) loaded into sample slot % (buffer %)"
-									.format(path.quote, channelCount, (module[\name].asString++":"++sampleSlotName).quote, buffer.bufnum, moduleRef).inform;
-							};
-							module[\instance].setSampleSlotChannelCount(sampleSlotName, channelCount);
-						};
-					}
-				}
-			}
-		}
-	}
-
-/*
-	TODO
-	how to know what buffer (channel count) to use?
-	writesampleCommand { |sampleSlot, path|
-	}
-*/
-
 	setCommand { |moduleparam, value|
 		var moduleRef, parameter, module, spec;
 
@@ -508,6 +467,77 @@ Rrrr {
 		// TODO: controlSpecs are not checked here! only allow macro creation of params with same controlSpec in newmacro and constrain here?
 		macros[name.asSymbol][\bus].set(value);
 	}
+
+	readsampleCommand { |sampleSlot, path|
+		// TODO: this.lookupSampleSlot(...)
+		var moduleRef, sampleSlotName;
+		var module;
+
+		# moduleRef, sampleSlotName = sampleSlot.asString.split($:);
+		// TODO: validate sampleSlot exists against getModuleSpec -- done? below
+
+		module = this.lookupModuleByName(moduleRef);
+
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+			^this
+		};
+
+		if (this.moduleHasSampleSlotNamed(module, sampleSlotName).not) {
+			"invalid sample slot % for % module named % (possible sample slots are %)".format(
+				sampleSlotName.asString.quote,
+				module[\kind].asString.quote,
+				module[\name].asString.quote,
+				this.getModuleSpec(module[\kind])[\sampleSlots].collect{ |s| s.key.asString.quote }.join(", ") // TODO: if none, this looks weird, fix so that it says "no possible sample slots"
+			).error;
+		} {
+			if (File.exists(path).not) {
+				"file % does not exist.".format(path.quote).error;
+			} {
+				var sampleSlotBuffers = this.lookupSampleSlotBuffersByName(module, sampleSlotName); // TODO: naming, for clarity, this is not the complete sampleslotbuffers object, but only for one sampleslot
+
+				// TODO: ensure that path is a soundfile?
+
+				var channelCount = this.getSoundFileNumChannels(path);
+
+				if (channelCount.isNil) {
+					"file % is not a sound file.".format(path.quote).error;
+				} {
+					if (sampleSlotBuffers.keys.includes(channelCount).not) {
+						"sample slot % for % module named % does not support channel count % (supported channel counts are %)".format(
+							sampleSlotName.asString.quote,
+							module[\kind].asString.quote,
+							module[\name].asString.quote,
+							channelCount,
+							sampleSlotBuffers.keys.join(", ")
+						).error;
+					} {
+						var buffer = sampleSlotBuffers[channelCount];
+
+						buffer.allocRead(path);
+
+						fork {
+							server.sync;
+							buffer.updateInfo(path);
+							server.sync;
+							if (trace) {
+								"sample % (% channels) loaded into sample slot % (buffer %)"
+									.format(path.quote, channelCount, (module[\name].asString++":"++sampleSlotName).quote, buffer.bufnum, moduleRef).inform;
+							};
+							module[\instance].setSampleSlotChannelCount(sampleSlotName, channelCount);
+						};
+					}
+				}
+			}
+		}
+	}
+
+/*
+	TODO
+	how to know what buffer (channel count) to use?
+	writesampleCommand { |sampleSlot, path|
+	}
+*/
 
 	tapoutletCommand { |index, outlet|
 		this.ifTapIndexWithinBoundsDo(index) {
@@ -708,7 +738,6 @@ Rrrr {
 		}
 	}
 
-
 	isConnected { |outlet, inlet|
 		var destModuleRef, input, destModule;
 		# destModuleRef, input = inlet.asString.split($/);
@@ -810,7 +839,7 @@ Rrrr {
 		};
 	}
 
-	*generateModulesDocsSection {
+	*generateModuleDocs {
 		^Rrrr.allRModuleClasses.collect { |rModuleClass|
 			rModuleClass.generateModuleDocs
 		}.join("\n")
@@ -887,7 +916,7 @@ RModule {
 	}
 
 	/*
-		ugenGraphFunc argument name prefixes follow the following standard
+		ugenGraphFunc argument name prefixes must follow these naming conventions:
 			in_* - input (audio bus number)
 			out_* - output (audio bus number)
 			param_* - parameter
@@ -935,12 +964,6 @@ RModule {
 			constrainedParamValue = controlSpec.constrain(value);
 			synth.set(name, constrainedParamValue);
 		}
-	}
-
-	setVisualBus { |visual, controlBus| // TODO: rename to something better
-		var name;
-		name = ("visual_"++visual.asString).asSymbol;
-		synth.set(name, controlBus);
 	}
 
 	setSampleSlotChannelCount { |sampleSlotName, channelCount|
@@ -1025,18 +1048,6 @@ RModule {
 					}
 				]
 			}
-/*
-		if (sampleSlotBuffers.notEmpty) {
-			sampleSlotBuffers do: { |sampleSlotBufferDict|
-				synth.setn(\bufnum_);
-			}
-		};
-	TODO: this is to be set up after synth instantiation using Node.setn(\bufnums_[Name], [firstbufnum, secondbufnum, &c])
-			++
-			this.spec[\sampleSlots].collect { |sampleSlotName|
-				var name = ("bufnums_"++visualName.asString).asSymbol;
-			}
-*/
 		).flatten
 	}
 
@@ -3838,37 +3849,12 @@ RSPVoiceModule : RModule {
 			loopSize.poll(label: 'loopSize');
 			*/
 
-/*
-			var phases = Select.ar(loopPhaseStartTrig, [oneshotPhase, loopPhase]);
-
-			var mono_phase = phases[0];
-			var stereo_phase = phases[1];
-
-			var sig = (
-				(
-					BufRd.ar( // TODO: tryout BLBufRd
-						1,
-						mono_bufnum,
-						mono_phase.linlin(0, 1, 0, BufFrames.kr(mono_bufnum)),
-						interpolation: 4
-					) ! 2 * monoSampleIsLoaded
-				) + 
-				(
-					BufRd.ar( // TODO: tryout BLBufRd
-						2,
-						stereo_bufnum,
-						stereo_phase.linlin(0, 1, 0, BufFrames.kr(stereo_bufnum)),
-						interpolation: 4
-					) * stereoSampleIsLoaded
-				)
-			);
-*/
 			var phase = Select.ar(loopPhaseStartTrig, [oneshotPhase, loopPhase]);
 
 			var isForwardDirectionAndOkPlaying = ((fwdOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0; // basically: as long as direction is forward and phaseFromStart < sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
 			var isReversedDirectionAndOkPlaying = ((revOneshotPhaseDone < 1) + (latched_loopEnable > 0)) > 0; // basically: as long as direction is backward and phaseFromStart > sampleEnd or latched_loopEnable == 1, continue playing (audition sound)
 
-			var stillPlaying = (1 min: (isForwardDirectionAndOkPlaying * isReversedDirectionAndOkPlaying * gate));
+			var stillPlaying = isForwardDirectionAndOkPlaying * isReversedDirectionAndOkPlaying * gate;
 
 			var sig = (
 				(
@@ -3916,6 +3902,47 @@ RSPVoiceModule : RModule {
 			Out.kr(visual_Phase, Gate.ar(phase, stillPlaying));
 			Out.kr(visual_Gate, gate);
 			Out.kr(visual_Playing, stillPlaying);
+		}
+	}
+}
+
+RCompander2Module : RModule {
+	*shortName { ^'Comp2' }
+
+	*params {
+		^[
+			'Threshold' -> \db.asSpec.copy.default_(-10),
+			'Attack' -> ControlSpec(0.1, 250, 'exp', 0, 100, "ms"),
+			'Release' -> ControlSpec(0.1, 1000, 'exp', 0, 250, "ms"),
+			'Ratio' -> ControlSpec(0, 20, default: 3),
+			'MakeUp' -> \db.asSpec.copy.maxval_(20).default_(0)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{ |
+				param_Threshold,
+				param_Attack,
+				param_Release,
+				param_Ratio,
+				param_MakeUp,
+				in_Left,
+				in_Right,
+				out_Left,
+				out_Right,
+				visual_GR
+			|
+			var sig_Left = In.ar(in_Left, 1);
+			var sig_Right = In.ar(in_Right, 1);
+
+			var sig_dc = DC.ar(1);
+
+			var control = (sig_Left + sig_Right) / 2; // TODO: possibly insert external side chain here
+			var compressed = Compander.ar([sig_Left, sig_Right, sig_dc], control, param_Threshold.dbamp, slopeAbove: 1/param_Ratio, clampTime: param_Attack/1000, relaxTime: param_Release/1000);
+
+			Out.ar(out_Left, compressed[0] * param_MakeUp.dbamp);
+			Out.ar(out_Right, compressed[1] * param_MakeUp.dbamp);
+			Out.kr(visual_GR, compressed[2].ampdb);
 		}
 	}
 }
