@@ -248,7 +248,7 @@ Rrrr {
 			};
 
 			if (module[\serverContext][\sampleSlotBuffers].notEmpty) {
-				fork { // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
+				forkIfNeeded { // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
 					server.sync;
 					finalizeFunc.value;
 				};
@@ -394,7 +394,7 @@ Rrrr {
 
 						buffer.allocRead(path);
 
-						fork {
+						forkIfNeeded {
 							server.sync;
 							buffer.updateInfo(path);
 							server.sync;
@@ -712,7 +712,7 @@ Rrrr {
 			serverContext[\outbusses] do: { |outputBusAssoc| outputBusAssoc.value.free };
 			serverContext[\visualbusses] do: { |visualBusAssoc| visualBusAssoc.value.free };
 
-			fork {
+			forkIfNeeded {
 				server.sync; // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
 				serverContext[\sampleSlotBuffers] do: { |sampleSlotAssoc|
 					var sampleSlotName = sampleSlotAssoc.key;
