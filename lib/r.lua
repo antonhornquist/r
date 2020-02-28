@@ -280,7 +280,9 @@ specs['SineLFO'] = {
 specs['SineOsc'] = {
 	Range = ControlSpec.new(-2, 2, "linear", 1, 0, ""),
 	Tune = ControlSpec.new(-600, 600, "linear", 0, 0, "cents"),
-	FM = ControlSpec.UNIPOLAR
+	FM = ControlSpec.UNIPOLAR,
+	LinFM = ControlSpec.UNIPOLAR,
+	PM = ControlSpec.UNIPOLAR
 }
 
 specs['SoundIn'] = {
