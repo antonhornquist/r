@@ -826,6 +826,10 @@ RMultiOscillatorModule : RModule {
 				Spec: \unipolar.asSpec, // TODO: bipolar?
 				LagTime: 0.01
 			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
 			'PWM' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.01
@@ -837,6 +841,7 @@ RMultiOscillatorModule : RModule {
 		^{
 			|
 				in_FM,
+				in_LinFM,
 				in_PWM,
 				out_Sine,
 				out_Triangle,
@@ -845,11 +850,13 @@ RMultiOscillatorModule : RModule {
 				param_Range,
 				param_Tune,
 				param_FM,
+				param_LinFM,
 				param_PulseWidth,
 				param_PWM
 			|
 
 			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
 			var sig_PWM = In.ar(in_PWM);
 
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
@@ -869,22 +876,22 @@ RMultiOscillatorModule : RModule {
 
 			Out.ar(
 				out_Sine,
-				SinOsc.ar(frequency) * 0.5
+				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000)) * 0.5
 			);
 
 			Out.ar(
 				out_Triangle,
-				LFTri.ar(frequency) * 0.5 // not band limited
+				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // not band limited
 			);
 
 			Out.ar(
 				out_Saw,
-				Saw.ar(frequency) * 0.5
+				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
 			);
 
 			Out.ar(
 				out_Pulse,
-				Pulse.ar(frequency, pulseWidth / 2) * 0.5
+				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
 			);
 		}
 	}
@@ -897,7 +904,7 @@ RSineOscillatorModule : RModule {
 	*params {
 		^[
 			'Range' -> (
-				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				Spec: ControlSpec.new(-8, 8, nil, 1, 0),
 				LagTime: 0.01
 			),
 			'Tune' -> (
@@ -937,9 +944,9 @@ RSineOscillatorModule : RModule {
 			var sig_LinFM = In.ar(in_LinFM);
 			var sig_PM = In.ar(in_PM);
 
-			var fullRange = ControlSpec(12.midicps, 120.midicps);
+			//var fullRange = ControlSpec(12.midicps, 120.midicps); -- removed by andrew (allow higher frequencies for FM synthesis?)
 
-			var frequency = fullRange.constrain(
+			var frequency =  ( //fullRange.constrain( -- removed by andrew
 				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
 					3 +
 					param_Range +
@@ -974,6 +981,10 @@ RTriangleOscillatorModule : RModule {
 				Spec: \unipolar.asSpec, // TODO: bipolar?
 				LagTime: 0.01
 			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
 		]
 	}
 
@@ -981,13 +992,16 @@ RTriangleOscillatorModule : RModule {
 		^{
 			|
 				in_FM,
+				in_LinFM,
 				out_Out,
 				param_Range,
 				param_Tune,
-				param_FM
+				param_FM,
+				param_LinFM
 			|
 
 			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
 
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
 
@@ -1002,7 +1016,7 @@ RTriangleOscillatorModule : RModule {
 
 			Out.ar(
 				out_Out,
-				LFTri.ar(frequency) * 0.5 // TODO: not band-limited
+				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // TODO: not band-limited
 			);
 		}
 	}
@@ -1026,6 +1040,10 @@ RSawtoothOscillatorModule : RModule {
 				Spec: \unipolar.asSpec, // TODO: bipolar?
 				LagTime: 0.01
 			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
 		]
 	}
 
@@ -1033,13 +1051,16 @@ RSawtoothOscillatorModule : RModule {
 		^{
 			|
 				in_FM,
+				in_LinFM,
 				out_Out,
 				param_Range,
 				param_Tune,
-				param_FM
+				param_FM,
+				param_LinFM
 			|
 
 			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
 
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
 
@@ -1054,7 +1075,7 @@ RSawtoothOscillatorModule : RModule {
 
 			Out.ar(
 				out_Out,
-				Saw.ar(frequency) * 0.5
+				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
 			);
 		}
 	}
@@ -1082,6 +1103,10 @@ RPulseOscModule : RModule {
 				Spec: \unipolar.asSpec, // TODO: bipolar?
 				LagTime: 0.01
 			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
 			'PWM' -> (
 				Spec: \unipolar.asSpec.copy.default_(0.4),
 				LagTime: 0.01
@@ -1093,16 +1118,19 @@ RPulseOscModule : RModule {
 		^{
 			|
 				in_FM,
+				in_LinFM,
 				in_PWM,
 				out_Out,
 				param_Range,
 				param_Tune,
 				param_FM,
+				param_LinFM,
 				param_PulseWidth,
 				param_PWM
 			|
 
 			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
 			var sig_PWM = In.ar(in_PWM);
 
 			var fullRange = ControlSpec(12.midicps, 120.midicps);
@@ -1122,7 +1150,7 @@ RPulseOscModule : RModule {
 
 			Out.ar(
 				out_Out,
-				Pulse.ar(frequency, pulseWidth / 2) * 0.5
+				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
 			);
 		}
 	}
