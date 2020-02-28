@@ -377,12 +377,13 @@ LFO featuring multiple waveforms.
 
 Oscillator featuring multiple waveforms.
 
-- Inputs: `FM`, `PWM`
+- Inputs: `FM`, `LinFM`, `PWM`
 - Outputs: `Sine`, `Triangle`, `Saw`, `Pulse`
 - Parameters:
 	- `Range`
 	- `Tune`
 	- `FM`
+	- `LinFM`
 	- `PulseWidth`
 	- `PWM`
 
@@ -422,12 +423,13 @@ Pitch shifter.
 
 Pulse/square oscillator with pulse width control.
 
-- Inputs: `FM`, `PWM`
+- Inputs: `FM`, `LinFM`, `PWM`
 - Outputs: `Out`
 - Parameters:
 	- `Range`
 	- `Tune`
 	- `FM`
+	- `LinFM`
 	- `PulseWidth`
 	- `PWM`
 
@@ -471,12 +473,13 @@ Sample and hold module.
 
 Sawtooth oscillator.
 
-- Inputs: `FM`
+- Inputs: `FM`, `LinFM`
 - Outputs: `Out`
 - Parameters:
 	- `Range`
 	- `Tune`
 	- `FM`
+	- `LinFM`
 
 ### SineLFO
 
@@ -492,12 +495,14 @@ Sine LFO.
 
 Sine oscillator.
 
-- Inputs: `FM`
+- Inputs: `FM`, `LinFM`, `PM`
 - Outputs: `Out`
 - Parameters:
 	- `Range`
 	- `Tune`
 	- `FM`
+	- `LinFM`
+	- `PM`
 
 ### SoundIn
 
@@ -524,12 +529,13 @@ Sine oscillator.
 
 Triangle oscillator (non-bandlimited).
 
-- Inputs: `FM`
+- Inputs: `FM`, `LinFM`
 - Outputs: `Out`
 - Parameters:
 	- `Range`
 	- `Tune`
 	- `FM`
+	- `LinFM`
 
 ### XFader
 
