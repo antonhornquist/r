@@ -909,11 +909,11 @@ RSineOscillatorModule : RModule {
 				LagTime: 0.01
 			),
 			'LinFM' -> (
-				Spec: \unipolar.asSpec, // TODO: bipolar?
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
 				LagTime: 0.2
 			),
 			'PM' -> (
-				Spec: \unipolar.asSpec,
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
 				LagTime: 0.2
 			),
 		]
@@ -950,7 +950,7 @@ RSineOscillatorModule : RModule {
 
 			Out.ar(
 				out_Out,
-				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 7000), (sig_PM * param_PM * 100).mod(2pi)) * 0.5
+				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000), (sig_PM * param_PM * 30).mod(2pi)) * 0.5
 			);
 		}
 	}
