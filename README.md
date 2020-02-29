@@ -404,6 +404,16 @@ White noise generator.
 - Parameters:
 	- `Gain`
 	- `Mute`
+	
+### Pan
+
+Stereo panner with monophonic input.
+
+- Inputs: `In`, `PositionModulation`
+- Outputs: `Left`, `Right`
+- Parameters:
+	- `Position`
+	- `PositionModulation`
 
 ### PShift
 
@@ -503,6 +513,15 @@ Sine oscillator.
 	- `FM`
 	- `LinFM`
 	- `PM`
+	
+### Slew
+
+Slew rate limiter.
+
+- Inputs: `In`
+- Outputs: `Out`
+- Parameters:
+	- `Time` (seconds)
 
 ### SoundIn
 
