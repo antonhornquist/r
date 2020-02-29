@@ -45,150 +45,90 @@ General purpose audio patching engine
 
 ### 44Matrix
 
-4x4 Matrix
+4x4 matrix signal router
 
-- Inputs: `1`, `2`, `3`, `4`
-- Outputs: `1`, `2`, `3`, `4`
+- Inputs:
+	- `1` ... `4`: Signal inputs
+- Outputs:
+	- `1` ... `4`: Signal outputs
 - Parameters:
-	- `FadeTime`
-	- `Gate_1_1`
-	- `Gate_1_2`
-	- `Gate_1_3`
-	- `Gate_1_4`
-	- `Gate_2_1`
-	- `Gate_2_2`
-	- `Gate_2_3`
-	- `Gate_2_4`
-	- `Gate_3_1`
-	- `Gate_3_2`
-	- `Gate_3_3`
-	- `Gate_3_4`
-	- `Gate_4_1`
-	- `Gate_4_2`
-	- `Gate_4_3`
-	- `Gate_4_4`
+	- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms.
+	- `Gate_1_1` ... `Gate_4_4`: Toggles that determine whether inputs (first number) are switched on to outputs (second number).
 
 ### 88Matrix
 
-8x8 Matrix
+8x8 matrix signal router
 
-- Inputs: `1`, `2`, `3`, `4`, `5`, `6`, `7`, `8`
-- Outputs: `1`, `2`, `3`, `4`, `5`, `6`, `7`, `8`
+- Inputs:
+	- `1` ... `8`: Signal inputs
+- Outputs:
+	- `1` ... `8`: Signal outputs
 - Parameters:
-	- `FadeTime`
-	- `Gate_1_1`
-	- `Gate_1_2`
-	- `Gate_1_3`
-	- `Gate_1_4`
-	- `Gate_1_5`
-	- `Gate_1_6`
-	- `Gate_1_7`
-	- `Gate_1_8`
-	- `Gate_2_1`
-	- `Gate_2_2`
-	- `Gate_2_3`
-	- `Gate_2_4`
-	- `Gate_2_5`
-	- `Gate_2_6`
-	- `Gate_2_7`
-	- `Gate_2_8`
-	- `Gate_3_1`
-	- `Gate_3_2`
-	- `Gate_3_3`
-	- `Gate_3_4`
-	- `Gate_3_5`
-	- `Gate_3_6`
-	- `Gate_3_7`
-	- `Gate_3_8`
-	- `Gate_4_1`
-	- `Gate_4_2`
-	- `Gate_4_3`
-	- `Gate_4_4`
-	- `Gate_4_5`
-	- `Gate_4_6`
-	- `Gate_4_7`
-	- `Gate_4_8`
-	- `Gate_5_1`
-	- `Gate_5_2`
-	- `Gate_5_3`
-	- `Gate_5_4`
-	- `Gate_5_5`
-	- `Gate_5_6`
-	- `Gate_5_7`
-	- `Gate_5_8`
-	- `Gate_6_1`
-	- `Gate_6_2`
-	- `Gate_6_3`
-	- `Gate_6_4`
-	- `Gate_6_5`
-	- `Gate_6_6`
-	- `Gate_6_7`
-	- `Gate_6_8`
-	- `Gate_7_1`
-	- `Gate_7_2`
-	- `Gate_7_3`
-	- `Gate_7_4`
-	- `Gate_7_5`
-	- `Gate_7_6`
-	- `Gate_7_7`
-	- `Gate_7_8`
-	- `Gate_8_1`
-	- `Gate_8_2`
-	- `Gate_8_3`
-	- `Gate_8_4`
-	- `Gate_8_5`
-	- `Gate_8_6`
-	- `Gate_8_7`
-	- `Gate_8_8`
+	- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms.
+	- `Gate_1_1` ... `Gate_8_8`: Toggles that determine whether inputs (first number) are switched on to outputs (second number).
 
 ### ADSREnv
 
 ADSR Envelope.
 
-- Inputs: `Gate`
-- Outputs: `Out`
+- Inputs:
+	- `Gate`: Gate control input. A signal > 0 triggers envelope
+- Outputs:
+	- `Out`: Envelope signal: 0 ... 0.8.
 - Parameters:
-	- `Attack`
-	- `Decay`
-	- `Sustain`
-	- `Release`
-	- `Gate`
+	- `Attack`: Attack time. Range 0.1 - 2000 ms. Default is 5.
+	- `Decay`: Decay time. Range 0.1 - 8000 ms. Default is 200.
+	- `Sustain`: Sustain level 0 - 1.0. Default is 0.5.
+	- `Release`: Release time. Range 0.1 - 8000 ms. Default is 200.
+	- `Gate`: Scriptable gate. When parameter goes from 0 to a positive value a gate is triggered.
 
 ### Amp
 
 Simple amplifier with level parameter and exponential or linear gain modulation.
 
-- Inputs: `Exp`, `Lin`, `In`
-- Outputs: `Out`
+- Inputs:
+	- `Exp`: Gain modulation control input (logarithmic)
+	- `Lin`: Gain modulation control input (linear)
+	- `In`: Input signal to attenuate
+- Outputs:
+	- `Out`: Attenuated output signal
 - Parameters:
-	- `Level`
+	- `Level`: Amplifier level 0 - 1.0.
 
 ### Amp2
 
 Amplifier with two inputs, level parameter and variable exponential or linear gain modulation.
 
-- Inputs: `GainModulation`, `In1`, `In2`
-- Outputs: `Out`
+- Inputs:
+	- `GainModulation`: Control input for gain modulation
+	- `In1`: Audio input 1
+	- `In2`: Audio input 2
+- Outputs:
+	- `Out`: Attenuated signal
 - Parameters:
-	- `Gain`
-	- `GainModulation`
-	- `In1`
-	- `In2`
-	- `Out`
-	- `Mode`
+	- `Gain`: Initial gain 0 - 1.0.
+	- `GainModulation`: Gain modulation amount 0 - 1.0.
+	- `In1`: Audio input 1 level 0 - 1.0.
+	- `In2`: Audio input 2 level 0 - 1.0.
+	- `Out`: Audio output level 0 - 1.0.
+	- `Mode`: 0 or 1 representing linear or exponential gain modulation.
 
 ### BPFilter
 
 Bandpass SVF filter.
 
-- Inputs: `In`, `FM`, `ResonanceModulation`
-- Outputs: `Out`
+- Inputs:
+	- `In`: Audio input
+	- `FM`: Control input for frequency modulation
+	- `ResonanceModulation`: Control input for resonance modulation
+- Outputs:
+	- `Out`: Filtered audio output
 - Parameters:
-	- `AudioLevel`
-	- `Frequency`
-	- `Resonance`
-	- `FM`
-	- `ResonanceModulation`
+	- `AudioLevel`: Audio level 0 ... 1.0. Default is 1.
+	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
+	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
+	- `FM`: Frequency modulation amount -1.0 ... 1.0.
+	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
 
 ### BRFilter
 
@@ -664,7 +604,7 @@ Module documentation stubs may be generated using the `Engine_R.generateModulesD
 
 ### Gotchas
 
-If one of the parameters of a module has a `ControlSpec` not compatible with Lag (ie. the standard `db` `ControlSpec`) lag time should not be used for any of the parameters. This is a known SuperCollider issue. (TODO: decsribe workaround)
+If one of the parameters of a module has a `ControlSpec` not compatible with Lag (ie. the standard `db` `ControlSpec`) lag time should not be used for any of the parameters. This is a known SuperCollider issue. (TODO: describe workaround)
 
 ## Status
 
