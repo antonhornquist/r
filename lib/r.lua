@@ -310,6 +310,15 @@ specs['XFader'] = {
 	Master = ControlSpec.new(-math.huge, 12, "db", 0, -math.huge, " dB")
 }
 
+specs['Slew'] = {
+	Time = ControlSpec.new(0, 10, 'lin', 0, 0.1, "s")
+}
+
+specs['Pan'] = {
+	Position = ControlSpec.PAN,
+	PositionModulation = ControlSpec.UNIPOLAR
+}
+
 -- utility function to create module, will validate kind lua side
 function eng.new(name, kind)
   if specs[kind] then

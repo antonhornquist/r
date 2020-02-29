@@ -3087,3 +3087,66 @@ RSeq1Module : RModule {
 		}
 	}
 }
+
+// Status: tested (added by andrew)
+RSlewModule : RModule {
+	*shortName { ^'Slew' }
+
+	*params {
+		^[
+			'Time' -> (
+				Spec: ControlSpec.new(0, 60),
+				LagTime: 0.1
+			)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				out_Out,
+				param_Time
+			|
+
+			var sig_In = In.ar(in_In);
+
+			Out.ar(
+				out_Out,
+				Lag.ar(sig_In, param_Time)
+			);
+		}
+	}
+}
+
+// Status: tested (added by andrew)
+RPanModule : RModule {
+	*shortName { ^'Pan' }
+
+	*params {
+		^[
+			'Position' -> \bipolar.asSpec,
+			'PositionModulation' -> \bipolar.asSpec,
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				in_PositionModulation,
+				out_Left,
+				out_Right,
+				param_Position,
+				param_PositionModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_PositionModulation = In.ar(in_PositionModulation);
+
+			var sig = Pan2.ar(sig_In, param_Position + (sig_PositionModulation * param_PositionModulation));
+			Out.ar(out_Left, sig[0]);
+			Out.ar(out_Right, sig[1]);
+		}
+	}
+}

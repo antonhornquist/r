@@ -12,9 +12,12 @@ function init()
   engine.new("SoundOut", "SoundOut")
   engine.new("FMamp", "Amp")
   engine.new("Amp", "Amp")
+  engine.new("Slew", "Slew")
+  engine.new("Pan", "Pan")
 
-  engine.connect("FreqGate/Frequency", "Osc1/FM")
-  engine.connect("FreqGate/Frequency", "Osc2/FM")
+  engine.connect("FreqGate/Frequency", "Slew/In")
+  engine.connect("Slew/Out", "Osc1/FM")
+  engine.connect("Slew/Out", "Osc2/FM")
   engine.connect("FreqGate/Gate", "Amp/Lin")
   engine.connect("Osc2/Out", "FMamp/In")
   engine.connect("FMamp/Out", "Osc1/FM")
@@ -22,12 +25,9 @@ function init()
   engine.connect("Osc2/Out", "Osc1/LinFM")
   engine.connect("Osc1/Out", "Amp/In")
   engine.connect("Osc1/Out", "Amp/In")
-  engine.connect("Amp/Out", "SoundOut/Left")
-  engine.connect("Amp/Out", "SoundOut/Right")
-  
-  -- engine.connect("Osc1/Out", "SoundOut/Left")
-  -- engine.connect("Osc1/Out", "SoundOut/Right")
-  
+  engine.connect("Amp/Out", "Pan/In")
+  engine.connect("Pan/Left", "SoundOut/Left")
+  engine.connect("Pan/Right", "SoundOut/Right")
   engine.set("Osc1.FM", 1)
   engine.set("Osc2.FM", 1)
   
@@ -77,6 +77,22 @@ function init()
     name="Osc2.Range",
     controlspec=R.specs.SineOsc.Range,
     action=function(value) engine.set("Osc2.Range", value) end
+  }
+  
+  params:add {
+    type="control",
+    id="slew_time",
+    name="Slew.Time",
+    controlspec=R.specs.Slew.Time,
+    action=function(value) engine.set("Slew.Time", value) end
+  }
+  
+  params:add {
+    type="control",
+    id="pan_position",
+    name="Pan.Position",
+    controlspec=R.specs.Pan.Position,
+    action=function(value) engine.set("Pan.Position", value) end
   }
   -- params:bang()
 end
