@@ -16,7 +16,7 @@ moduleRef = a module name: ie. "Filter", "Osc"
 inletRef = a module name and input name joined with a "*": ie. "Filter*In", "Osc*FM"
 outletRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
 parameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
-visualRef = a module name and visual name joined with a ".": ie. "Filter=Frequency", "Seq1=Position"
+visualRef = a module name and visual name joined with a "=": ie. "Filter=Frequency", "Seq1=Position"
 sampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
 macroRef = a macro name: ie. "Tune"
 
@@ -84,7 +84,7 @@ Example: pollclear 0
 
 // TODO: add validation method that checks module metadata against a SynthDescLib populated with the ugen
 
-// TODO: move LagTimes to SynthDef ugenGraphFunc
+// TODO: move LagTimes to SynthDef ugenGraphFunc (\ir.control &c)
 RrrrDSL {
 	*preProcessor {
 		^{ |code, interpreter| this.convert(code, interpreter) };
@@ -178,7 +178,6 @@ Rrrr {
 	var topGroup;
 	var <modules;
 
-	var <voidControlBus;
 	var <taps; // TODO: make private
 
 	var macros;
@@ -188,7 +187,7 @@ Rrrr {
 	init { |opts|
 		var group, numTaps;
 
-		# server, group, inBus, outBus, numTaps = this.prParseOpts(opts);
+		# trace, server, group, inBus, outBus, numTaps = this.prParseOpts(opts);
 
 		"R is initializing...".post;
 
@@ -210,6 +209,7 @@ Rrrr {
 	prParseOpts { |opts|
 		var server = opts[\server] ? Server.default;
 		^[
+			opts[\trace] ? false,
 			server,
 			opts[\group] ? server.defaultGroup,
 			opts[\inBus] ? server.options.numOutputBusChannels,
@@ -239,71 +239,69 @@ Rrrr {
 	newCommand { |name, kind|
 		if (this.lookupRModuleClassByKind(kind.asSymbol).isNil) {
 			"unable to create %. invalid module type %".format(name.asString.quote, kind.asString.quote).error;
-			^this
-		};
-		if (this.lookupModuleByName(name).notNil) {
-			"unable to create %. module named % already exists".format(name.asString.quote, name.asString.quote).error;
-			^this
 		} {
-			var spec = this.getModuleSpec(kind);
-			var group = Group.tail(topGroup);
-			var inputPatchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
-			var processingGroup = Group.tail(group);
-			var tapGroup = Group.tail(group);
-			var inbusses = spec[\inputs].collect { |input| input -> Bus.audio };
-			var outbusses = spec[\outputs].collect { |output| output -> Bus.audio };
-			var visualbusses = spec[\visuals].collect { |visual| visual -> Bus.control };
-			var sampleSlotBuffers = spec[\sampleSlots].collect { |sampleSlotAssoc|
-				var sampleSlotName = sampleSlotAssoc.key;
-				var sampleSlotSpec = sampleSlotAssoc.value;
-				sampleSlotName -> sampleSlotSpec[\Channels].collect { |channelCount|
-					var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message
-					if (trace) {
-						"buffer % created for sample slot % (channel count %)".format(buffer.bufnum, (name++":"++sampleSlotName).quote, channelCount).debug;
-					};
-
-					channelCount -> buffer;
-				};
-			};
-			var module = (
-				name: name.asSymbol, // TODO: validate name, should be [a-zA-Z0-9_]
-				kind: kind.asSymbol,
-				serverContext: (
-					group: group,
-					inputPatchCordGroup: inputPatchCordGroup,
-					processingGroup: processingGroup,
-					tapGroup: tapGroup,
-					inbusses: inbusses,
-					outbusses: outbusses,
-					visualbusses: visualbusses,
-					sampleSlotBuffers: sampleSlotBuffers
-				),
-				// TODO: refactor to local asDict that takes an array of associations
-				inputPatchCords: IdentityDictionary.newFrom(
-					spec[\inputs].collect { |input|
-						[
-							input, // key
-							() // value
-						]
-					}.flatten
-				), // TODO: better to bundle this together with inbusses (?)
-			);
-
-			var finalizeFunc = {
-				module[\instance] = this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers);
-				modules = modules.add(module);
-			};
-
-			if (module[\serverContext][\sampleSlotBuffers].notEmpty) {
-				fork { // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
-					server.sync;
-					finalizeFunc.value;
-				};
+			if (this.lookupModuleByName(name).notNil) {
+				"unable to create %. module named % already exists".format(name.asString.quote, name.asString.quote).error;
 			} {
-				finalizeFunc.value;
-			}
+				var spec = this.getModuleSpec(kind);
+				var group = Group.tail(topGroup);
+				var inputPatchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
+				var processingGroup = Group.tail(group);
+				var tapGroup = Group.tail(group);
+				var inbusses = spec[\inputs].collect { |input| input -> Bus.audio };
+				var outbusses = spec[\outputs].collect { |output| output -> Bus.audio };
+				var visualbusses = spec[\visuals].collect { |visual| visual -> Bus.control };
+				var sampleSlotBuffers = spec[\sampleSlots].collect { |sampleSlotAssoc|
+					var sampleSlotName = sampleSlotAssoc.key;
+					var sampleSlotSpec = sampleSlotAssoc.value;
+					sampleSlotName -> sampleSlotSpec[\Channels].collect { |channelCount|
+						var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message
+						if (trace) {
+							"buffer % created for sample slot % (channel count %)".format(buffer.bufnum, (name++":"++sampleSlotName).quote, channelCount).debug;
+						};
 
-		};
+						channelCount -> buffer;
+					};
+				};
+				var module = (
+					name: name.asSymbol, // TODO: validate name, should be [a-zA-Z0-9_]
+					kind: kind.asSymbol,
+					serverContext: (
+						group: group,
+						inputPatchCordGroup: inputPatchCordGroup,
+						processingGroup: processingGroup,
+						tapGroup: tapGroup,
+						inbusses: inbusses,
+						outbusses: outbusses,
+						visualbusses: visualbusses,
+						sampleSlotBuffers: sampleSlotBuffers
+					),
+					// TODO: refactor to local asDict that takes an array of associations
+					inputPatchCords: IdentityDictionary.newFrom(
+						spec[\inputs].collect { |input|
+							[
+								input, // key
+								() // value
+							]
+						}.flatten
+					), // TODO: better to bundle this together with inbusses (?)
+				);
+
+				var finalizeFunc = {
+					module[\instance] = this.instantiateModuleClass(kind.asSymbol, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers);
+					modules = modules.add(module);
+				};
+
+				if (module[\serverContext][\sampleSlotBuffers].notEmpty) {
+					fork { // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
+						server.sync;
+						finalizeFunc.value;
+					};
+				} {
+					finalizeFunc.value;
+				}
+			};
+		}
 	}
 
 	connectCommand { |outlet, inlet|
@@ -324,46 +322,44 @@ Rrrr {
 
 			if (sourceModule.isNil) {
 				"module named % not found among modules %".format(sourceModuleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-				^this
-			};
-
-			sourceModuleIndex = modules.indexOf(sourceModule);
-
-			destModule = this.lookupModuleByName(destModuleRef);
-
-			if (destModule.isNil) {
-				"module named % not found among modules %".format(destModuleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-				^this
-			};
-
-			destModuleIndex = modules.indexOf(destModule);
-
-			if (this.moduleHasOutputNamed(sourceModule, output).not) {
-				"invalid output % for % module named % (possible outputs are %)".format(
-					output.asString.quote,
-					sourceModule[\kind].asString.quote,
-					sourceModule[\name].asString.quote,
-					this.getModuleSpec(sourceModule[\kind])[\outputs].collect{ |o| o.asString.quote }.join(", ")
-				).error;
 			} {
-				if (this.moduleHasInputNamed(destModule, input).not) {
-					"invalid input % for % module named % (possible inputs are %)".format(
-						input.asString.quote,
-						destModule[\kind].asString.quote,
-						destModule[\name].asString.quote,
-						this.getModuleSpec(sourceModule[\kind])[\inputs].collect{ |i| i.asString.quote }.join(", ")
-					).error;
+				sourceModuleIndex = modules.indexOf(sourceModule);
+
+				destModule = this.lookupModuleByName(destModuleRef);
+
+				if (destModule.isNil) {
+					"module named % not found among modules %".format(destModuleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
 				} {
-					destModule[\inputPatchCords][input.asSymbol][outlet.asSymbol] = Synth(
-						if (sourceModuleIndex >= destModuleIndex, \r_patch_feedback, \r_patch),
-						[
-							\in, sourceModule[\serverContext][\outbusses].detect { |busAssoc| busAssoc.key == output.asSymbol }.value,
-							\out, destModule[\serverContext][\inbusses].detect { |busAssoc| busAssoc.key == input.asSymbol }.value,
-							\level, 1.0
-						],
-						destModule[\serverContext][\inputPatchCordGroup],
-						\addToTail
-					);
+					destModuleIndex = modules.indexOf(destModule);
+
+					if (this.moduleHasOutputNamed(sourceModule, output).not) {
+						"invalid output % for % module named % (possible outputs are %)".format(
+							output.asString.quote,
+							sourceModule[\kind].asString.quote,
+							sourceModule[\name].asString.quote,
+							this.getModuleSpec(sourceModule[\kind])[\outputs].collect{ |o| o.asString.quote }.join(", ")
+						).error;
+					} {
+						if (this.moduleHasInputNamed(destModule, input).not) {
+							"invalid input % for % module named % (possible inputs are %)".format(
+								input.asString.quote,
+								destModule[\kind].asString.quote,
+								destModule[\name].asString.quote,
+								this.getModuleSpec(sourceModule[\kind])[\inputs].collect{ |i| i.asString.quote }.join(", ")
+							).error;
+						} {
+							destModule[\inputPatchCords][input.asSymbol][outlet.asSymbol] = Synth(
+								if (sourceModuleIndex >= destModuleIndex, \r_patch_feedback, \r_patch),
+								[
+									\in, sourceModule[\serverContext][\outbusses].detect { |busAssoc| busAssoc.key == output.asSymbol }.value,
+									\out, destModule[\serverContext][\inbusses].detect { |busAssoc| busAssoc.key == input.asSymbol }.value,
+									\level, 1.0
+								],
+								destModule[\serverContext][\inputPatchCordGroup],
+								\addToTail
+							);
+						}
+					}
 				}
 			}
 		}
@@ -480,52 +476,51 @@ Rrrr {
 
 		if (module.isNil) {
 			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-			^this
-		};
-
-		if (this.moduleHasSampleSlotNamed(module, sampleSlotName).not) {
-			"invalid sample slot % for % module named % (possible sample slots are %)".format(
-				sampleSlotName.asString.quote,
-				module[\kind].asString.quote,
-				module[\name].asString.quote,
-				this.getModuleSpec(module[\kind])[\sampleSlots].collect{ |s| s.key.asString.quote }.join(", ") // TODO: if none, this looks weird, fix so that it says "no possible sample slots"
-			).error;
 		} {
-			if (File.exists(path).not) {
-				"file % does not exist.".format(path.quote).error;
+			if (this.moduleHasSampleSlotNamed(module, sampleSlotName).not) {
+				"invalid sample slot % for % module named % (possible sample slots are %)".format(
+					sampleSlotName.asString.quote,
+					module[\kind].asString.quote,
+					module[\name].asString.quote,
+					this.getModuleSpec(module[\kind])[\sampleSlots].collect{ |s| s.key.asString.quote }.join(", ") // TODO: if none, this looks weird, fix so that it says "no possible sample slots"
+				).error;
 			} {
-				var sampleSlotBuffers = this.lookupSampleSlotBuffersByName(module, sampleSlotName); // TODO: naming, for clarity, this is not the complete sampleslotbuffers object, but only for one sampleslot
-
-				// TODO: ensure that path is a soundfile?
-
-				var channelCount = this.getSoundFileNumChannels(path);
-
-				if (channelCount.isNil) {
-					"file % is not a sound file.".format(path.quote).error;
+				if (File.exists(path).not) {
+					"file % does not exist.".format(path.quote).error;
 				} {
-					if (sampleSlotBuffers.keys.includes(channelCount).not) {
-						"sample slot % for % module named % does not support channel count % (supported channel counts are %)".format(
-							sampleSlotName.asString.quote,
-							module[\kind].asString.quote,
-							module[\name].asString.quote,
-							channelCount,
-							sampleSlotBuffers.keys.join(", ")
-						).error;
+					var sampleSlotBuffers = this.lookupSampleSlotBuffersByName(module, sampleSlotName); // TODO: naming, for clarity, this is not the complete sampleslotbuffers object, but only for one sampleslot
+
+					// TODO: ensure that path is a soundfile?
+
+					var channelCount = this.getSoundFileNumChannels(path);
+
+					if (channelCount.isNil) {
+						"file % is not a sound file.".format(path.quote).error;
 					} {
-						var buffer = sampleSlotBuffers[channelCount];
+						if (sampleSlotBuffers.keys.includes(channelCount).not) {
+							"sample slot % for % module named % does not support channel count % (supported channel counts are %)".format(
+								sampleSlotName.asString.quote,
+								module[\kind].asString.quote,
+								module[\name].asString.quote,
+								channelCount,
+								sampleSlotBuffers.keys.join(", ")
+							).error;
+						} {
+							var buffer = sampleSlotBuffers[channelCount];
 
-						buffer.allocRead(path);
+							buffer.allocRead(path);
 
-						fork {
-							server.sync;
-							buffer.updateInfo(path);
-							server.sync;
-							if (trace) {
-								"sample % (% channels) loaded into sample slot % (buffer %)"
-									.format(path.quote, channelCount, (module[\name].asString++":"++sampleSlotName).quote, buffer.bufnum, moduleRef).inform;
+							fork {
+								server.sync;
+								buffer.updateInfo(path);
+								server.sync;
+								if (trace) {
+									"sample % (% channels) loaded into sample slot % (buffer %)"
+										.format(path.quote, channelCount, (module[\name].asString++":"++sampleSlotName).quote, buffer.bufnum, moduleRef).inform;
+								};
+								module[\instance].setSampleSlotChannelCount(sampleSlotName, channelCount);
 							};
-							module[\instance].setSampleSlotChannelCount(sampleSlotName, channelCount);
-						};
+						}
 					}
 				}
 			}
@@ -551,34 +546,33 @@ Rrrr {
 
 			if (module.isNil) { // TODO: DRY
 				"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-				^this
-			};
-
-			if (this.moduleHasOutputNamed(module, outputName).not) {
-				"invalid output % for % module named % (possible outputs are %)".format( // TODO: DRY
-					outputName.asString.quote,
-					module[\kind].asString.quote,
-					module[\name].asString.quote,
-					this.getModuleSpec(module[\kind])[\outputs].collect{ |o| o.asString.quote }.join(", ")
-				).error;
 			} {
-				var moduleServerContext = module[\serverContext]; // TODO: extract this elsewhere too
-				var outletBus = moduleServerContext[\outbusses].detect { |busAssoc| busAssoc.key == outputName.asSymbol }.value; // TODO: DRY
-				var targetGroup = moduleServerContext[\tapGroup];
-				var tap = taps[index];
+				if (this.moduleHasOutputNamed(module, outputName).not) {
+					"invalid output % for % module named % (possible outputs are %)".format( // TODO: DRY
+						outputName.asString.quote,
+						module[\kind].asString.quote,
+						module[\name].asString.quote,
+						this.getModuleSpec(module[\kind])[\outputs].collect{ |o| o.asString.quote }.join(", ")
+					).error;
+				} {
+					var moduleServerContext = module[\serverContext]; // TODO: extract this elsewhere too
+					var outletBus = moduleServerContext[\outbusses].detect { |busAssoc| busAssoc.key == outputName.asSymbol }.value; // TODO: DRY
+					var targetGroup = moduleServerContext[\tapGroup];
+					var tap = taps[index];
 
-				if (this.tapIsSet(index)) {
-					this.clearTap(index);
+					if (this.tapIsSet(index)) {
+						this.clearTap(index);
+					};
+
+					tap[\synth] = Synth(
+						defName: \r_tapout,
+						args: [\in, outletBus, \out, tap[\bus]],
+						target: targetGroup,
+						addAction: \addToHead
+					);
+					tap[\outlet] = outlet;
+					tap[\active] = true;
 				};
-
-				tap[\synth] = Synth(
-					defName: \r_tapout,
-					args: [\in, outletBus, \out, tap[\bus]],
-					target: targetGroup,
-					addAction: \addToHead
-				);
-				tap[\outlet] = outlet;
-				tap[\active] = true;
 			};
 		};
 	}
@@ -632,23 +626,22 @@ Rrrr {
 
 		if (module.isNil) { // TODO: DRY
 			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
-			^this
-		};
-
-		if (this.moduleHasVisualNamed(module, visualName).not) {
-			"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
-				visualName.asString.quote,
-				module[\kind].asString.quote,
-				module[\name].asString.quote,
-				this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
-			).error;
-			// TODO: if no visuals are applicable don't say "possible visuals are ", but "module has no visuals". same with parameters and ins / outs
 		} {
-			var serverContext, visualbusses, bus;
-			serverContext = module[\serverContext];
-			visualbusses = serverContext[\visualbusses];
-			bus = visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value;
-			^bus
+			if (this.moduleHasVisualNamed(module, visualName).not) {
+				"invalid visual % for % module named % (possible visuals are %)".format( // TODO: DRY
+					visualName.asString.quote,
+					module[\kind].asString.quote,
+					module[\name].asString.quote,
+					this.getModuleSpec(module[\kind])[\visuals].collect{ |v| v.asString.quote }.join(", ")
+				).error;
+				// TODO: if no visuals are applicable don't say "possible visuals are ", but "module has no visuals". same with parameters and ins / outs
+			} {
+				var serverContext, visualbusses, bus;
+				serverContext = module[\serverContext];
+				visualbusses = serverContext[\visualbusses];
+				bus = visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value;
+				^bus
+			};
 		};
 	}
 
@@ -825,6 +818,7 @@ Rrrr {
 		taps do: { |tap|
 			tap[\bus].free;
 		};
+		topGroup.free;
 	}
 
 	*allRModuleClasses {
@@ -2528,6 +2522,7 @@ RADSREnvelope2Module : RModule {
 		}
 	}
 }
+
 // Status: partly tested
 RSampleAndHoldModule : RModule {
 	*shortName { ^'SampHold' }
@@ -3300,7 +3295,7 @@ R8x8MatrixModule : RModule {
 RMatrixModuleCommon {
 	*generateParams { |numRows, numCols|
 		var result = [
-			'FadeTime' -> ControlSpec(0, 1000, 'lin', 0, 5, "ms")
+			'FadeTime' -> ControlSpec(0, 100000, 'lin', 0, 5, "ms")
 		] ++ numCols.collect { |colIndex|
 			numRows.collect { |rowIndex|
 					"Gate_"++(colIndex+1)++"_"++(rowIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
@@ -3912,8 +3907,8 @@ RCompander2Module : RModule {
 	*params {
 		^[
 			'Threshold' -> \db.asSpec.copy.default_(-10),
-			'Attack' -> ControlSpec(0.1, 250, 'exp', 0, 100, "ms"),
-			'Release' -> ControlSpec(0.1, 1000, 'exp', 0, 250, "ms"),
+			'Attack' -> ControlSpec(0.1, 250, 'exp', 0, 10, "ms"),
+			'Release' -> ControlSpec(0.1, 1000, 'exp', 0, 100, "ms"),
 			'Ratio' -> ControlSpec(0, 20, default: 3),
 			'MakeUp' -> \db.asSpec.copy.maxval_(20).default_(0)
 		]
@@ -3928,6 +3923,8 @@ RCompander2Module : RModule {
 				param_MakeUp,
 				in_Left,
 				in_Right,
+				in_SideChain,
+				connectedin_SideChain,
 				out_Left,
 				out_Right,
 				visual_GR
@@ -3938,7 +3935,15 @@ RCompander2Module : RModule {
 			var sig_dc = DC.ar(1);
 
 			var control = (sig_Left + sig_Right) / 2; // TODO: possibly insert external side chain here
-			var compressed = Compander.ar([sig_Left, sig_Right, sig_dc], control, param_Threshold.dbamp, slopeAbove: 1/param_Ratio, clampTime: param_Attack/1000, relaxTime: param_Release/1000);
+			// TODO: possibly insert sidechain HPF filter here
+			var compressed = Compander.ar(
+				[sig_Left, sig_Right, sig_dc],
+				control,
+				param_Threshold.dbamp,
+				slopeAbove: 1/param_Ratio,
+				clampTime: param_Attack/1000,
+				relaxTime: param_Release/1000
+			);
 
 			Out.ar(out_Left, compressed[0] * param_MakeUp.dbamp);
 			Out.ar(out_Right, compressed[1] * param_MakeUp.dbamp);
@@ -3946,6 +3951,61 @@ RCompander2Module : RModule {
 		}
 	}
 }
+
+/*
+RLimiter2Module : RModule {
+	*shortName { ^'Limit2' }
+
+/*
+	*params {
+		^[
+			'Threshold' -> \db.asSpec.copy.default_(-10),
+			'Attack' -> ControlSpec(0.1, 250, 'exp', 0, 10, "ms"),
+			'Release' -> ControlSpec(0.1, 1000, 'exp', 0, 100, "ms"),
+			'Ratio' -> ControlSpec(0, 20, default: 3),
+			'MakeUp' -> \db.asSpec.copy.maxval_(20).default_(0)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{ |
+				param_Threshold,
+				param_Attack,
+				param_Release,
+				param_Ratio,
+				param_MakeUp,
+				in_Left,
+				in_Right,
+				in_SideChain,
+				connectedin_SideChain,
+				out_Left,
+				out_Right,
+				visual_GR
+			|
+			var sig_Left = In.ar(in_Left, 1);
+			var sig_Right = In.ar(in_Right, 1);
+
+			var sig_dc = DC.ar(1);
+
+			var control = (sig_Left + sig_Right) / 2; // TODO: possibly insert external side chain here
+			// TODO: possibly insert sidechain HPF filter here
+			var compressed = Compander.ar(
+				[sig_Left, sig_Right, sig_dc],
+				control,
+				param_Threshold.dbamp,
+				slopeAbove: 1/param_Ratio,
+				clampTime: param_Attack/1000,
+				relaxTime: param_Release/1000
+			);
+
+			Out.ar(out_Left, compressed[0] * param_MakeUp.dbamp);
+			Out.ar(out_Right, compressed[1] * param_MakeUp.dbamp);
+			Out.kr(visual_GR, compressed[2].ampdb);
+		}
+	}
+*/
+}
+*/
 
 REnvFModule : RModule {
 	*shortName { ^'EnvF' }
@@ -3981,7 +4041,9 @@ REnvFModule : RModule {
 				out_Gate
 			|
 			var sig_In = In.ar(in_In, 1);
-			var env = Lag3UD.ar(abs(sig_In), param_Attack/1000, param_Decay/1000) * 5 * param_Sensitivity;
+
+			var env = Lag3UD.ar(abs(sig_In), param_Attack/1000, param_Decay/1000) * 5 * param_Sensitivity; // TODO: Tryout Amplitude ugen instead
+
 			Out.ar(out_Env, env);
 			Out.ar(out_Gate, Trig1.ar(abs(sig_In) > param_Threshold));
 		}
