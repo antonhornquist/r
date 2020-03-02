@@ -5,19 +5,11 @@ work on some terminology
 what to call it - input or inlet, output or outlet?
 
 moduleRef = a module name: ie. "Filter", "Osc"
-inletRef = a module name and input name joined with a "/": ie. "Filter/In", "Osc/FM"
-outletRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
-parameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
-visualRef = a module name and visual name joined with a ".": ie. "Filter.Frequency", "Seq1.Position"
-sampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
-macroRef = a macro name: ie. "Tune"
-
-moduleRef = a module name: ie. "Filter", "Osc"
-inletRef = a module name and input name joined with a "*": ie. "Filter*In", "Osc*FM"
-outletRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
-parameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
-visualRef = a module name and visual name joined with a "=": ie. "Filter=Frequency", "Seq1=Position"
-sampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
+moduleInputRef = a module name and input name joined with a "*": ie. "Filter*In", "Osc*FM"
+moduleOutputRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
+moduleParameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
+moduleVisualRef = a module name and visual name joined with a "=": ie. "Filter=Frequency", "Seq1=Position"
+moduleSampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
 macroRef = a macro name: ie. "Tune"
 
 new ss <modulename> <moduletype> - creates a uniquely named module of given type (refer to section "Modules" for available types).
@@ -182,6 +174,12 @@ Rrrr {
 
 	var macros;
 
+	var moduleInputRefDelimiter = $*;
+	var moduleOutputRefDelimiter = $/;
+	var moduleParameterRefDelimiter = $.;
+	var moduleVisualRefDelimiter = $=;
+	var moduleSampleSlotRefDelimiter = $:;
+
 	*new { |opts| ^super.new.init(opts ? ()) }
 
 	init { |opts|
@@ -313,9 +311,16 @@ Rrrr {
 			var sourceModule, destModule;
 			var sourceModuleIndex, destModuleIndex;
 
-			# sourceModuleRef, output = outlet.asString.split($/);
+
+			# sourceModuleRef, output = outlet.asString.split(moduleOutputRefDelimiter);
 			// TODO: validate outlet exists against getModuleSpec - done? see below
-			# destModuleRef, input = inlet.asString.split($/);
+
+			if (inlet.asString.includes(moduleOutputRefDelimiter)) {
+				"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(moduleOutputRefDelimiter, inlet.asString.split(moduleOutputRefDelimiter).join(moduleInputRefDelimiter)).inform;
+				# destModuleRef, input = inlet.asString.split(moduleOutputRefDelimiter);
+			} {
+				# destModuleRef, input = inlet.asString.split(moduleInputRefDelimiter);
+			};
 			// TODO: validate inlet exists against getModuleSpec - done? see below
 
 			sourceModule = this.lookupModuleByName(sourceModuleRef);
@@ -392,7 +397,7 @@ Rrrr {
 	setCommand { |moduleparam, value|
 		var moduleRef, parameter, module, spec;
 
-		# moduleRef, parameter = moduleparam.asString.split($.);
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
 
 		module = this.lookupModuleByName(moduleRef);
 		if (module.isNil) {
@@ -429,7 +434,7 @@ Rrrr {
 		server.makeBundle(nil) {
 			macro[\moduleparams].do { |moduleparam|
 				var moduleRef, parameter, module, spec;
-				# moduleRef, parameter = moduleparam.asString.split($.);
+				# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
 
 				module = this.lookupModuleByName(moduleRef);
 				if (module.isNil) {
@@ -469,7 +474,7 @@ Rrrr {
 		var moduleRef, sampleSlotName;
 		var module;
 
-		# moduleRef, sampleSlotName = sampleSlot.asString.split($:);
+		# moduleRef, sampleSlotName = sampleSlot.asString.split(moduleSampleSlotRefDelimiter);
 		// TODO: validate sampleSlot exists against getModuleSpec -- done? below
 
 		module = this.lookupModuleByName(moduleRef);
@@ -619,7 +624,7 @@ Rrrr {
 		var moduleRef, visualName;
 		var module;
 
-		# moduleRef, visualName = visual.asString.split($.); // TODO: DRY
+		# moduleRef, visualName = visual.asString.split(moduleVisualRefDelimiter); // TODO: DRY
 		// TODO: validate visual exists against getModuleSpec - done in all occurences since moduleHas** is used?
 
 		module = this.lookupModuleByName(moduleRef);
@@ -4154,7 +4159,7 @@ RReverb1Module : RModule {
 	mapccCommand { |cc, moduleparam|
 		var moduleRef, parameter, module;
 
-		# moduleRef, parameter = moduleparam.asString.split($.);
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
 
 		module = this.lookupModuleByName(moduleRef);
 		if (module.isNil) {
@@ -4186,7 +4191,7 @@ RReverb1Module : RModule {
 	mapnoteCommand { |moduleparam|
 		var moduleRef, parameter, module;
 
-		# moduleRef, parameter = moduleparam.asString.split($.);
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
 
 		module = this.lookupModuleByName(moduleRef);
 		if (module.isNil) {
@@ -4216,7 +4221,7 @@ RReverb1Module : RModule {
 	mapnotehzCommand { |moduleparam|
 		var moduleRef, parameter, module;
 
-		# moduleRef, parameter = moduleparam.asString.split($.);
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
 
 		module = this.lookupModuleByName(moduleRef);
 		if (module.isNil) {
@@ -4246,7 +4251,7 @@ RReverb1Module : RModule {
 	mapnotegateCommand { |moduleparam|
 		var moduleRef, parameter, module;
 
-		# moduleRef, parameter = moduleparam.asString.split($.);
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
 
 		module = this.lookupModuleByName(moduleRef);
 		if (module.isNil) {
