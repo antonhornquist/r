@@ -302,6 +302,17 @@ Rrrr {
 		}
 	}
 
+	parseModuleInputRef { |ref|
+		var destModuleRef, input;
+		if (ref.asString.includes(moduleOutputRefDelimiter)) {
+			"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(moduleOutputRefDelimiter.asString.quote, moduleInputRefDelimiter.asString.quote, ref.asString.split(moduleOutputRefDelimiter).join(moduleInputRefDelimiter)).inform;
+			# destModuleRef, input = ref.asString.split(moduleOutputRefDelimiter);
+		} {
+			# destModuleRef, input = ref.asString.split(moduleInputRefDelimiter);
+		};
+		^[destModuleRef, input];
+	}
+
 	connectCommand { |outlet, inlet|
 		if (this.isConnected(outlet, inlet)) {
 			"outlet % is already connected to inlet %".format(outlet.asString.quote, inlet.asString.quote).error;
@@ -315,12 +326,7 @@ Rrrr {
 			# sourceModuleRef, output = outlet.asString.split(moduleOutputRefDelimiter);
 			// TODO: validate outlet exists against getModuleSpec - done? see below
 
-			if (inlet.asString.includes(moduleOutputRefDelimiter)) {
-				"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(moduleOutputRefDelimiter, inlet.asString.split(moduleOutputRefDelimiter).join(moduleInputRefDelimiter)).inform;
-				# destModuleRef, input = inlet.asString.split(moduleOutputRefDelimiter);
-			} {
-				# destModuleRef, input = inlet.asString.split(moduleInputRefDelimiter);
-			};
+			# destModuleRef, input = this.parseModuleInputRef(inlet);
 			// TODO: validate inlet exists against getModuleSpec - done? see below
 
 			sourceModule = this.lookupModuleByName(sourceModuleRef);
@@ -376,9 +382,9 @@ Rrrr {
 			var destModuleRef, input;
 			var destModule;
 
-			# sourceModuleRef, output = outlet.asString.split($/);
+			# sourceModuleRef, output = outlet.asString.split(moduleOutputRefDelimiter);
 			// TODO: validate outlet exists against getModuleSpec - uh, can be implied due to this.isConnected call
-			# destModuleRef, input = inlet.asString.split($/);
+			# destModuleRef, input = this.parseModuleInputRef(inlet);
 			// TODO: validate inlet exists against getModuleSpec - uh, can be implied due to this.isConnected call
 
 			destModule = this.lookupModuleByName(destModuleRef);
@@ -544,7 +550,7 @@ Rrrr {
 			var moduleRef, outputName;
 			var module;
 
-			# moduleRef, outputName = outlet.asString.split($/);
+			# moduleRef, outputName = outlet.asString.split(moduleOutputRefDelimiter);
 			// TODO: validate outlet exists against getModuleSpec - done below?
 
 			module = this.lookupModuleByName(moduleRef);
@@ -699,7 +705,7 @@ Rrrr {
 		taps.do { |tap, tapIndex|
 			var moduleRef, output;
 
-			# moduleRef, output = tap[\outlet].asString.split($/); // TODO: DRY
+			# moduleRef, output = tap[\outlet].asString.split(moduleOutputRefDelimiter); // TODO: DRY
 
 			if (moduleRef == name) {
 				this.clearTap(tapIndex);
@@ -738,7 +744,7 @@ Rrrr {
 
 	isConnected { |outlet, inlet|
 		var destModuleRef, input, destModule;
-		# destModuleRef, input = inlet.asString.split($/);
+		# destModuleRef, input = this.parseModuleInputRef(inlet);
 		destModule = this.lookupModuleByName(destModuleRef);
 		^if (destModule.isNil) {
 			"module named % not found among modules %".format(destModuleRef.asString.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
