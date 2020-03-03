@@ -170,7 +170,7 @@ Rrrr {
 	var topGroup;
 	var <modules;
 
-	var <taps; // TODO: make private
+	var <taps;
 
 	var macros;
 
@@ -262,7 +262,7 @@ Rrrr {
 					};
 				};
 				var module = (
-					name: name.asSymbol, // TODO: validate name, should be [a-zA-Z0-9_]
+					name: name.asSymbol,
 					kind: kind.asSymbol,
 					serverContext: (
 						group: group,
@@ -324,10 +324,8 @@ Rrrr {
 
 
 			# sourceModuleRef, output = outlet.asString.split(moduleOutputRefDelimiter);
-			// TODO: validate outlet exists against getModuleSpec - done? see below
 
 			# destModuleRef, input = this.parseModuleInputRef(inlet);
-			// TODO: validate inlet exists against getModuleSpec - done? see below
 
 			sourceModule = this.lookupModuleByName(sourceModuleRef);
 
@@ -383,9 +381,7 @@ Rrrr {
 			var destModule;
 
 			# sourceModuleRef, output = outlet.asString.split(moduleOutputRefDelimiter);
-			// TODO: validate outlet exists against getModuleSpec - uh, can be implied due to this.isConnected call
 			# destModuleRef, input = this.parseModuleInputRef(inlet);
-			// TODO: validate inlet exists against getModuleSpec - uh, can be implied due to this.isConnected call
 
 			destModule = this.lookupModuleByName(destModuleRef);
 
@@ -1453,7 +1449,7 @@ RPulseOscModule : RModule {
 				LagTime: 0.01
 			),
 			'PWM' -> (
-				Spec: \unipolar.asSpec.copy.default_(0.4),
+				Spec: \unipolar.asSpec,
 				LagTime: 0.01
 			),
 		]
