@@ -2608,6 +2608,14 @@ RDelayModule : RModule {
 		]
 	}
 
+	*visuals {
+		^[
+			'DelayTime' -> (
+				Spec: ControlSpec(0.1, 5000, 'exp', 0, 300, "ms"),
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -2615,7 +2623,8 @@ RDelayModule : RModule {
 				in_DelayTimeModulation,
 				out_Out,
 				param_DelayTime,
-				param_DelayTimeModulation
+				param_DelayTimeModulation,
+				visual_DelayTime
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2630,6 +2639,7 @@ RDelayModule : RModule {
 			var delayed = DelayC.ar(sig_In, maxdelaytime: delayTimeSpec.maxval/1000, delaytime: delayTimeMs/1000); // TODO: ControlDur.ir minimum
 
 			Out.ar(out_Out, delayed);
+			Out.kr(visual_DelayTime, delayTimeMs);
 		}
 	}
 }
@@ -2688,6 +2698,14 @@ RPitchShiftModule : RModule {
 		]
 	}
 
+	*visuals {
+		^[
+			'PitchRatio' -> (
+				Spec: ControlSpec(0, 4, default: 1),
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -2703,7 +2721,10 @@ RPitchShiftModule : RModule {
 				param_TimeDispersion,
 				param_PitchRatioModulation,
 				param_PitchDispersionModulation,
-				param_TimeDispersionModulation
+				param_TimeDispersionModulation,
+				visual_PitchRatio
+				// TODO: visual_PitchDispersion
+				// TODO: visual_TimeDispersion
 			|
 
 			var pitchRatioSpec = ControlSpec(0, 4, default: 1);
@@ -2716,13 +2737,15 @@ RPitchShiftModule : RModule {
 			var sig_PitchDispersionModulation = In.ar(in_PitchDispersionModulation);
 			var sig_TimeDispersionModulation = In.ar(in_TimeDispersionModulation);
 
+			var pitchRatio = pitchRatioSpec.map(
+				pitchRatioSpec.unmap(param_PitchRatio) +
+				(sig_PitchRatioModulation * param_PitchRatioModulation)
+			);
+
 			var shifted = PitchShift.ar(
 				[sig_Left, sig_Right],
 				0.2,
-				pitchRatioSpec.map(
-					pitchRatioSpec.unmap(param_PitchRatio) +
-					(sig_PitchRatioModulation * param_PitchRatioModulation)
-				),
+				pitchRatio,
 				pitchDispersionSpec.map(
 					pitchDispersionSpec.unmap(param_PitchDispersion) +
 					(sig_PitchDispersionModulation * param_PitchDispersionModulation)
@@ -2735,6 +2758,8 @@ RPitchShiftModule : RModule {
 
 			Out.ar(out_Left, shifted[0]);
 			Out.ar(out_Right, shifted[1]);
+
+			Out.kr(visual_PitchRatio, pitchRatio);
 		}
 	}
 }
@@ -2756,6 +2781,14 @@ RFreqShiftModule : RModule {
 		]
 	}
 
+	*visuals {
+		^[
+			'Frequency' -> (
+				Spec: ControlSpec(-2000, 2000, 'lin', 0, 0, "Hz"),
+			),
+		]
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -2765,7 +2798,8 @@ RFreqShiftModule : RModule {
 				out_Left,
 				out_Right,
 				param_Frequency,
-				param_FM
+				param_FM,
+				visual_Frequency
 			|
 
 			var frequencySpec = ControlSpec(-2000, 2000, 'lin', 0, 0, "Hz");
@@ -2774,13 +2808,13 @@ RFreqShiftModule : RModule {
 			var sig_Right = In.ar(in_Right);
 			var sig_FM = In.ar(in_FM);
 
-			var shifted = FreqShift.ar(
-				[sig_Left, sig_Right],
-				frequencySpec.constrain(param_Frequency + (sig_FM * 2000 * param_FM))
-			);
+			var frequency = frequencySpec.constrain(param_Frequency + (sig_FM * 2000 * param_FM));
+			var shifted = FreqShift.ar([sig_Left, sig_Right], frequency);
 
 			Out.ar(out_Left, shifted[0]);
 			Out.ar(out_Right, shifted[1]);
+
+			Out.kr(visual_Frequency, frequency);
 		}
 	}
 }
