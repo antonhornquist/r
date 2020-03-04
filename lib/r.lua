@@ -7,7 +7,7 @@ local util = {}
 local specs = {}
 
 specs['44Matrix'] = {
-	FadeTime = ControlSpec.new(0, 1000, "linear", 0, 5, "ms"),
+	FadeTime = ControlSpec.new(0, 100000, "linear", 0, 50, "ms"),
 	Gate_1_1 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
 	Gate_1_2 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
 	Gate_1_3 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
@@ -27,7 +27,7 @@ specs['44Matrix'] = {
 }
 
 specs['88Matrix'] = {
-	FadeTime = ControlSpec.new(0, 1000, "linear", 0, 5, "ms"),
+	FadeTime = ControlSpec.new(0, 100000, "linear", 0, 50, "ms"),
 	Gate_1_1 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
 	Gate_1_2 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
 	Gate_1_3 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
@@ -115,6 +115,22 @@ specs['Amp2'] = {
 	Mode = ControlSpec.new(0, 1, "linear", 1, 0, "")
 }
 
+specs['BPFilter'] = {
+	AudioLevel = ControlSpec.new(0, 1, "amp", 0, 1, ""),
+	Frequency = ControlSpec.WIDEFREQ,
+	Resonance = ControlSpec.UNIPOLAR,
+	FM = ControlSpec.BIPOLAR,
+	ResonanceModulation = ControlSpec.BIPOLAR
+}
+
+specs['BRFilter'] = {
+	AudioLevel = ControlSpec.new(0, 1, "amp", 0, 1, ""),
+	Frequency = ControlSpec.WIDEFREQ,
+	Resonance = ControlSpec.UNIPOLAR,
+	FM = ControlSpec.BIPOLAR,
+	ResonanceModulation = ControlSpec.BIPOLAR
+}
+
 specs['DbMixer'] = {
 	In1 = ControlSpec.DB,
 	In2 = ControlSpec.DB,
@@ -126,6 +142,13 @@ specs['DbMixer'] = {
 specs['Delay'] = {
 	DelayTime = ControlSpec.new(0.1, 5000, "exp", 0, 300, "ms"),
 	DelayTimeModulation = ControlSpec.BIPOLAR
+}
+
+specs['EnvF'] = {
+	Attack = ControlSpec.new(0.1, 2000, "exp", 0, 100, "ms"),
+	Decay = ControlSpec.new(0.1, 8000, "exp", 0, 200, "ms"),
+	Sensitivity = ControlSpec.new(0, 1, "linear", 0.0, 0.5, ""),
+	Threshold = ControlSpec.new(0, 1, "linear", 0.0, 0.5, "")
 }
 
 specs['FMVoice'] = {
@@ -174,6 +197,14 @@ specs['FShift'] = {
 specs['FreqGate'] = {
 	Frequency = ControlSpec.FREQ,
 	Gate = ControlSpec.new(0, 1, "linear", 1, 0, "")
+}
+
+specs['HPFilter'] = {
+	AudioLevel = ControlSpec.new(0, 1, "amp", 0, 1, ""),
+	Frequency = ControlSpec.WIDEFREQ,
+	Resonance = ControlSpec.UNIPOLAR,
+	FM = ControlSpec.BIPOLAR,
+	ResonanceModulation = ControlSpec.BIPOLAR
 }
 
 specs['LPFilter'] = {
@@ -242,12 +273,20 @@ specs['PShift'] = {
 	TimeDispersionModulation = ControlSpec.BIPOLAR
 }
 
+specs['PolMixer'] = {
+	In1 = ControlSpec.BIPOLAR,
+	In2 = ControlSpec.BIPOLAR,
+	In3 = ControlSpec.BIPOLAR,
+	In4 = ControlSpec.BIPOLAR,
+	Out = ControlSpec.UNIPOLAR
+}
+
 specs['PulseOsc'] = {
 	Range = ControlSpec.new(-2, 2, "linear", 1, 0, ""),
 	Tune = ControlSpec.new(-600, 600, "linear", 0, 0, "cents"),
 	FM = ControlSpec.UNIPOLAR,
 	PulseWidth = ControlSpec.new(0, 1, "linear", 0, 0.5, ""),
-	PWM = ControlSpec.new(0, 1, "linear", 0, 0.4, "")
+	PWM = ControlSpec.UNIPOLAR
 }
 
 specs['QGain'] = {
@@ -270,6 +309,55 @@ specs['SawOsc'] = {
 	Range = ControlSpec.new(-2, 2, "linear", 1, 0, ""),
 	Tune = ControlSpec.new(-600, 600, "linear", 0, 0, "cents"),
 	FM = ControlSpec.UNIPOLAR
+}
+
+specs['Seq1'] = {
+	Reset = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Step = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Range = ControlSpec.new(0, 2, "linear", 1, 0, ""),
+	Scale = ControlSpec.new(0, 1, "linear", 0.0, 1, ""),
+	Glide_1 = ControlSpec.UNIPOLAR,
+	Glide_2 = ControlSpec.UNIPOLAR,
+	Trig_1_1 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_2 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_3 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_4 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_5 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_6 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_7 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_1_8 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_1 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_2 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_3 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_4 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_5 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_6 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_7 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Trig_2_8 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Value_1_1 = ControlSpec.BIPOLAR,
+	Value_1_2 = ControlSpec.BIPOLAR,
+	Value_1_3 = ControlSpec.BIPOLAR,
+	Value_1_4 = ControlSpec.BIPOLAR,
+	Value_1_5 = ControlSpec.BIPOLAR,
+	Value_1_6 = ControlSpec.BIPOLAR,
+	Value_1_7 = ControlSpec.BIPOLAR,
+	Value_1_8 = ControlSpec.BIPOLAR,
+	Value_2_1 = ControlSpec.BIPOLAR,
+	Value_2_2 = ControlSpec.BIPOLAR,
+	Value_2_3 = ControlSpec.BIPOLAR,
+	Value_2_4 = ControlSpec.BIPOLAR,
+	Value_2_5 = ControlSpec.BIPOLAR,
+	Value_2_6 = ControlSpec.BIPOLAR,
+	Value_2_7 = ControlSpec.BIPOLAR,
+	Value_2_8 = ControlSpec.BIPOLAR,
+	Gate_1 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_2 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_3 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_4 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_5 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_6 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_7 = ControlSpec.new(0, 1, "linear", 1, 0, ""),
+	Gate_8 = ControlSpec.new(0, 1, "linear", 1, 0, "")
 }
 
 specs['SineLFO'] = {
