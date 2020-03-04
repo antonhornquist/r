@@ -4268,8 +4268,14 @@ RPanModule : RModule {
 
 	*params {
 		^[
-			'Position' -> \bipolar.asSpec,
-			'PositionModulation' -> \bipolar.asSpec,
+			'Position' ->( 
+			  Spec: \bipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'PositionModulation' -> ( 
+			  Spec: \bipolar.asSpec,
+			  LagTime: 0.1
+			),
 		]
 	}
 
@@ -4290,6 +4296,127 @@ RPanModule : RModule {
 			var sig = Pan2.ar(sig_In, param_Position + (sig_PositionModulation * param_PositionModulation));
 			Out.ar(out_Left, sig[0]);
 			Out.ar(out_Right, sig[1]);
+		}
+	}
+}
+
+// Status: tested (added by @andrew)
+RDecimatorModule : RModule {
+	*shortName { ^'Decimator' }
+
+	*params {
+		^[
+			'Rate' -> ( 
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'Depth' -> ( 
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'Smooth' -> ( 
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'RateModulation' -> ( 
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'DepthModulation' -> ( 
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'SmoothModulation' -> ( 
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				in_Rate,
+				in_Depth,
+				in_Smooth
+				out_Out,
+				param_Rate,
+				param_Depth,
+				param_Smooth,
+				param_RateModulation,
+				param_DepthModulation,
+				param_SmoothModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_Rate = In.ar(in_Rate);
+			var sig_Depth = In.ar(in_Rate);
+			var sig_Smooth = In.ar(in_Rate);
+
+			Out.ar(out_Out, 
+			       SmoothDecimator.ar(Decimator.ar(sig_In, 48000, (param_Depth + (sig_Depth * param_Depth)) * 24), (param_Rate + (sig_Rate * param_RateModulation)) * 48000, param_Smooth + (sig_Smooth * param_SmoothModulation))
+			);
+		}
+	}
+}
+
+// Status: tested (added by andrew)
+REQBandPassFilter : RModule {
+	*shortName { ^'EQBPFilter' }
+
+	*params {
+		^[
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				LagTime: 0.1
+			),
+			'Bandwidth' -> (
+				Spec: ControlSpec.new(0, 10),
+				LagTime: 0.1
+			),
+			'FM' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.01
+			),
+			'BandwidthModulation' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.01
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				in_FM,
+				in_BandwidthModulation,
+				out_Out,
+				param_Frequency,
+				param_Bandwidth,
+				param_FM,
+				param_BandwidthModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_FM = In.ar(in_FM);
+			var sig_BandwidthModulation = In.ar(in_BandwidthModulation);
+
+			var frequencySpec = \widefreq.asSpec;
+			var bandwidthSpec = ControlSpec.new(0, 10);
+
+			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
+			var bandwidth = bandwidthSpec.map(bandwidthSpec.unmap(param_Bandwidth) + (sig_BandwidthModulation * param_BandwidthModulation));
+
+			Out.ar(
+				out_Out,
+				BBandPass.ar(
+					sig_In,
+					frequency,
+					bandwidth,
+				)
+			);
 		}
 	}
 }

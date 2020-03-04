@@ -407,6 +407,22 @@ specs['Pan'] = {
 	PositionModulation = ControlSpec.UNIPOLAR
 }
 
+specs['Decimator'] = {
+	Rate = ControlSpec.new(0.01, 1, 'exp', 0.01, 1, ''),
+	Depth = ControlSpec.new(0.01, 1, 'exp', 0.01, 1,  ''),
+	Smooth = ControlSpec.UNIPOLAR,
+	RateModulation = ControlSpec.UNIPOLAR,
+	DepthModulation = ControlSpec.UNIPOLAR,
+	SmoothModulation = ControlSpec.UNIPOLAR
+}
+
+specs['EQBPFilter'] = {
+	Frequency = ControlSpec.WIDEFREQ,
+	Bandwidth =ControlSpec.new(0, 10, 'lin', 0.01, 5, ''),
+	FM = ControlSpec.BIPOLAR,
+	BandwidthModulation = ControlSpec.BIPOLAR
+}
+
 -- utility function to create module, will validate kind lua side
 function eng.new(name, kind)
   if specs[kind] then

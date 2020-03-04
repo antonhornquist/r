@@ -155,6 +155,20 @@ Mixer suited for audio signals.
 	- `In3`
 	- `In4`
 	- `Out`
+	
+### Decimator
+
+Sample rate and bit depth reducer.
+
+- Inputs: `In`, `Rate`, `Depth`, `Smooth`
+- Outputs: `Out`
+- Parameters:
+	- `Rate`
+	- `Depth`
+	- `Smooth`
+	- `RateModulation`
+	- `DepthModulation`
+	- `SmoothModulation`
 
 ### Delay
 
@@ -165,6 +179,20 @@ Delay line.
 - Parameters:
 	- `DelayTime`
 	- `DelayTimeModulation`
+
+### EQBPFilter
+
+Non-resonant, variable width bandpass filter.
+
+- Inputs: `Frequency`, `Bandwidth`, `FM`, `BandwidthModulation`
+- Outputs: `Out`
+- Parameters:
+	- `Rate`
+	- `Depth`
+	- `Smooth`
+	- `RateModulation`
+	- `DepthModulation`
+	- `SmoothModulation`
 
 ### FMVoice
 
