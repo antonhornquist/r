@@ -485,16 +485,10 @@ function util.split_ref(ref)
   return words[1], words[2]
 end
 
-function test_thing()
-  for i in string.gmatch("Module.Param", "\.+") do
-    print(i)
-  end
-end
-
-function util.make_param(module, modulename, param, polyphony, controlspecoptions, name, paramformatter, paramparamset) -- added by @andrew
+function util.make_param(modulename, module, param, polyphony, controlspecoptions, name, paramformatter, paramparamset) -- added by @andrew
   polyphony = polyphony or 1
   paramparamset = paramparamset or params
-  paramcontrolspec = r.specs[module][param]
+  paramcontrolspec = R.specs[module][param]
   
   name = name or modulename .. " " .. param
   
@@ -509,25 +503,25 @@ function util.make_param(module, modulename, param, polyphony, controlspecoption
   if polyphony > 1 then
     local id = string.lower(modulename) .. "_" .. string.lower(param)
     
-    engine.newmacro(id, r.util.poly_expand(paramname, polyphony))
+    engine.newmacro(id, r.util.poly_expand(modulename .. "." .. param, polyphony))
     
-    paramparamset:add {
+    paramparamset:add{
       type="control",
       id=id,
       name=name,
       controlspec=paramcontrolspec,
-      formatter=paramformatter
+      formatter=paramformatter,
       action=function (value)
         engine.macroset(id, value)
       end
     }
   else
-    paramparamset:add {
+    paramparamset:add{
       type="control",
       id=id,
       name=name,
       controlspec=paramcontrolspec,
-      formatter=paramformatter
+      formatter=paramformatter,
       action=function (value)
         engine.set(modulename .. "." .. param, value)
       end
