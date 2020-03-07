@@ -39,7 +39,7 @@ General purpose audio patching engine
 - `deletemacro s <macroname>` - removes a macro.
 	- Example: `deletemacro Tune`.
 
-## Polls
+### Polls
 
 The engine has ten polls named `poll1` to `poll10`. Input and output signals can be routed to these polls. In addition, some modules expose feedback values typically used for visualization (ie. the `MMFilter` module feedback `Frequency` taking frequency modulation into account). These values - referred to as _visuals_ - can also be routed to polls.
 
