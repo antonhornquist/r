@@ -622,7 +622,7 @@ engine.set("LFO.Frequency", 0.5)
 engine.set("Osc.PWM", 0.2)
 ```
 
-See tutorial scripts in (r_tuts)[http://github.com/antonhornquist/r_tuts] and (roar scripts)[http://github.com/antonhornquist/roar] `moln`, `rymd`, `bob` and `skev` for more elaborate examples.
+See tutorial scripts in [r_tuts](http://github.com/antonhornquist/r_tuts) and [roar scripts](http://github.com/antonhornquist/roar) `moln`, `rymd`, `bob` and `skev` for more elaborate examples.
 
 ## The R Lua Module
 
@@ -716,9 +716,9 @@ RTestModule : RModule { // subclassing RModule makes this a module
 
 ### Updating the R Lua module
 
-To be usable with functions in the R Lua module `R.engine` table module parameter metadata has to be included in the `R.specs` table. `R.specs` can be generated from RModule metadata using the `Engine_R.generateLuaSpecs` method.
+To be usable with functions in the R Lua module `R.engine` table module parameter metadata has to be included in the `R.specs` table. `R.specs` can be generated in SuperCollider from RModule metadata using the `Rrrr.generateLuaSpecs` method.
 
-Module documentation stubs may be generated using the `Engine_R.generateModulesDocSection` method.
+Module documentation stubs may be generated in SuperCollider using the `Engine_R.generateModulesDocSection` method.
 
 ### Gotchas
 
