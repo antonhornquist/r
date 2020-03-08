@@ -41,18 +41,15 @@ General purpose audio patching engine
 
 ### Polls
 
-The engine has ten polls named `poll1` to `poll10`. Input and output signals can be routed to these polls. In addition, some modules expose feedback values typically used for visualization (ie. the `MMFilter` module feedback `Frequency` taking frequency modulation into account). These values - referred to as _visuals_ - can also be routed to polls.
-
-- `pollinput is <modulename*output>` - routes an input signal of a named module to a poll.
-	- Examples: `pollvisual 1 Filter/FM` routes the signal at the input named FM of the Filter module to `poll1`.
+The engine has ten polls named `poll1` to `poll10`. Snapshots of module output signals can be routed to these polls. In addition, some modules expose feedback values typically used for visualization (ie. the `MMFilter` module feedback value `Frequency` which takes frequency modulation into account). These values - referred to as _visuals_ - can also be routed to the polls.
 
 - `polloutput is <modulename/output>` - routes an output signal of a named module to a poll.
-	- Examples: `pollvisual 2 LFO/Saw` routes the signal of the output named Saw of the LFO module to `poll2`.
+	- Examples: `pollvisual 1 LFO/Saw` routes the signal of the output named Saw of the LFO module to `poll1`.
 
 - `pollvisual is <modulename=visual>` - routes a visual of a named module to a poll.
-	- Example: `pollvisual 3 Filter=Frequency` routes the feedback value of the visual named Frequency of the Filter module to `poll3`.
+	- Example: `pollvisual 2 Filter=Frequency` routes the feedback value of the visual named Frequency of the Filter module to `poll2`.
 
-Only one input, output or visual can be routed to each poll at any given time. The latest routed input, output or visual takes precedence.
+Only one output or visual can be routed to each poll at any given time. The latest routed output or visual takes precedence.
 
 ### Debug Commands
 
