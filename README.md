@@ -10,6 +10,10 @@ General purpose audio patching engine
 - Arbitrarily create and connect audio generators and processors (_modules_).
 - Control module parameters from Lua scripting layer.
 
+## Disclaimer
+
+- Take care of your ears and speakers.
+
 ## Commands
 
 - `new ss <modulename> <moduletype>` - creates a uniquely named module of given type (refer to section "Modules" for available types).
