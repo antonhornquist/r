@@ -12,7 +12,7 @@ General purpose audio patching engine
 
 ## Disclaimer
 
-- Take care of your ears and speakers while patching.
+- Take care of your ears and speakers while patching. 🎹🎛️🎧
 
 ## Commands
 
