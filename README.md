@@ -68,7 +68,7 @@ Only one output or visual can be routed to each poll at any given time. The late
 - Inputs:
 	- `In1` ... `In4`: Signal inputs
 - Outputs:
-	- `In1` ... `In4`: Signal outputs
+	- `Out1` ... `Out4`: Signal outputs
 - Parameters:
 	- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms.
 	- `Gate_1_1` ... `Gate_4_4`: Toggles that determine whether inputs (first number) are switched on to outputs (second number).
@@ -80,7 +80,7 @@ Only one output or visual can be routed to each poll at any given time. The late
 - Inputs:
 	- `In1` ... `In8`: Signal inputs
 - Outputs:
-	- `In1` ... `In8`: Signal outputs
+	- `Out1` ... `Out8`: Signal outputs
 - Parameters:
 	- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms.
 	- `Gate_1_1` ... `Gate_8_8`: Toggles that determine whether inputs (first number) are switched on to outputs (second number).
