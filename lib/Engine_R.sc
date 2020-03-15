@@ -86,13 +86,13 @@ Engine_R : CroneEngine {
 			rrrr.macrosetCommand(msg[1], msg[2]);
 		};
 
-		this.addCommand('pollout', "is") { |msg|
+		this.addCommand('polloutput', "is") { |msg|
 			var index = msg[1];
 			var outputRef = msg[2];
 			if (rrrr.trace) {
 				[SystemClock.seconds, \polloutCommand, (index.asString + outputRef.asString)[0..20]].debug(\received);
 			};
-			this.polloutCommand(index, outputRef);
+			this.polloutCommand(index-1, outputRef);
 		};
 
 		this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
@@ -101,7 +101,7 @@ Engine_R : CroneEngine {
 			if (rrrr.trace) {
 				[SystemClock.seconds, \pollvisualCommand, (index.asString + visualRef.asString)[0..20]].debug(\received);
 			};
-			this.pollvisualCommand(index, visualRef);
+			this.pollvisualCommand(index-1, visualRef);
 		};
 
 		this.addCommand('pollclear', "i") { |msg|
