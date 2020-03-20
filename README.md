@@ -27,7 +27,7 @@ General purpose audio patching engine
 - `delete s <modulename>` - removes a module.
 	- Example: `delete Osc`
 
-* In an earlier version inputs were referred to with the same delimiter as outputs `<modulename/input>`. This still works but is deprecated. For clarity, it is advised to use the new delimiter `<modulename*input>`.
+\* In an earlier version inputs were referred to with the same delimiter as outputs `<modulename/input>`. This still works but is deprecated. For clarity, it is advised to use the new delimiter `<modulename*input>`.
 
 ### Bulk Commands
 
