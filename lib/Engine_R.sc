@@ -277,7 +277,7 @@ Engine_R : CroneEngine {
 				if (rrrr.trace) {
 					[SystemClock.seconds, \polloutputCommand, (index.asString + outputRef.asString)[0..20]].debug(\received);
 				};
-				this.polloutCommand(index-1, outputRef);
+				this.polloutputCommand(index-1, outputRef);
 			};
 		};
 
