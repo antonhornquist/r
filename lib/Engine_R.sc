@@ -27,12 +27,12 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		polloutputCommand = { |rrrr, index, outputRef|
-			ifPollIndexWithinBoundsDo.value(index) {
-				var zeroBasedIndex = index - 1; // lua based indexing is used in engine interface
+		polloutputCommand = { |rrrr, oneBasedIndex, outputRef|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
 				var pollConfig = pollConfigs[zeroBasedIndex];
 				if (pollConfig[\type].notNil) {
-					pollclearCommand.value(index);
+					pollclearCommand.value(oneBasedIndex);
 				};
 				tapoutputCommand.value(rrrr, zeroBasedIndex, outputRef);
 				pollConfig[\type] = \out;
@@ -41,12 +41,12 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		pollvisualCommand = { |rrrr, index, visual|
-			ifPollIndexWithinBoundsDo.value(index) {
-				var zeroBasedIndex = index - 1; // lua based indexing is used in engine interface
+		pollvisualCommand = { |rrrr, oneBasedIndex, visual|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
 				var pollConfig = pollConfigs[zeroBasedIndex];
 				if (pollConfig[\type].notNil) {
-					pollclearCommand.value(index);
+					pollclearCommand.value(oneBasedIndex);
 				};
 				pollConfig[\type] = \visual;
 				pollConfig[\visual] = visual;
@@ -54,9 +54,9 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		pollclearCommand = { |rrrr, index|
-			ifPollIndexWithinBoundsDo.value(index) {
-				var zeroBasedIndex = index - 1; // lua based indexing is used in engine interface
+		pollclearCommand = { |rrrr, oneBasedIndex|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
 				var pollConfig = pollConfigs[zeroBasedIndex];
 				if (pollConfig[\type] == \out) {
 					tapclearCommand.value(rrrr, zeroBasedIndex);
@@ -263,59 +263,59 @@ Engine_R : CroneEngine {
 
 		if (scdBasedRrrr) {
 			this.addCommand('polloutput', "is") { |msg|
-				var index = msg[1];
+				var oneBasedIndex = msg[1];
 				var moduleOutputRef = msg[2];
 				if (rrrr[\trace]) {
-					[SystemClock.seconds, \polloutputCommand, (index.asString + moduleOutputRef.asString)[0..20]].debug(\received);
+					[SystemClock.seconds, \polloutputCommand, (oneBasedIndex.asString + moduleOutputRef.asString)[0..20]].debug(\received);
 				};
-				polloutputCommand.value(rrrr, index, moduleOutputRef);
+				polloutputCommand.value(rrrr, oneBasedIndex, moduleOutputRef);
 			};
 		} {
 			this.addCommand('polloutput', "is") { |msg|
-				var index = msg[1];
+				var oneBasedIndex = msg[1];
 				var outputRef = msg[2];
 				if (rrrr.trace) {
-					[SystemClock.seconds, \polloutputCommand, (index.asString + outputRef.asString)[0..20]].debug(\received);
+					[SystemClock.seconds, \polloutputCommand, (oneBasedIndex.asString + outputRef.asString)[0..20]].debug(\received);
 				};
-				this.polloutputCommand(index-1, outputRef);
+				this.polloutputCommand(oneBasedIndex-1, outputRef);
 			};
 		};
 
 		if (scdBasedRrrr) {
 			this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue?
-				var index = msg[1];
+				var oneBasedIndex = msg[1];
 				var moduleVisualRef = msg[2];
 				if (rrrr[\trace]) {
-					[SystemClock.seconds, \pollvisualCommand, (index.asString + moduleVisualRef.asString)[0..20]].debug(\received);
+					[SystemClock.seconds, \pollvisualCommand, (oneBasedIndex.asString + moduleVisualRef.asString)[0..20]].debug(\received);
 				};
-				pollvisualCommand.value(rrrr, index, moduleVisualRef);
+				pollvisualCommand.value(rrrr, oneBasedIndex, moduleVisualRef);
 			};
 		} {
 			this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
-				var index = msg[1];
+				var oneBasedIndex = msg[1];
 				var visualRef = msg[2];
 				if (rrrr.trace) {
-					[SystemClock.seconds, \pollvisualCommand, (index.asString + visualRef.asString)[0..20]].debug(\received);
+					[SystemClock.seconds, \pollvisualCommand, (oneBasedIndex.asString + visualRef.asString)[0..20]].debug(\received);
 				};
-				this.pollvisualCommand(index-1, visualRef);
+				this.pollvisualCommand(oneBasedIndex-1, visualRef);
 			};
 		};
 
 		if (scdBasedRrrr) {
 			this.addCommand('pollclear', "i") { |msg|
-				var index = msg[1];
+				var oneBasedIndex = msg[1];
 				if (rrrr[\trace]) {
-					[SystemClock.seconds, \pollclearCommand, (index.asString)[0..20]].debug(\received);
+					[SystemClock.seconds, \pollclearCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
 				};
-				pollclearCommand.value(rrrr, index);
+				pollclearCommand.value(rrrr, oneBasedIndex);
 			};
 		} {
 			this.addCommand('pollclear', "i") { |msg|
-				var index = msg[1];
+				var oneBasedIndex = msg[1];
 				if (rrrr.trace) {
-					[SystemClock.seconds, \pollclearCommand, (index.asString)[0..20]].debug(\received);
+					[SystemClock.seconds, \pollclearCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
 				};
-				this.pollclearCommand(index);
+				this.pollclearCommand(oneBasedIndex);
 			};
 		};
 
@@ -359,11 +359,7 @@ Engine_R : CroneEngine {
 		if (pollConfig[\type].notNil) {
 			this.pollclearCommand(index);
 		};
-		if (scdBasedRrrr) {
-			tapoutputCommand.(rrrr, index, outputRef);
-		} {
-			rrrr.tapoutletCommand(index, outputRef);
-		};
+		rrrr.tapoutletCommand(index, outputRef);
 		pollConfig[\type] = \out;
 		pollConfig[\outputRef] = outputRef;
 		pollConfig[\bus] = rrrr.getTapBus(index);
@@ -376,21 +372,13 @@ Engine_R : CroneEngine {
 		};
 		pollConfig[\type] = \visual;
 		pollConfig[\visual] = visual;
-		if (scdBasedRrrr) {
-			pollConfig[\bus] = getVisualBus.(rrrr, visual);
-		} {
-			pollConfig[\bus] = rrrr.getVisualBus(visual);
-		};
+		pollConfig[\bus] = rrrr.getVisualBus(visual);
 	}
 
 	pollclearCommand { |index|
 		var pollConfig = pollConfigs[index];
 		if (pollConfig[\type] == \out) {
-			if (scdBasedRrrr) {
-				tapclearCommand.(rrrr, index);
-			} {
-				rrrr.tapclearCommand(index);
-			};
+			rrrr.tapclearCommand(index);
 		};
 		pollConfig[\type] = nil;
 		pollConfig[\outputRef] = nil;
