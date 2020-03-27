@@ -5,11 +5,10 @@ Engine_R : CroneEngine {
 	var numPolls = 10;
 
 	var <pollConfigs;
-	var defaultPollRate = 10; // poll updates per second
 
 	var init, free, newCommand, connectCommand, disconnectCommand, deleteCommand, setCommand, bulksetCommand, newmacroCommand, deletemacroCommand, macrosetCommand, readsampleCommand, tapoutputCommand, tapclearCommand, getTapBus, getVisualBus;
 
-	var polloutputCommand, pollvisualCommand, pollrateCommand, pollclearCommand;
+	var polloutputCommand, pollvisualCommand, pollclearCommand;
 
 	*new { |context, callback| ^super.new(context, callback) }
 
@@ -52,14 +51,6 @@ Engine_R : CroneEngine {
 				pollConfig[\type] = \visual;
 				pollConfig[\visual] = visual;
 				pollConfig[\bus] = getVisualBus.value(rrrr, visual);
-			};
-		};
-
-		pollrateCommand = { |rrrr, oneBasedIndex, rate|
-			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
-				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
-				var pollConfig = pollConfigs[zeroBasedIndex];
-				pollConfig[\poll].setTime(1/rate);
 			};
 		};
 
@@ -311,24 +302,6 @@ Engine_R : CroneEngine {
 		};
 
 		if (scdBasedRrrr) {
-			this.addCommand('pollrate', "i") { |msg|
-				var oneBasedIndex = msg[1];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \pollrateCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
-				};
-				pollrateCommand.value(rrrr, oneBasedIndex);
-			};
-		} {
-			this.addCommand('pollrate', "i") { |msg|
-				var oneBasedIndex = msg[1];
-				if (rrrr.trace) {
-					[SystemClock.seconds, \pollrateCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
-				};
-				this.pollrateCommand(oneBasedIndex);
-			};
-		};
-
-		if (scdBasedRrrr) {
 			this.addCommand('pollclear', "i") { |msg|
 				var oneBasedIndex = msg[1];
 				if (rrrr[\trace]) {
@@ -402,11 +375,6 @@ Engine_R : CroneEngine {
 		pollConfig[\bus] = rrrr.getVisualBus(visual);
 	}
 
-	pollrateCommand { |zeroBasedIndex, rate|
-		var pollConfig = pollConfigs[zeroBasedIndex];
-		pollConfig[\poll].setTime(1/rate);
-	}
-
 	pollclearCommand { |zeroBasedIndex|
 		var pollConfig = pollConfigs[zeroBasedIndex];
 		if (pollConfig[\type] == \out) {
@@ -433,8 +401,6 @@ Engine_R : CroneEngine {
 
 				value;
 			});
-			poll.setTime(1/defaultPollRate);
-			pollConfigs[pollIndex][\poll] = poll;
 		};
 	}
 
