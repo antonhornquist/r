@@ -434,7 +434,7 @@ Engine_R : CroneEngine {
 				value;
 			});
 			poll.setTime(1/defaultPollRate);
-			pollConfigs[pollIndex] = poll;
+			pollConfigs[pollIndex][\poll] = poll;
 		};
 	}
 
