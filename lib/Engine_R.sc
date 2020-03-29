@@ -5,10 +5,11 @@ Engine_R : CroneEngine {
 	var numPolls = 10;
 
 	var <pollConfigs;
+	var defaultPollRate = 10; // poll updates per second
 
 	var init, free, newCommand, connectCommand, disconnectCommand, deleteCommand, setCommand, bulksetCommand, newmacroCommand, deletemacroCommand, macrosetCommand, readsampleCommand, tapoutputCommand, tapclearCommand, getTapBus, getVisualBus;
 
-	var polloutputCommand, pollvisualCommand, pollclearCommand;
+	var polloutputCommand, pollvisualCommand, pollrateCommand, pollclearCommand;
 
 	*new { |context, callback| ^super.new(context, callback) }
 
@@ -51,6 +52,14 @@ Engine_R : CroneEngine {
 				pollConfig[\type] = \visual;
 				pollConfig[\visual] = visual;
 				pollConfig[\bus] = getVisualBus.value(rrrr, visual);
+			};
+		};
+
+		pollrateCommand = { |rrrr, oneBasedIndex, rate|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
+				var pollConfig = pollConfigs[zeroBasedIndex];
+				pollConfig[\poll].setTime(1/rate);
 			};
 		};
 
@@ -103,7 +112,7 @@ Engine_R : CroneEngine {
 
 	addCommands {
 		if (scdBasedRrrr) {
-			this.addCommand('new', "ss") { |msg| // TODO: align terminology
+			this.addCommand('new', "ss") { |msg|
 				var moduleRef = msg[1];
 				var moduleType = msg[2];
 				if (rrrr[\trace]) {
@@ -282,7 +291,7 @@ Engine_R : CroneEngine {
 		};
 
 		if (scdBasedRrrr) {
-			this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue?
+			this.addCommand('pollvisual', "is") { |msg|
 				var oneBasedIndex = msg[1];
 				var moduleVisualRef = msg[2];
 				if (rrrr[\trace]) {
@@ -291,13 +300,31 @@ Engine_R : CroneEngine {
 				pollvisualCommand.value(rrrr, oneBasedIndex, moduleVisualRef);
 			};
 		} {
-			this.addCommand('pollvisual', "is") { |msg| // TODO: rename visual to value, pollvisual to pollvalue
+			this.addCommand('pollvisual', "is") { |msg|
 				var oneBasedIndex = msg[1];
 				var visualRef = msg[2];
 				if (rrrr.trace) {
 					[SystemClock.seconds, \pollvisualCommand, (oneBasedIndex.asString + visualRef.asString)[0..20]].debug(\received);
 				};
 				this.pollvisualCommand(oneBasedIndex-1, visualRef);
+			};
+		};
+
+		if (scdBasedRrrr) {
+			this.addCommand('pollrate', "i") { |msg|
+				var oneBasedIndex = msg[1];
+				if (rrrr[\trace]) {
+					[SystemClock.seconds, \pollrateCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
+				};
+				pollrateCommand.value(rrrr, oneBasedIndex);
+			};
+		} {
+			this.addCommand('pollrate', "i") { |msg|
+				var oneBasedIndex = msg[1];
+				if (rrrr.trace) {
+					[SystemClock.seconds, \pollrateCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
+				};
+				this.pollrateCommand(oneBasedIndex);
 			};
 		};
 
@@ -315,7 +342,7 @@ Engine_R : CroneEngine {
 				if (rrrr.trace) {
 					[SystemClock.seconds, \pollclearCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
 				};
-				this.pollclearCommand(oneBasedIndex);
+				this.pollclearCommand(oneBasedIndex-1);
 			};
 		};
 
@@ -354,31 +381,36 @@ Engine_R : CroneEngine {
 		};
 	}
 
-	polloutputCommand { |index, outputRef|
-		var pollConfig = pollConfigs[index];
+	polloutputCommand { |zeroBasedIndex, outputRef|
+		var pollConfig = pollConfigs[zeroBasedIndex];
 		if (pollConfig[\type].notNil) {
-			this.pollclearCommand(index);
+			this.pollclearCommand(zeroBasedIndex);
 		};
-		rrrr.tapoutletCommand(index, outputRef);
+		rrrr.tapoutletCommand(zeroBasedIndex, outputRef);
 		pollConfig[\type] = \out;
 		pollConfig[\outputRef] = outputRef;
-		pollConfig[\bus] = rrrr.getTapBus(index);
+		pollConfig[\bus] = rrrr.getTapBus(zeroBasedIndex);
 	}
 
-	pollvisualCommand { |index, visual|
-		var pollConfig = pollConfigs[index];
+	pollvisualCommand { |zeroBasedIndex, visual|
+		var pollConfig = pollConfigs[zeroBasedIndex];
 		if (pollConfig[\type].notNil) {
-			this.pollclearCommand(index);
+			this.pollclearCommand(zeroBasedIndex);
 		};
 		pollConfig[\type] = \visual;
 		pollConfig[\visual] = visual;
 		pollConfig[\bus] = rrrr.getVisualBus(visual);
 	}
 
-	pollclearCommand { |index|
-		var pollConfig = pollConfigs[index];
+	pollrateCommand { |zeroBasedIndex, rate|
+		var pollConfig = pollConfigs[zeroBasedIndex];
+		pollConfig[\poll].setTime(1/rate);
+	}
+
+	pollclearCommand { |zeroBasedIndex|
+		var pollConfig = pollConfigs[zeroBasedIndex];
 		if (pollConfig[\type] == \out) {
-			rrrr.tapclearCommand(index);
+			rrrr.tapclearCommand(zeroBasedIndex);
 		};
 		pollConfig[\type] = nil;
 		pollConfig[\outputRef] = nil;
@@ -390,7 +422,7 @@ Engine_R : CroneEngine {
 		pollConfigs = () ! numPolls;
 
 		numPolls do: { |pollIndex|
-			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol, { // TODO: 1..numPolls or 0..numPolls? 
+			var poll = this.addPoll(("poll" ++ (pollIndex+1)).asSymbol, {
 				var pollConfig = pollConfigs[pollIndex];
 				var bus, value;
 
@@ -401,7 +433,8 @@ Engine_R : CroneEngine {
 
 				value;
 			});
-			poll.setTime(1/30); // 30 FPS
+			poll.setTime(1/defaultPollRate);
+			pollConfigs[pollIndex] = poll;
 		};
 	}
 
@@ -411,7 +444,6 @@ Engine_R : CroneEngine {
 		} {
 			rrrr.free;
 		};
-		// TODO: remove polls?
 	}
 
 	*generateLuaSpecs {
