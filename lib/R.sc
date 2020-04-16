@@ -2591,6 +2591,24 @@ RNoiseModule : RModule {
 	}
 }
 
+// Status: untested.
+RPinkNoiseModule : RModule {
+	*shortName { ^'PinkNoise' }
+
+	*ugenGraphFunc {
+		^{
+			|
+				out_Out
+			|
+
+			Out.ar(
+				out_Out,
+				PinkNoise.ar
+			);
+		}
+	}
+}
+
 // Status: partly tested. TODO: what modulation input range should be used?
 RDelayModule : RModule {
 	*shortName { ^'Delay' }
