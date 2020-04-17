@@ -2591,9 +2591,9 @@ RNoiseModule : RModule {
 	}
 }
 
-// Status: untested.
+// Status: tested
 RPinkNoiseModule : RModule {
-	*shortName { ^'PinkNoise' }
+	*shortName { ^'PNoise' }
 
 	*ugenGraphFunc {
 		^{
