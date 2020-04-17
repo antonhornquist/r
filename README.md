@@ -419,7 +419,7 @@ White noise generator.
 	- `Gain`: Attenuation control. -inf ... +12 dB
 	- `Mute`: If 1 signal is muted, otherwise not
 
-### PinkNoise
+### PNoise
 
 Pink noise generator.
 
