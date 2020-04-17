@@ -264,7 +264,7 @@ specs['OGain'] = {
 	Mute = ControlSpec.new(0, 1, "linear", 1, 0, "")
 }
 
-specs['PinkNoise'] = {
+specs['PNoise'] = {
 }
 
 specs['PShift'] = {
