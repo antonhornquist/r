@@ -264,6 +264,9 @@ specs['OGain'] = {
 	Mute = ControlSpec.new(0, 1, "linear", 1, 0, "")
 }
 
+specs['PNoise'] = {
+}
+
 specs['PShift'] = {
 	PitchRatio = ControlSpec.new(0, 4, "linear", 0, 1, ""),
 	PitchDispersion = ControlSpec.new(0, 4, "linear", 0, 0, ""),

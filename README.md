@@ -419,6 +419,15 @@ White noise generator.
 	- `Gain`: Attenuation control. -inf ... +12 dB
 	- `Mute`: If 1 signal is muted, otherwise not
 
+### PNoise
+
+Pink noise generator.
+
+- Inputs: None
+- Outputs:
+	- `Out`: Pink noise output
+- Parameters: None
+
 ### PShift
 
 Pitch shifter.
