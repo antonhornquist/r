@@ -843,7 +843,7 @@ Rrrr {
 	*generateModuleDocs {
 		^Rrrr.allRModuleClasses.collect { |rModuleClass|
 			rModuleClass.generateModuleDocs
-		}.join("\n")
+		}.join("\n\n")
 	}
 }
 
@@ -851,10 +851,11 @@ Rrrr {
 RModule {
 	var synth;
 
-	*ins { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted.
-	*outs { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted.
+	*inputs { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted. <-- TODO, should be event
 
-	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument suffix
+	*outputs { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted. <-- TODO, should be event
+
+	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument suffix <-- TODO: should be event
 
 	*visuals { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec) associations where name correspond to SynthDef ugenGraphFunc argument suffix
 
@@ -922,7 +923,7 @@ RModule {
 			out_* - output (audio bus number)
 			param_* - parameter
 			visual_* - visual feedback (control bus number)
-			numchannels_* - number of channels for sample currently loaded in sample slot 
+			numchannels_* - number of channels for sample currently loaded in sample slot
 			bufnums_* - array of buffer numbers for buffers for every channel count (mono, stereo) possible to load for sample slot
 			internal_ - internal arguments (ie. main in/out used for SoundIn/SoundOut)
 	*/
@@ -1066,32 +1067,75 @@ RModule {
 		var outputs = this.spec[\outputs];
 		var params = this.spec[\parameters];
 
-		^"### " ++ this.shortName.asString ++ "\n" ++
-		"- Inputs:" ++
-		if (
-			inputs.isEmpty,
-			" None",
-			" " ++ inputs.collect { |input|
-				"`" ++ input ++ "`"
-			}.join(", ")
-		) ++ "\n"
-		"- Outputs:" ++
-		if (
-			outputs.isEmpty,
-			" None",
-			" " ++ outputs.collect { |output|
-				"`" ++ output ++ "`"
-			}.join(", ")
-		) ++ "\n"
-		"- Parameters:" ++
-		if (
-			params.isEmpty,
-			" None",
+		^[
+			"###" + this.shortName.asString,
+			this.generateModuleInputDocs(inputs),
+			this.generateModuleOutputDocs(outputs),
+			this.generateModuleParameterDocs(params)
+		].join($\n)
+	}
+
+	*generateModuleInputDocs { |inputs|
+		^"- Inputs:" ++
+		if (inputs.isEmpty) {
+			" None"
+		} {
 			"\n" ++
-			params.collect { |param|
-				"\t- `" ++ param ++ "`" // TODO: include description derived from ControlSpec
-			}.join($\n)
-		) ++ "\n"
+			(
+				this.inputDocs ?
+				(
+					inputs.collect { |input|
+						"\t- `" ++ input ++ "`"
+					}.join($\n)
+				)
+			)
+		};
+	}
+
+	*generateModuleOutputDocs { |outputs|
+		^"- Outputs:" ++
+		if (outputs.isEmpty) {
+			" None"
+		} {
+			"\n" ++
+			(
+				this.outputDocs ?
+				(
+					outputs.collect { |output|
+						"\t- `" ++ output ++ "`"
+					}.join($\n)
+				)
+			)
+		};
+	}
+
+	*generateModuleParameterDocs { |params|
+		^"- Parameters:" ++
+		if (params.isEmpty) {
+			" None"
+		} {
+			"\n" ++
+			(
+				this.paramDocs ?
+				(
+					params.collect { |param|
+						"\t- `" ++ param ++ "`" // TODO: include description derived from ControlSpec
+					}.join($\n)
+				)
+			)
+		};
+	}
+
+	*inputDocs {
+		^nil
+	}
+
+	*outputDocs {
+		^nil
+	}
+
+	*paramDocs {
+		^nil
 	}
 
 	*shortName { ^this.subclassResponsibility(thisMethod) } // TODO: Preferable <= 8 chars
@@ -1187,28 +1231,67 @@ RSoundOutModule : RModule {
 RMultiOscillatorModule : RModule {
 	*shortName { ^'MultiOsc' }
 
+	*inputs {
+		^(
+			'FM': (
+				Description: "Frequency modulation control input",
+				Range: [0, 1]
+			),
+			'PWM': (
+				Description: "Pulse width modulation control input",
+				Range: [0, 1]
+			)
+		)
+	}
+
+	*outputs {
+		^(
+			'Sine': (
+				Description: "Sine wave output",
+				Range: [0, 0] // TODO
+			),
+			'Triangle': (
+				Description: "Triangle wave output",
+				Range: [0, 0] // TODO
+			),
+			'Saw': (
+				Description: "Saw wave output",
+				Range: [0, 0] // TODO
+			),
+			'Pulse': (
+				Description: "Saw wave output",
+				Range: [0, 0] // TODO
+			)
+		)
+	}
+
 	*params {
 		^[
 			'Range' -> (
 				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "-2 ... +2 octaves"
 			),
 			'Tune' -> (
 				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "-1200 ... +1200 cents"
 			),
 			'PulseWidth' -> (
 				Spec: \unipolar.asSpec.copy.default_(0.5),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Pulse width of the pulse oscillator output"
 			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar?
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount"
 			),
 			'PWM' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.01
-			),
+				LagTime: 0.01,
+				Description: "Pulse width modulation amount"
+			)
 		]
 	}
 
@@ -1270,6 +1353,112 @@ RMultiOscillatorModule : RModule {
 	}
 }
 
+// Status: experimental
+// Inspiration from A-110 (but no Sync input)
+RMultiOscillatorExpModule : RModule {
+	*shortName { ^'MultiOscExp' }
+
+	*params {
+		^[
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
+				LagTime: 0.01,
+				Description: "-2 ... +2 octaves"
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
+				LagTime: 0.01,
+				Description: "-1200 ... +1200 cents"
+			),
+			'PulseWidth' -> (
+				Spec: \unipolar.asSpec.copy.default_(0.5),
+				LagTime: 0.01,
+				Description: "Pulse width of the pulse oscillator output"
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01,
+				Description: "Frequency modulation amount"
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+/*
+	TODO
+			'PM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+*/
+			'PWM' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.01,
+				Description: "Pulse width modulation amount"
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_FM,
+				in_LinFM,
+				in_PWM,
+				out_Sine,
+				out_Triangle,
+				out_Saw,
+				out_Pulse,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM,
+				param_PulseWidth,
+				param_PWM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+			var sig_PWM = In.ar(in_PWM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			var pulseWidth = (
+				param_PulseWidth + (sig_PWM * param_PWM)
+			).clip(0, 1);
+
+			Out.ar(
+				out_Sine,
+				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000)) * 0.5
+			);
+
+			Out.ar(
+				out_Triangle,
+				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // not band limited
+			);
+
+			Out.ar(
+				out_Saw,
+				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
+			);
+
+			Out.ar(
+				out_Pulse,
+				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
+			);
+		}
+	}
+}
+
 // Status: tested
 RSineOscillatorModule : RModule {
 	*shortName { ^'SineOsc' }
@@ -1317,6 +1506,72 @@ RSineOscillatorModule : RModule {
 			Out.ar(
 				out_Out,
 				SinOsc.ar(frequency) * 0.5
+			);
+		}
+	}
+}
+
+// Status: experimental
+RSineOscillatorExpModule : RModule {
+	*shortName { ^'SineOscExp' }
+
+	*params {
+		^[
+			'Range' -> (
+				Spec: ControlSpec.new(-8, 8, nil, 1, 0),
+				LagTime: 0.01
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				LagTime: 0.01
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+			'PM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_FM,
+				in_LinFM,
+				in_PM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM,
+				param_PM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+			var sig_PM = In.ar(in_PM);
+
+			//var fullRange = ControlSpec(12.midicps, 120.midicps); -- removed by andrew (allow higher frequencies for FM synthesis?)
+
+			var frequency =  ( //fullRange.constrain( -- removed by andrew
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			Out.ar(
+				out_Out,
+				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000), (sig_PM * param_PM * 30).mod(2pi)) * 0.5
 			);
 		}
 	}
@@ -1374,6 +1629,65 @@ RTriangleOscillatorModule : RModule {
 	}
 }
 
+// Status: experimental
+RTriangleOscillatorExpModule : RModule {
+	*shortName { ^'TriOscExp' }
+
+	*params {
+		^[
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				LagTime: 0.01
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				LagTime: 0.01
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_FM,
+				in_LinFM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			Out.ar(
+				out_Out,
+				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // TODO: not band-limited
+			);
+		}
+	}
+}
+
 // Status: tested
 RSawtoothOscillatorModule : RModule {
 	*shortName { ^'SawOsc' }
@@ -1421,6 +1735,65 @@ RSawtoothOscillatorModule : RModule {
 			Out.ar(
 				out_Out,
 				Saw.ar(frequency) * 0.5
+			);
+		}
+	}
+}
+
+// Status: experimental
+RSawtoothOscillatorExpModule : RModule {
+	*shortName { ^'SawOscExp' }
+
+	*params {
+		^[
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				LagTime: 0.01
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				LagTime: 0.01
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_FM,
+				in_LinFM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			Out.ar(
+				out_Out,
+				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
 			);
 		}
 	}
@@ -1494,22 +1867,97 @@ RPulseOscModule : RModule {
 	}
 }
 
+// Status: experimental
+RPulseOscExpModule : RModule {
+	*shortName { ^'PulseOscExp' }
+
+	*params {
+		^[
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, nil, 1, 0),
+				LagTime: 0.01
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, nil, 0, 0, "cents"),
+				LagTime: 0.01
+			),
+			'PulseWidth' -> (
+				Spec: \unipolar.asSpec.copy.default_(0.5),
+				LagTime: 0.01
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+			'PWM' -> (
+				Spec: \unipolar.asSpec.copy.default_(0.4),
+				LagTime: 0.01
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_FM,
+				in_LinFM,
+				in_PWM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM,
+				param_PulseWidth,
+				param_PWM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+			var sig_PWM = In.ar(in_PWM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				(
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			var pulseWidth = (
+				param_PulseWidth + (sig_PWM * param_PWM)
+			).clip(0, 1);
+
+			Out.ar(
+				out_Out,
+				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
+			);
+		}
+	}
+}
+
 // Status: partly tested, TODO: test in_Reset together with param_Reset
 // Inspiration from A-145
 RMultiLFOModule : RModule {
 	*shortName { ^'MultiLFO' }
 
-	*ins {
-		^[
+	*inputs {
+		^(
 			'Reset': (
 				Description: "Patchable LFO reset trigger",
 				Range: [0, 1]
-			),
-		]
+			)
+		)
 	}
 
-	*outs {
-		^[
+	*outputs {
+		^(
 			'InvSaw': (
 				Description: "Inverted Saw",
 				Range: [-0.25, 0.25]
@@ -1526,7 +1974,7 @@ RMultiLFOModule : RModule {
 				Description: "Triangle",
 				Range: [-0.25, 0.25]
 			),
-		]
+		)
 	}
 
 	*params {
@@ -2591,24 +3039,6 @@ RNoiseModule : RModule {
 	}
 }
 
-// Status: tested
-RPinkNoiseModule : RModule {
-	*shortName { ^'PNoise' }
-
-	*ugenGraphFunc {
-		^{
-			|
-				out_Out
-			|
-
-			Out.ar(
-				out_Out,
-				PinkNoise.ar
-			);
-		}
-	}
-}
-
 // Status: partly tested. TODO: what modulation input range should be used?
 RDelayModule : RModule {
 	*shortName { ^'Delay' }
@@ -3088,6 +3518,20 @@ R4x4MatrixModule : RModule {
 		^RMatrixModuleCommon.generateParams(4, 4)
 	}
 
+	*inputDocs {
+		^"\t- `In1` ... `In4`: Signal inputs"
+	}
+
+	*outputDocs {
+		^"\t- `Out1` ... `Out4`: Signal outputs"
+	}
+
+	*paramDocs {
+		^
+			"\t- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms." ++ "\n" ++
+			"\t- `Gate_1_1` ... `Gate_4_4`: Toggles that determine whether inputs (first number) are switched on to outputs (second number)."
+	}
+
 	*ugenGraphFunc {
 		^{
 			|
@@ -3158,6 +3602,20 @@ R4x4MatrixModule : RModule {
 // Status: tested
 R8x8MatrixModule : RModule {
 	*shortName { ^'88Matrix' }
+
+	*inputDocs {
+		^"\t- `In1` ... `In8`: Signal inputs"
+	}
+
+	*outputDocs {
+		^"\t- `Out1` ... `Out8`: Signal outputs"
+	}
+
+	*paramDocs {
+		^
+			"\t- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms." ++ "\n" ++
+			"\t- `Gate_1_1` ... `Gate_8_8`: Toggles that determine whether inputs (first number) are switched on to outputs (second number)."
+	}
 
 	*params {
 		^RMatrixModuleCommon.generateParams(8, 8)
@@ -3501,7 +3959,7 @@ RSeq1Module : RModule {
 
 	*shortName { ^'Seq1' }
 
-	*ins {
+	*inputs {
 		^(
 			'Clock': (
 				Description: ""
@@ -3524,7 +3982,7 @@ RSeq1Module : RModule {
 		)
 	}
 
-	*outs {
+	*outputs {
 		^(
 			'Trig1': (
 				Description: ""
@@ -3862,7 +4320,7 @@ RSPVoiceModule : RModule {
 
 			var bufnum = Latch.ar(
 				(monoSampleIsLoaded * mono_bufnum)
-				+ 
+				+
 				(stereoSampleIsLoaded * stereo_bufnum),
 				gate
 			); // "fixes" bufnum to correct channelcount
@@ -3918,7 +4376,7 @@ RSPVoiceModule : RModule {
 						phase.linlin(0, 1, 0, BufFrames.kr(mono_bufnum)),
 						interpolation: 4
 					) ! 2 * monoSampleIsLoaded
-				) + 
+				) +
 				(
 					BufRd.ar( // TODO: tryout BLBufRd
 						2,
@@ -4204,6 +4662,196 @@ RReverb1Module : RModule {
 
 			Out.ar(out_Left, output[0] * amp);
 			Out.ar(out_Right, output[1] * amp);
+		}
+	}
+}
+
+// Status: tested (added by andrew)
+RSlewModule : RModule {
+	*shortName { ^'Slew' }
+
+	*params {
+		^[
+			'Time' -> (
+				Spec: ControlSpec.new(0, 60),
+				LagTime: 0.1
+			)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				out_Out,
+				param_Time
+			|
+
+			var sig_In = In.ar(in_In);
+
+			Out.ar(
+				out_Out,
+				Lag.ar(sig_In, param_Time)
+			);
+		}
+	}
+}
+
+// Status: tested (added by @andrew)
+RPanModule : RModule {
+	*shortName { ^'Pan' }
+
+	*params {
+		^[
+			'Position' ->(
+			  Spec: \bipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'PositionModulation' -> (
+			  Spec: \bipolar.asSpec,
+			  LagTime: 0.1
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				in_PositionModulation,
+				out_Left,
+				out_Right,
+				param_Position,
+				param_PositionModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_PositionModulation = In.ar(in_PositionModulation);
+
+			var sig = Pan2.ar(sig_In, param_Position + (sig_PositionModulation * param_PositionModulation));
+			Out.ar(out_Left, sig[0]);
+			Out.ar(out_Right, sig[1]);
+		}
+	}
+}
+
+// Status: tested (added by @andrew)
+RDecimateModule : RModule {
+	*shortName { ^'Decimate' }
+
+	*params {
+		^[
+			'Rate' -> (
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'Depth' -> (
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'Smooth' -> (
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'RateModulation' -> (
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'DepthModulation' -> (
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			),
+			'SmoothModulation' -> (
+			  Spec: \unipolar.asSpec,
+			  LagTime: 0.1
+			)
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				in_Rate,
+				in_Depth,
+				in_Smooth
+				out_Out,
+				param_Rate,
+				param_Depth,
+				param_Smooth,
+				param_RateModulation,
+				param_DepthModulation,
+				param_SmoothModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_Rate = In.ar(in_Rate);
+			var sig_Depth = In.ar(in_Rate);
+			var sig_Smooth = In.ar(in_Rate);
+
+			Out.ar(out_Out,
+			       SmoothDecimator.ar(Decimator.ar(sig_In, 48000, (param_Depth + (sig_Depth * param_Depth)) * 24), (param_Rate + (sig_Rate * param_RateModulation)) * 48000, param_Smooth + (sig_Smooth * param_SmoothModulation))
+			);
+		}
+	}
+}
+
+// Status: tested (added by andrew)
+REQBandPassFilter : RModule {
+	*shortName { ^'EQBP' }
+
+	*params {
+		^[
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				LagTime: 0.1
+			),
+			'Bandwidth' -> (
+				Spec: ControlSpec.new(0, 10),
+				LagTime: 0.1
+			),
+			'FM' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.01
+			),
+			'BandwidthModulation' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.01
+			),
+		]
+	}
+
+	*ugenGraphFunc {
+		^{
+			|
+				in_In,
+				in_FM,
+				in_BandwidthModulation,
+				out_Out,
+				param_Frequency,
+				param_Bandwidth,
+				param_FM,
+				param_BandwidthModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_FM = In.ar(in_FM);
+			var sig_BandwidthModulation = In.ar(in_BandwidthModulation);
+
+			var frequencySpec = \widefreq.asSpec;
+			var bandwidthSpec = ControlSpec.new(0, 10);
+
+			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
+			var bandwidth = bandwidthSpec.map(bandwidthSpec.unmap(param_Bandwidth) + (sig_BandwidthModulation * param_BandwidthModulation));
+
+			Out.ar(
+				out_Out,
+				BBandPass.ar(
+					sig_In,
+					frequency,
+					bandwidth,
+				)
+			);
 		}
 	}
 }

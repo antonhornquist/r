@@ -66,31 +66,31 @@ Only one output or visual can be routed to each poll at any given time. The late
 4x4 matrix signal router
 
 - Inputs:
-	- `In1` ... `In4`: Signal inputs
+	- `In1` ... `In4`: Signal inputs.
 - Outputs:
-	- `Out1` ... `Out4`: Signal outputs
+	- `Out1` ... `Out4`: Signal outputs.
 - Parameters:
 	- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms.
-	- `Gate_1_1` ... `Gate_4_4`: Toggles that determine whether inputs (first number) are switched on to outputs (second number).
+	- `Gate_1_1` ... `Gate_4_4`: Toggles that determine what inputs (first number) are switched on to outputs (second number).
 
 ### 88Matrix
 
 8x8 matrix signal router
 
 - Inputs:
-	- `In1` ... `In8`: Signal inputs
+	- `In1` ... `In8`: Signal inputs.
 - Outputs:
-	- `Out1` ... `Out8`: Signal outputs
+	- `Out1` ... `Out8`: Signal outputs.
 - Parameters:
 	- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms.
-	- `Gate_1_1` ... `Gate_8_8`: Toggles that determine whether inputs (first number) are switched on to outputs (second number).
+	- `Gate_1_1` ... `Gate_8_8`: Toggles that determine what inputs (first number) are switched on to outputs (second number).
 
 ### ADSREnv
 
-ADSR Envelope.
+ADSR Envelope
 
 - Inputs:
-	- `Gate`: Gate control input. A signal > 0 triggers envelope
+	- `Gate`: Gate control input. A signal > 0 triggers envelope.
 - Outputs:
 	- `Out`: Envelope signal: 0 ... 0.8.
 - Parameters:
@@ -102,27 +102,27 @@ ADSR Envelope.
 
 ### Amp
 
-Simple amplifier with level parameter and exponential or linear gain modulation.
+Simple amplifier with level parameter and exponential or linear gain modulation
 
 - Inputs:
-	- `Exp`: Gain modulation control input (logarithmic)
-	- `Lin`: Gain modulation control input (linear)
-	- `In`: Input signal to attenuate
+	- `Exp`: Gain modulation control input (logarithmic).
+	- `Lin`: Gain modulation control input (linear).
+	- `In`: Input signal to attenuate.
 - Outputs:
-	- `Out`: Attenuated output signal
+	- `Out`: Attenuated signal.
 - Parameters:
 	- `Level`: Amplifier level 0 - 1.0.
 
 ### Amp2
 
-Amplifier with two inputs, level parameter and variable exponential or linear gain modulation.
+Amplifier with two inputs, level parameter and variable exponential or linear gain modulation
 
 - Inputs:
-	- `GainModulation`: Control input for gain modulation
-	- `In1`: Audio input 1
-	- `In2`: Audio input 2
+	- `GainModulation`: Control input for gain modulation.
+	- `In1`: Audio input 1.
+	- `In2`: Audio input 2.
 - Outputs:
-	- `Out`: Attenuated signal
+	- `Out`: Attenuated signal.
 - Parameters:
 	- `Gain`: Initial gain 0 - 1.0.
 	- `GainModulation`: Gain modulation amount 0 - 1.0.
@@ -133,484 +133,475 @@ Amplifier with two inputs, level parameter and variable exponential or linear ga
 
 ### BPFilter
 
-Bandpass SVF filter.
+Resonant bandpass SVF filter
 
 - Inputs:
-	- `In`: Audio input
-	- `FM`: Control input for frequency modulation
-	- `ResonanceModulation`: Control input for resonance modulation
+	- `In`: Audio input.
+	- `FM`: Control input for frequency modulation.
+	- `ResonanceModulation`: Control input for resonance modulation.
 - Outputs:
-	- `Out`: Filtered audio output
+	- `Out`: Filtered audio signal.
 - Parameters:
 	- `AudioLevel`: Audio level 0 ... 1.0. Default is 1.
 	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
 	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
 	- `FM`: Frequency modulation amount -1.0 ... 1.0.
 	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
+- Visuals:
+	- `Frequency`: Cutoff frequency.
 
 ### BRFilter
 
-Bandreject (Notch) SVF filter.
+Resonant bandreject (Notch) SVF filter
 
 - Inputs:
-	- `In`: Audio input
-	- `FM`: Control input for frequency modulation
-	- `ResonanceModulation`: Control input for resonance modulation
+	- `In`: Audio input.
+	- `FM`: Control input for frequency modulation.
+	- `ResonanceModulation`: Control input for resonance modulation.
 - Outputs:
-	- `Out`: Filtered audio output
+	- `Out`: Filtered audio signal.
 - Parameters:
 	- `AudioLevel`: Audio level 0 ... 1.0. Default is 1.
 	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
 	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
 	- `FM`: Frequency modulation amount -1.0 ... 1.0.
 	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
+- Visuals:
+	- `Frequency`: Cutoff frequency.
 
 ### DbMixer
 
-Mixer suited for audio signals.
+Mixer suited for audio signals
 
 - Inputs:
-	- `In1` ... `In4`: Audio inputs 1 ... 4
+	- `In1` ... `In4`: Audio inputs 1 ... 4.
 - Outputs:
-	- `Out`: Mixed signal
+	- `Out`: Mixed signal.
 - Parameters:
-	- `In1`: Audio input 1 level TODO: range/spec
-	- `In2`: Audio input 2 level TODO: range/spec
-	- `In3`: Audio input 3 level TODO: range/spec
-	- `In4`: Audio input 4 level TODO: range/spec
-	- `Out`: Output level TODO: range/spec
+	- `In1` ... `In4`: Audio input 1 ... 4 levels TODO: range/spec.
+	- `Out`: Output level TODO: range/spec.
 
 ### Delay
 
-Delay line.
+Delay line
 
 - Inputs:
-	- `In`: Audio input
-	- `DelayTimeModulation`: Control input for delay time modulation
+	- `In`: Audio input.
+	- `DelayTimeModulation`: Control signal for delay time modulation.
 - Outputs:
-	- `Out`: Delayed signal
+	- `Out`: Delayed signal.
 - Parameters:
-	- `DelayTime`: Delay time TODO
-	- `DelayTimeModulation`: Delay time modulation TODO
+	- `DelayTime`: Delay time.
+	- `DelayTimeModulation`: Delay time modulation amount.
+- Visuals:
+	- `DelayTime`: Delay time.
 
-### FMVoice
+### EQBP
 
-FM voice (TODO: untested)
+Non-resonant, variable width bandpass filter
 
 - Inputs:
-	- `Modulation`
+	- `In`
+	- `FM`
+	- `BandwidthModulation`
 - Outputs:
 	- `Out`
 - Parameters:
-	- `Freq`
-	- `Timbre`
-	- `Osc1Gain`
-	- `Osc1Partial`
-	- `Osc1Fixed`
-	- `Osc1Fixedfreq`
-	- `Osc1Index`
-	- `Osc1Outlevel`
-	- `Osc1_To_Osc1Freq`
-	- `Osc1_To_Osc2Freq`
-	- `Osc1_To_Osc3Freq`
-	- `Osc2Gain`
-	- `Osc2Partial`
-	- `Osc2Fixed`
-	- `Osc2Fixedfreq`
-	- `Osc2Index`
-	- `Osc2Outlevel`
-	- `Osc2_To_Osc1Freq`
-	- `Osc2_To_Osc2Freq`
-	- `Osc2_To_Osc3Freq`
-	- `Osc3Gain`
-	- `Osc3Partial`
-	- `Osc3Fixed`
-	- `Osc3Fixedfreq`
-	- `Osc3Index`
-	- `Osc3Outlevel`
-	- `Osc3_To_Osc3Freq`
-	- `Osc3_To_Osc2Freq`
-	- `Osc3_To_Osc1Freq`
-	- `Mod_To_Osc1Gain`
-	- `Mod_To_Osc2Gain`
-	- `Mod_To_Osc3Gain`
-	- `Mod_To_Osc1Freq`
-	- `Mod_To_Osc2Freq`
-	- `Mod_To_Osc3Freq`
+	- `Frequency`: TODO
+	- `Bandwidth`: TODO
+	- `FM`: TODO
+	- `BandwidthModulation`: TODO
 
 ### FShift
 
-Frequency shifter.
+Frequency shifter
 
 - Inputs:
-	- `Left`: Left audio input
-	- `Right`: Right audio input
-	- `FM`: Control signal for frequency modulation
+	- `Left`: Left audio input.
+	- `Right`: Right audio input.
+	- `FM`: Control signal for frequency shift modulation.
 - Outputs:
-	- `Left`: Frequency shifted audio output (left)
-	- `Right`: Frequency shifted audio output (right)
+	- `Left`: Left shifted signal.
+	- `Right`: Right shifted signal.
 - Parameters:
-	- `Frequency`: Frequency shift. -2000 Hz ... +2000 Hz
-	- `FM`: Frequency modulation amount. -1.0 ... +1.0
+	- `Frequency`: Frequency shift. `-2000` Hz ... `+2000` Hz.
+	- `FM`: Frequency modulation amount. `-1.0` ... `+1.0`.
+- Visuals:
+	- `Frequency`: Frequency shift.
 
 ### FreqGate
 
-CV/Gate thing.
+CV/Gate thing [TODO: clarify]
 
-- Inputs: None
 - Outputs:
-	- `Frequency`: 
-	- `Gate`: 
-	- `Trig`: 
+	- `Frequency`: Frequency control signal.
+	- `Gate`: Gate control signal.
+	- `Trig`: Trig control signal.
 - Parameters:
-	- `Frequency`: 
-	- `Gate`: 
+	- `Frequency`: Frequency parameter.
+	- `Gate`: Gate parameter.
 
 ### HPFilter
 
-Highpass SVF filter.
+Resonant highpass SVF filter
 
 - Inputs:
-	- `In`: Audio input
-	- `FM`: Control input for frequency modulation
-	- `ResonanceModulation`: Control input for resonance modulation
+	- `In`: Audio input.
+	- `FM`: Control input for frequency modulation.
+	- `ResonanceModulation`: Control input for resonance modulation.
 - Outputs:
-	- `Out`: Filtered audio output
+	- `Out`: Filtered audio signal.
 - Parameters:
 	- `AudioLevel`: Audio level 0 ... 1.0. Default is 1.
 	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
 	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
 	- `FM`: Frequency modulation amount -1.0 ... 1.0.
 	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
+- Visuals:
+	- `Frequency`: Cutoff frequency.
 
 ### LPFilter
 
-Lowpass SVF filter.
+Resonant lowpass SVF filter
 
 - Inputs:
-	- `In`: Audio input
-	- `FM`: Control input for frequency modulation
-	- `ResonanceModulation`: Control input for resonance modulation
+	- `In`: Audio input.
+	- `FM`: Control input for frequency modulation.
+	- `ResonanceModulation`: Control input for resonance modulation.
 - Outputs:
-	- `Out`: Filtered audio output
+	- `Out`: Filtered audio signal.
 - Parameters:
 	- `AudioLevel`: Audio level 0 ... 1.0. Default is 1.
 	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
 	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
 	- `FM`: Frequency modulation amount -1.0 ... 1.0.
 	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
+- Visuals:
+	- `Frequency`: Cutoff frequency.
 
 ### LPLadder
 
-Lowpass ladder filter.
+Lowpass ladder filter
 
 - Inputs:
-	- `In`: Audio input
-	- `FM`: Control input for frequency modulation
-	- `ResonanceModulation`: Control input for resonance modulation
+	- `In`: Audio input.
+	- `FM`: Control input for frequency modulation.
+	- `ResonanceModulation`: Control input for resonance modulation.
 - Outputs:
-	- `Out`: Filtered audio output
+	- `Out`: Filtered audio signal.
 - Parameters:
 	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
 	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
 	- `FM`: Frequency modulation amount -1.0 ... 1.0.
 	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
+- Visuals:
+	- `Frequency`: Cutoff frequency.
 
 ### LinMixer
 
 Mixer suited for control signals
 
 - Inputs:
-	- `In1` ... `In4`: Audio inputs 1 ... 4
+	- `In1` ... `In4`: Audio inputs 1 ... 4.
 - Outputs:
-	- `Out`: Mixed signal
+	- `Out`: Mixed signal.
 - Parameters:
-	- `In1`: Audio input 1 level TODO: range/spec
-	- `In2`: Audio input 2 level TODO: range/spec
-	- `In3`: Audio input 3 level TODO: range/spec
-	- `In4`: Audio input 4 level TODO: range/spec
-	- `Out`: Output level TODO: range/spec
+	- `In1` ... `In4`: Audio input 1 ... 4 levels TODO: range/spec.
+	- `Out`: Output level TODO: range/spec.
 
 ### MGain
 
-Audio fader with db gain control and mute.
+Audio fader with db gain control and mute
 
 - Inputs:
-	- `In`: Audio input
+	- `In`: Audio input.
 - Outputs:
-	- `Out`: Attenuated audio output
+	- `Out`: Attenuated audio signal.
 - Parameters:
-	- `Gain`: Attenuation control. -inf ... +12 dB
-	- `Mute`: If 1 signal is muted, otherwise not
+	- `Gain`: Attenuation control. -inf ... +12 dB.
+	- `Mute`: If 1 signal is muted, otherwise not.
 
 ### MMFilter
 
-Multimode filter.
+Resonant SVF multimode filter
 
 - Inputs:
-	- `In`: Audio input
-	- `FM`: Control input for frequency modulation
-	- `ResonanceModulation`: Control input for resonance modulation
+	- `In`: Audio input.
+	- `FM`: Control input for frequency modulation.
+	- `ResonanceModulation`: Control input for resonance modulation.
 - Outputs:
-	- `Notch`: Band-reject filtered audio output
-	- `Highpass`: Highpass filtered audio output
-	- `Bandpass`: Bandpass filtered audio output
-	- `Lowpass`: Lowpass filtered audio output
+	- `Notch`: Band-reject filtered audio signal.
+	- `Highpass`: Highpass filtered audio signal.
+	- `Bandpass`: Bandpass filtered audio signal.
+	- `Lowpass`: Lowpass filtered audio signal.
 - Parameters:
 	- `AudioLevel`: Audio level 0 ... 1.0. Default is 1.
 	- `Frequency`: Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz.
 	- `Resonance`: Resonance 0 ... 1.0. Default is 0.
 	- `FM`: Frequency modulation amount -1.0 ... 1.0.
 	- `ResonanceModulation`: Resonance modulation amount -1.0 ... 1.0.
+- Visuals:
+	- `Frequency`: Cutoff frequency.
 
 ### MultiLFO
 
-LFO featuring multiple waveforms.
+LFO featuring multiple waveforms
 
 - Inputs:
-	- `Reset`: Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered
+	- `Reset`: Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered.
 - Outputs:
-	- `InvSaw`: Inverted saw signal output
-	- `Saw`: Upward saw signal output
-	- `Sine`: Sine signal output
-	- `Triangle`: Triange signal output
-	- `Pulse`: Pulse signal output
+	- `InvSaw`: Inverted saw signal output.
+	- `Saw`: Saw signal output.
+	- `Sine`: Sine signal output.
+	- `Triangle`: Triangle signal output.
+	- `Pulse`: Pulse signal output.
 - Parameters:
-	- `Frequency`: Frequency 0.01 Hz .. 50 Hz
-	- `Reset`: Script reset trigger: when value is changed from 0 to 1 the LFO is retriggered
+	- `Frequency`: LFO Frequency 0.01 Hz .. 50 Hz.
+	- `Reset`: Script reset trigger: when value is changed from 0 to 1 the LFO is retriggered.
 
 ### MultiOsc
 
-Oscillator featuring multiple waveforms.
+Oscillator featuring multiple waveforms
 
 - Inputs:
-	- `FM`: Control signal input for frequency modulation
-	- `PWM`: Control signal input for pulse width modulation
+	- `FM`: Control signal for frequency modulation.
+	- `PWM`: Control signal for pulse width modulation.
 - Outputs:
-	- `Sine`: Sine wave oscillator output
-	- `Triangle`: Triangle wave oscillator output
-	- `Saw`: Sawtooth wave oscillator output
-	- `Pulse`: Pulse wave oscillator output
+	- `Sine`: Sine wave oscillator output.
+	- `Triangle`: Triangle wave oscillator output.
+	- `Saw`: Saw wave oscillator output.
+	- `Pulse`: Pulse wave oscillator output.
 - Parameters:
-	- `Range`: -2 ... +2 octaves.
-	- `Tune`: -1200 ... +1200 cents
-	- `FM`: Frequency modulation amount
-	- `PulseWidth`: Pulse width of the pulse oscillator output
-	- `PWM`: Pulse width modulation amount
+	- `Range`: `-2` ... `+2` octaves.
+	- `Tune`: `-1200` ... `+1200` cents.
+	- `FM`: Frequency modulation amount.
+	- `PulseWidth`: Pulse oscillator pulse width.
+	- `PWM`: Pulse width modulation amount.
 
 ### Noise
 
-White noise generator.
+White noise generator
 
-- Inputs: None
 - Outputs:
-	- `Out`: White noise output
-- Parameters: None
+	- `Out`: Noise signal.
 
 ### OGain
 
-8-in/8-out audio fader with db gain control and mute.
+8-in/8-out audio fader with db gain control and mute
 
 - Inputs:
-	- `In1` ... `In8`: Audio inputs
+	- `In1` ... `In8`: Audio inputs.
 - Outputs:
-	- `Out1` ... `Out8`: Attenuated audio outputs
+	- `Out1` ... `Out8`: Attenuated audio signal outputs.
 - Parameters:
-	- `Gain`: Attenuation control. -inf ... +12 dB
-	- `Mute`: If 1 signal is muted, otherwise not
+	- `Gain`: Attenuation control. -inf ... +12 dB.
+	- `Mute`: If 1 signal is muted, otherwise not.
 
-### PNoise
+### Pan
 
-Pink noise generator.
+Stereo panner with monophonic input
 
-- Inputs: None
+- Inputs:
+	- `In`: Mono audio signal.
+	- `PositionModulation`: Right audio signal.
 - Outputs:
-	- `Out`: Pink noise output
-- Parameters: None
+	- `Left`: Left audio signal.
+	- `Right`: Right audio signal.
+- Parameters:
+	- `Position`: Pan position.
+	- `PositionModulation`: Pan position modulation amount.
 
 ### PShift
 
-Pitch shifter.
+Pitch shifter
 
 - Inputs:
-	- `Left`: Right audio input
-	- `Right`: Right audio input
-	- `PitchRatioModulation`
-	- `PitchDispersionModulation`
-	- `TimeDispersionModulation`
+	- `Left`: Left audio signal.
+	- `Right`: Right audio signal.
+	- `PitchRatioModulation`: Pitch ratio modulation amount.
+	- `PitchDispersionModulation`: Pitch dispersion modulation amount.
+	- `TimeDispersionModulation`: Time dispersion modulation amount.
 - Outputs:
-	- `Left`: Left audio output
-	- `Right`: Right audio output
+	- `Left`: Left processed audio signal.
+	- `Right`: Right processed audio signal.
 - Parameters:
-	- `PitchRatio`
-	- `PitchDispersion`
-	- `TimeDispersion`
-	- `PitchRatioModulation`
-	- `PitchDispersionModulation`
-	- `TimeDispersionModulation`
+	- `PitchRatio`: Pitch ratio: `0` ... `4`. Default is `1`.
+	- `PitchDispersion`: Pitch dispersion: `0` ... `4`. Default is `0`.
+	- `TimeDispersion`: Time dispersion: `0` ... `1`. Default is `0`.
+	- `PitchRatioModulation`: Pitch ratio modulation amount: `-1` ... `1`.
+	- `PitchDispersionModulation`: Pitch dispersion modulation amount: `-1` ... `1`.
+	- `TimeDispersionModulation`: Time dispersion modulation amount: `-1` ... `1`.
+- Visuals:
+	- `PitchRatio`: Time dispersion modulation amount: `-1` ... `1`.
 
 ### PulseOsc
 
-Pulse/square oscillator with pulse width control.
+Pulse/square oscillator with pulse width control
 
 - Inputs:
-	- `FM`: Control signal input for frequency modulation
-	- `PWM`: Control signal input for pulse width modulation
+	- `FM`: Control signal for frequency modulation.
+	- `PWM`: Control signal for pulse width modulation.
 - Outputs:
-	- `Out`: Pulse wave oscillator output
+	- `Out`: Pulse wave oscillator output.
 - Parameters:
-	- `Range`: -2 ... +2 octaves.
-	- `Tune`: -1200 ... +1200 cents
-	- `FM`: Frequency modulation amount
-	- `PulseWidth`: Pulse width of the pulse oscillator output
-	- `PWM`: Pulse width modulation amount
+	- `Range`: `-2` ... `+2` octaves.
+	- `Tune`: `-1200` ... `+1200` cents.
+	- `FM`: Frequency modulation amount.
+	- `PulseWidth`: Pulse oscillator Pulse width.
+	- `PWM`: Pulse width modulation amount.
 
 ### QGain
 
-4-in/4-out audio fader with db gain control and mute.
+4-in/4-out audio fader with db gain control and mute
 
 - Inputs:
 	- `In1` ... `In4`: Audio inputs
 - Outputs:
-	- `Out1` ... `Out4`: Attenuated audio outputs
+	- `Out1` ... `Out4`: Attenuated audio signal outputs
 - Parameters:
-	- `Gain`: Attenuation control. -inf ... +12 dB
-	- `Mute`: If 1 signal is muted, otherwise not
+	- `Gain`: Attenuation control. -inf ... +12 dB.
+	- `Mute`: If 1 signal is muted, otherwise not.
 
 ### RingMod
 
-Ring modulator.
+Ring modulator
 
 - Inputs:
-	- `In`
-	- `Carrier`
+	- `In`: Audio signal input.
+	- `Carrier`: Carrier signal input.
 - Outputs:
-	- `Out`
-- Parameters: None
+	- `Out`: Ring modulated audio signal.
 
 ### SGain
 
-2-in/2-out audio fader with db gain control and mute.
+2-in/2-out audio fader with db gain control and mute
 
 - Inputs:
-	- `Left`: Left audio input
-	- `Right`: Right audio input
+	- `Left`: Left channel input.
+	- `Right`: Right channel input.
 - Outputs:
-	- `Left`: Left audio output
-	- `Right`: Right audio output
+	- `Left`: Attenuated left channel signal.
+	- `Right`: Attenuated right channel signal.
 - Parameters:
-	- `Gain`: Attenuation control. -inf ... +12 dB
-	- `Mute`: If 1 signal is muted, otherwise not
+	- `Gain`: Attenuation control. -inf ... +12 dB.
+	- `Mute`: If 1 signal is muted, otherwise not.
 
 ### SampHold
 
-Sample and hold module.
+Sample and hold module
 
 - Inputs:
-	- `In`
-	- `Trig`
+	- `In`: Audio signal input.
+	- `Trig`: Trigger signal input.
 - Outputs:
-	- `Out`
-- Parameters: None
+	- `Out`: Processed audio signal.
 
 ### SawOsc
 
-Sawtooth oscillator.
+Sawtooth oscillator
 
 - Inputs:
-	- `FM`: Control signal input for frequency modulation
-	- `PWM`: Control signal input for pulse width modulation
+	- `FM`: Control signal for frequency modulation.
 - Outputs:
-	- `Out`: Sawtooth wave oscillator output
+	- `Out`: Saw wave oscillator output.
 - Parameters:
-	- `Range`: -2 ... +2 octaves.
-	- `Tune`: -1200 ... +1200 cents
-	- `FM`: Frequency modulation amount
+	- `Range`: `-2` ... `+2` octaves.
+	- `Tune`: `-1200` ... `+1200` cents.
+	- `FM`: Frequency modulation amount.
 
 ### SineLFO
 
-Sine LFO.
+Sine LFO
 
 - Inputs:
-	- `Reset`: Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered
+	- `Reset`: Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered.
 - Outputs:
-	- `Out`: Sine signal output
+	- `Out`: Sine output.
 - Parameters:
-	- `Frequency`: Frequency 0.01 Hz .. 50 Hz
-	- `Reset`: Script reset trigger: when value is changed from 0 to 1 the LFO is retriggered
+	- `Frequency`: Frequency `0.01` Hz .. `50` Hz.
+	- `Reset`: Script reset trigger: when value is changed from 0 to 1 the LFO is retriggered.
 
 ### SineOsc
 
 Sine oscillator.
 
 - Inputs:
-	- `FM`: Control signal input for frequency modulation
-	- `PWM`: Control signal input for pulse width modulation
+	- `FM`: Control signal for frequency modulation.
 - Outputs:
-	- `Out`: Sine wave oscillator output
+	- `Out`: Sine wave oscillator output.
 - Parameters:
-	- `Range`: -2 ... +2 octaves.
-	- `Tune`: -1200 ... +1200 cents
-	- `FM`: Frequency modulation amount
+	- `Range`: `-2` ... `+2` octaves.
+	- `Tune`: `-1200` ... `+1200` cents.
+	- `FM`: Frequency modulation amount.
+
+### Slew
+
+Slew rate limiter
+
+- Inputs:
+	- `In`: TODO
+- Outputs:
+	- `Out`: TODO
+- Parameters:
+	- `Time`: (seconds) -- TODO: milliseconds
 
 ### SoundIn
 
-- Inputs: None
+Stereo sound input
+
 - Outputs:
-	- `Left`: Left audio signal from external audio input
-	- `Right`: Right audio signal from external audio input
-- Parameters: None
+	- `Left`: Audio signal from left R audio input.
+	- `Right`: Audio signal from right R audio input.
 
 ### SoundOut
 
+Stereo sound output
+
 - Inputs:
-	- `Left`: Left audio signal sent to external audio output
-	- `Right`: Left audio signal sent to external audio output
-- Outputs: None
-- Parameters: None
+	- `Left`: Audio signal to left R audio output.
+	- `Right`: Audio signal to right R audio output.
 
 ### TestGen
 
-- Inputs: None
+[insert brief module description here]
+
 - Outputs:
-	- `Out`: Test signal output
+	- `Out`: Sine wave / noise output.
 - Parameters:
-	- `Frequency`: Sine oscillator frequency
-	- `Amplitude`: Amplitude
-	- `Wave`: TODO
+	- `Frequency`: Sine wave frequency.
+	- `Amplitude`: Audio output signal amplitude.
+	- `Wave`: Wave: `0` means sine wave, `1` white noise.
 
 ### TriOsc
 
-Triangle oscillator (non-bandlimited).
+Triangle oscillator (non-bandlimited)
 
 - Inputs:
-	- `FM`: Control signal input for frequency modulation
-	- `PWM`: Control signal input for pulse width modulation
+	- `FM`: Control signal for frequency modulation.
 - Outputs:
-	- `Out`: Triangle wave oscillator output
+	- `Out`: Triangle wave oscillator output.
 - Parameters:
-	- `Range`: -2 ... +2 octaves.
-	- `Tune`: -1200 ... +1200 cents
-	- `FM`: Frequency modulation amount
+	- `Range`: `-2` ... `+2` octaves.
+	- `Tune`: `-1200` ... `+1200` cents.
+	- `FM`: Frequency modulation amount.
 
 ### XFader
 
 Crossfader
 
 - Inputs:
-	- `InALeft`
-	- `InARight`
-	- `InBLeft`
-	- `InBRight`
+	- `InALeft`: Signal A left audio signal.
+	- `InARight`: Signal A right audio signal.
+	- `InBLeft`: Signal B left audio signal.
+	- `InBRight`: Signal B right audio signal.
 - Outputs:
-	- `Left`
-	- `Right`
+	- `Left`: Crossfaded left audio signal.
+	- `Right`: Crossfaded right audio signal.
 - Parameters:
-	- `Fade`
-	- `TrimA`
-	- `TrimB`
-	- `Master`
-
+	- `Fade`: Fader position: `-1` fully attenuates stereo signal A, `1` fully attenuates stereo signal B, anything in between mixes the signals.
+	- `TrimA`: Signal A trim.
+	- `TrimB`: Signal B trim.
+	- `Master`: Master output level.
 ## Example Usage
 
 ``` lua
@@ -728,7 +719,7 @@ RTestModule : RModule { // subclassing RModule makes this a module
 
 To be usable with functions in the R Lua module `R.engine` table module parameter metadata has to be included in the `R.specs` table. `R.specs` can be generated in SuperCollider from RModule metadata using the `Rrrr.generateLuaSpecs` method.
 
-Module documentation stubs may be generated in SuperCollider using the `Engine_R.generateModulesDocSection` method.
+Module documentation stubs may be generated in SuperCollider using the `Engine\_R.generateModulesDocSection` method.
 
 ### Gotchas
 

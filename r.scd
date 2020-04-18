@@ -64,11 +64,18 @@ var parseOpts = { |opts|
 var validateAndExpandModuleDefs = { |moduleDefs|
 	moduleDefs.collect { |moduleDef|
 		var expandedModuleDef;
-		var ins;
-		var outs;
+		var description;
+		var experimental;
+		var inputs;
+		var inputsDocSection;
+		var outputs;
+		var outputsDocSection;
 		var params;
+		var paramsDocSection;
 		var visuals;
+		var visualsDocSection;
 		var sampleSlots;
+		var sampleSlotsDocSection;
 
 		expandedModuleDef = ();
 	
@@ -78,22 +85,42 @@ var validateAndExpandModuleDefs = { |moduleDefs|
 			Error("Module definition requires a name").throw;
 		};
 
+		experimental = moduleDef[\experimental];
+		if (experimental.notNil) {
+			expandedModuleDef[\experimental] = experimental.value;
+		};
+
+		description = moduleDef[\description];
+		if (description.notNil) {
+			expandedModuleDef[\description] = description.value;
+		};
+
 		if (moduleDef[\ugenGraphFunc].notNil) {
 			expandedModuleDef[\ugenGraphFunc] = moduleDef[\ugenGraphFunc];
 		} {
 			Error("Module definition requires an ugenGraphFunc").throw;
 		};
 
-		ins = moduleDef[\ins];
-		if (ins.notNil) {
+		inputs = moduleDef[\inputs];
+		if (inputs.notNil) {
 			// TODO: validate against ugenGraphFunc
-			expandedModuleDef[\ins] = ins.value;
+			expandedModuleDef[\inputs] = inputs.value;
 		};
 
-		outs = moduleDef[\outs];
-		if (outs.notNil) {
+		inputsDocSection = moduleDef[\inputsDocSection];
+		if (inputsDocSection.notNil) {
+			expandedModuleDef[\inputsDocSection] = inputsDocSection.value;
+		};
+
+		outputs = moduleDef[\outputs];
+		if (outputs.notNil) {
 			// TODO: validate against ugenGraphFunc
-			expandedModuleDef[\outs] = outs.value;
+			expandedModuleDef[\outputs] = outputs.value;
+		};
+
+		outputsDocSection = moduleDef[\outputsDocSection];
+		if (outputsDocSection.notNil) {
+			expandedModuleDef[\outputsDocSection] = outputsDocSection.value;
 		};
 
 		params = moduleDef[\params];
@@ -102,16 +129,31 @@ var validateAndExpandModuleDefs = { |moduleDefs|
 			expandedModuleDef[\params] = params.value;
 		};
 
+		paramsDocSection = moduleDef[\paramsDocSection];
+		if (paramsDocSection.notNil) {
+			expandedModuleDef[\paramsDocSection] = paramsDocSection.value;
+		};
+
 		visuals = moduleDef[\visuals];
 		if (visuals.notNil) {
 			// TODO: validate against ugenGraphFunc
 			expandedModuleDef[\visuals] = visuals.value;
 		};
 
+		visualsDocSection = moduleDef[\visualsDocSection];
+		if (visualsDocSection.notNil) {
+			expandedModuleDef[\visualsDocSection] = visualsDocSection.value;
+		};
+
 		sampleSlots = moduleDef[\sampleSlots];
 		if (sampleSlots.notNil) {
 			// TODO: validate against ugenGraphFunc
 			expandedModuleDef[\sampleSlots] = sampleSlots.value;
+		};
+
+		sampleSlotsDocSection = moduleDef[\sampleSlotsDocSection];
+		if (sampleSlotsDocSection.notNil) {
+			expandedModuleDef[\sampleSlotsDocSection] = sampleSlotsDocSection.value;
 		};
 
 		expandedModuleDef;
@@ -1055,9 +1097,17 @@ var deleteAllModules = { |self|
 	};
 };
 
-var generateModuleDocs = { |self|
-	self[\moduleDefs].collect { |moduleDef|
-		generateModuleDocsForSingleModuleDef.value(moduleDef);
+var generateDocsForAllModules = { |self|
+	generateDocsForModuleDefs.value(self[\moduleDefs].sortBy(\name));
+};
+
+var generateDocsForModuleDefs = { |moduleDefs, includeExperimentalModules=false|
+	if (includeExperimentalModules) {
+		moduleDefs
+	} {
+		moduleDefs.reject { |moduleDef| moduleDef[\experimental].asBoolean }
+	}.collect { |moduleDef|
+		generateDocsForModuleDef.value(moduleDef);
 	}.join("\n")
 };
 
@@ -1081,9 +1131,7 @@ var setModuleParam = { |module, parameter, value|
 		module[\synth].set(name, constrainedParamValue);
 	}
 };
-
-var mapModuleParam = { |module, parameter, bus|
-	var moduleDef = module[\moduleDef];
+var mapModuleParam = { |module, parameter, bus| var moduleDef = module[\moduleDef];
 	var params = getModuleDefParams.value(moduleDef);
 	var paramControlSpecs = getModuleDefParamControlSpecs.value(moduleDef);
 	var param = params.detect { |param| param.key == parameter.asSymbol };
@@ -1101,58 +1149,164 @@ var setModuleSampleSlotChannelCount = { |module, sampleSlotName, channelCount|
 	module[\synth].set(name, channelCount.asInteger);
 };
 
-var generateModuleDocsForSingleModuleDef = { |moduleDef|
+var generateDocsForModuleDef = { |moduleDef|
+	"###" + moduleDef[\name].asString ++ if (moduleDef[\experimental].asBoolean, " (experimental)", "") ++ "\n" ++
+	"\n" ++
+	(moduleDef[\description] ? "[insert brief module description here]") ++ "\n" ++
+	"\n" ++
+	generateInputsDocSectionForModuleDef.value(moduleDef) ++
+	generateOutputsDocSectionForModuleDef.value(moduleDef) ++
+	generateParametersDocSectionForModuleDef.value(moduleDef) ++
+	generateVisualsDocSectionForModuleDef.value(moduleDef) ++
+	generateSampleSlotsDocSectionForModuleDef.value(moduleDef)
+};
+
+var generateInputsDocSectionForModuleDef = { |moduleDef|
 	var spec = getModuleDefSpec.value(moduleDef);
 	var inputs = spec[\inputs];
-	var outputs = spec[\outputs];
-	var parameters = spec[\parameters];
-	var visuals = spec[\visuals];
-	var sampleSlots = spec[\sampleSlots];
+	if (inputs.notEmpty) {
+		"- Inputs:" ++
+		"\n" ++
+		(
+			moduleDef[\inputsDocSection] ?
+			(
+				inputs.collect { |input|
+					"\t- " ++ generateInputDocSection.value(moduleDef, input)
+				}.join($\n)
+			)
+		) ++
+		"\n"
+	} {
+		""
+	};
+};
 
-	"### " ++ moduleDef[\name].asString ++ "\n" ++
-	"- Inputs:" ++
-	if (
-		inputs.isEmpty,
-		" None",
-		" " ++ inputs.collect { |inputRef|
-			"`" ++ inputRef ++ "`"
-		}.join(", ")
-	) ++ "\n" ++
-	"- Outputs:" ++
-	if (
-		outputs.isEmpty,
-		" None",
-		" " ++ outputs.collect { |outputRef|
-			"`" ++ outputRef ++ "`"
-		}.join(", ")
-	) ++ "\n" ++
-	"- Parameters:" ++
-	if (
-		parameters.isEmpty,
-		" None",
+var generateInputDocSection = { |moduleDef, inputRef|
+	var inputDescriptions = getModuleDefInputDescriptions.value(moduleDef);
+	if (inputDescriptions.notNil) {
+		var description = inputDescriptions[inputRef];
+		("`" ++ inputRef.asString ++ "`") ++ if (description.notNil) {": " ++ description } { "" }
+	} {
+		("`" ++ inputRef.asString ++ "`")
+	};
+};
+
+var generateOutputsDocSectionForModuleDef = { |moduleDef|
+	var spec = getModuleDefSpec.value(moduleDef);
+	var outputs = spec[\outputs];
+	if (outputs.notEmpty) {
+		"- Outputs:" ++
 		"\n" ++
-		parameters.collect { |parameterRef|
-			"\t- `" ++ parameterRef ++ "`" // TODO: include description derived from ControlSpec
-		}.join($\n)
-	) ++ "\n"
-	"- Visuals:" ++
-	if (
-		visuals.isEmpty,
-		" None",
+		(
+			moduleDef[\outputsDocSection] ?
+			(
+				outputs.collect { |output|
+					"\t- " ++ generateOutputDocSection.value(moduleDef, output)
+				}.join($\n)
+			)
+		) ++ "\n"
+	} {
+		""
+	};
+};
+
+var generateOutputDocSection = { |moduleDef, outputRef|
+	var outputDescriptions = getModuleDefOutputDescriptions.value(moduleDef);
+	if (outputDescriptions.notNil) {
+		var description = outputDescriptions[outputRef];
+		("`" ++ outputRef.asString ++ "`") ++ if (description.notNil) {": " ++ description } { "" }
+	} {
+		("`" ++ outputRef.asString ++ "`")
+	};
+};
+
+var generateParametersDocSectionForModuleDef = { |moduleDef|
+	var spec = getModuleDefSpec.value(moduleDef);
+	var parameters = spec[\parameters];
+	if (parameters.notEmpty) {
+		"- Parameters:" ++
 		"\n" ++
-		visuals.collect { |visual|
-			"\t- `" ++ visual ++ "`" // TODO: include description, derived from ControlSpec(?)
-		}.join($\n)
-	) ++ "\n" ++
-	"- Sample Slots:" ++
-	if (
-		sampleSlots.isEmpty,
-		" None",
+		(
+			moduleDef[\paramsDocSection] ?
+			(
+				parameters.collect { |parameter|
+					"\t- " ++ generateParameterDocSection.value(moduleDef, parameter)
+				}.join($\n)
+			)
+		) ++ "\n"
+	} {
+		""
+	};
+};
+
+var generateParameterDocSection = { |moduleDef, parameterRef|
+	var description = getModuleDefParamDescriptions.value(moduleDef)[parameterRef];
+	("`" ++ parameterRef.asString ++ "`") ++ if (description.notNil) {": " ++ description } { "" }
+};
+
+var generateVisualsDocSectionForModuleDef = { |moduleDef|
+	var spec = getModuleDefSpec.value(moduleDef);
+	var visuals = spec[\visuals];
+	if (visuals.notEmpty) {
+		"- Visuals:" ++
 		"\n" ++
-		sampleSlots.collect { |sampleSlotRef|
-			"\t- `" ++ sampleSlotRef ++ "`" // TODO: include description
-		}.join($\n)
-	) ++ "\n"
+		(
+			moduleDef[\visualDocs] ?
+			(
+				visuals.collect { |visual|
+					//"\t- `" ++ visual ++ "`" // TODO: include description derived from ControlSpec
+					"\t- " ++ generateVisualDocSection.value(moduleDef, visual)
+				}.join($\n)
+			)
+		) ++ "\n"
+	} {
+		""
+	};
+};
+
+var generateVisualDocSection = { |moduleDef, visualRef|
+	var visualDescriptions = getModuleDefVisualDescriptions.value(moduleDef);
+	if (visualDescriptions.notNil) {
+		var description = visualDescriptions[visualRef];
+		("`" ++ visualRef.asString ++ "`") ++ if (description.notNil) {": " ++ description } { "" }
+	} {
+		("`" ++ visualRef.asString ++ "`")
+	};
+};
+
+var generateSampleSlotsDocSectionForModuleDef = { |moduleDef|
+	var spec = getModuleDefSpec.value(moduleDef);
+	var sampleSlotDetails = spec[\sampleSlots];
+	if (sampleSlotDetails.notEmpty) {
+		var sampleSlots = sampleSlotDetails.collect { |sampleSlot| // TODO: duct tape fix of bug since getModuleDefSpec \sampleSlots does not return the same as other keys
+			sampleSlot.key
+		};
+
+		"- Sample Slots:" ++
+		"\n" ++
+		(
+			moduleDef[\sampleSlotDocs] ?
+			(
+				// TODO: bugs out
+				sampleSlots.collect { |sampleSlot|
+					"\t- `" ++ sampleSlot ++ "`" // TODO: include description derived from ControlSpec
+					// TODO "\t- " ++ generateSampleSlotDocSection.value(moduleDef, sampleSlot)
+				}.join($\n)
+			)
+		) ++ "\n"
+	} {
+		""
+	};
+};
+
+var generateSampleSlotDocSection = { |moduleDef, sampleSlotRef|
+	var sampleSlotDescriptions = getModuleDefSampleSlotDescriptions.value(moduleDef);
+	if (sampleSlotDescriptions.notNil) {
+		var description = sampleSlotDescriptions[sampleSlotRef];
+		("`" ++ sampleSlotRef.asString ++ "`") ++ if (description.notNil) {": " ++ description } { "" }
+	} {
+		("`" ++ sampleSlotRef.asString ++ "`")
+	};
 };
 
 var sendModuleSynthDefToServer = { |moduleDef, trace|
@@ -1262,13 +1416,13 @@ var getModuleDefParamLagTimes = { |moduleDef|
 	if (params.notNil) {
 		// TODO: refactor to local asDict that takes an array of associations
 		IdentityDictionary.newFrom(
-			params.collect { |paramAssoc|
-				var paramAssocValue = paramAssoc.value;
+			params.collect { |assoc|
+				var assocValue = assoc.value;
 				[
-					("param_"++paramAssoc.key).asSymbol, // key
+					("param_"++assoc.key).asSymbol, // key
 					// value ...
-					if (paramAssocValue.class == Event) {
-						paramAssocValue[\LagTime]
+					if (assocValue.class == Event) {
+						assocValue[\LagTime]
 					} {
 						nil
 					}
@@ -1283,19 +1437,119 @@ var getModuleDefParamControlSpecs = { |moduleDef|
 	if (params.notNil) {
 		// TODO: refactor to local asDict that takes an array of associations
 		IdentityDictionary.newFrom(
-			params.collect { |paramAssoc|
-				var paramAssocValue = paramAssoc.value;
+			params.collect { |assoc|
+				var assocValue = assoc.value;
 				[
-					("param_"++paramAssoc.key).asSymbol, // key
+					("param_"++assoc.key).asSymbol, // key
 					// value ...
-					if (paramAssocValue.class == ControlSpec) { // TODO: DRY this up
-						paramAssocValue
+					if (assocValue.class == ControlSpec) { // TODO: DRY this up
+						assocValue
 					} {
 						// TODO: Event assumed
-						paramAssocValue[\Spec]
+						assocValue[\Spec]
 					}
 				]
 			}.flatten
+		)
+	}
+};
+
+var getModuleDefParamDescriptions = { |moduleDef|
+	var params = getModuleDefParams.value(moduleDef);
+	if (params.notNil) {
+		IdentityDictionary.newFrom(
+			params.collect { |assoc|
+				var assocValue = assoc.value;
+				[
+					assoc.key, // key
+					// value ...
+					if (assocValue.class == Event) {
+						assocValue[\Description]
+					} {
+						nil
+					}
+				];
+			}.flatten;
+		)
+	}
+};
+
+var getModuleDefInputDescriptions = { |moduleDef|
+	var inputs = getModuleDefInputs.value(moduleDef);
+	if (inputs.notNil) {
+		IdentityDictionary.newFrom(
+			inputs.collect { |assoc|
+				var assocValue = assoc.value;
+				[
+					assoc.key, // key
+					// value ...
+					if (assocValue.class == Event) {
+						assocValue[\Description]
+					} {
+						nil
+					}
+				];
+			}.flatten;
+		)
+	}
+};
+
+var getModuleDefOutputDescriptions = { |moduleDef|
+	var outputs = getModuleDefOutputs.value(moduleDef);
+	if (outputs.notNil) {
+		IdentityDictionary.newFrom(
+			outputs.collect { |paramAssoc|
+				var assocValue = paramAssoc.value;
+				[
+					paramAssoc.key, // key
+					// value ...
+					if (assocValue.class == Event) {
+						assocValue[\Description]
+					} {
+						nil
+					}
+				];
+			}.flatten;
+		)
+	}
+};
+
+var getModuleDefVisualDescriptions = { |moduleDef|
+	var visuals = getModuleDefVisuals.value(moduleDef);
+	if (visuals.notNil) {
+		IdentityDictionary.newFrom(
+			visuals.collect { |assoc|
+				var assocValue = assoc.value;
+				[
+					assoc.key, // key
+					// value ...
+					if (assocValue.class == Event) {
+						assocValue[\Description]
+					} {
+						nil
+					}
+				];
+			}.flatten;
+		)
+	}
+};
+
+var getModuleDefSampleSlotDescriptions = { |moduleDef|
+	var sampleSlot = getModuleDefVisuals.value(moduleDef);
+	if (sampleSlot.notNil) {
+		IdentityDictionary.newFrom(
+			sampleSlot.collect { |assoc|
+				var assocValue = assoc.value;
+				[
+					assoc.key, // key
+					// value ...
+					if (assocValue.class == Event) {
+						assocValue[\Description]
+					} {
+						nil
+					}
+				];
+			}.flatten;
 		)
 	}
 };
@@ -1310,6 +1564,22 @@ var getModuleDefUgenGraphFunc = { |moduleDef|
 
 var getModuleDefParams = { |moduleDef|
 	moduleDef[\params]
+};
+
+var getModuleDefInputs = { |moduleDef|
+	moduleDef[\inputs]
+};
+
+var getModuleDefOutputs = { |moduleDef|
+	moduleDef[\outputs]
+};
+
+var getModuleDefVisuals = { |moduleDef|
+	moduleDef[\visuals]
+};
+
+var getModuleDefSampleSlots = { |moduleDef|
+	moduleDef[\sampleSlots]
 };
 
 /* Information */
@@ -1498,6 +1768,15 @@ var postInvalidModuleParameterError = { |module, parameterRef|
 var coreModules = [
 	( // TODO: make this a singleton
 		name: 'SoundIn',
+		description: "Stereo sound input",
+		outputs: [
+			'Left' -> (
+				Description: "Audio signal from left R audio input."
+			),
+			'Right' -> (
+				Description: "Audio signal from right R audio input."
+			),
+		],
 		ugenGraphFunc: {
 			|
 				out_Left,
@@ -1525,6 +1804,15 @@ var coreModules = [
 	),
 	( // TODO: make this a singleton
 		name: 'SoundOut',
+		description: "Stereo sound output",
+		inputs: [
+			'Left' -> (
+				Description: "Audio signal to left R audio output."
+			),
+			'Right' -> (
+				Description: "Audio signal to right R audio output."
+			),
+		],
 		ugenGraphFunc: {
 			|
 				in_Left,
@@ -1534,7 +1822,7 @@ var coreModules = [
 			|
 
 			var amp = 1; // TODO param_Gain.dbamp;
-			Out.ar(internal_Out, [In.ar(in_Left) * amp, In.ar(in_Right) * amp]);
+			Out.ar(internal_Out, [In.ar(in_Left) * amp, In.ar(in_Right) * amp]); // TODO: remove DC to not mess up monitors
 		},
 		examples: [
 			[
@@ -1561,6 +1849,14 @@ var stdModules = [
 	(
 		// Status: tested
 		name: '44Matrix',
+		description: "4x4 matrix signal router",
+		inputsDocSection: "\t- `In1` ... `In4`: Signal inputs.",
+		inputs: { generateMatrixModulesInputs.value(4) },
+		outputsDocSection: "\t- `Out1` ... `Out4`: Signal outputs.",
+		outputs: { generateMatrixModulesOutputs.value(4) },
+		paramsDocSection:
+			"\t- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms." ++ "\n" ++
+			"\t- `Gate_1_1` ... `Gate_4_4`: Toggles that determine what inputs (first number) are switched on to outputs (second number).",
 		params: { generateMatrixModulesParams.value(4, 4) },
 		ugenGraphFunc: {
 			|
@@ -1629,6 +1925,14 @@ var stdModules = [
 	(
 		// Status: tested
 		name: '88Matrix',
+		description: "8x8 matrix signal router",
+		inputsDocSection: "\t- `In1` ... `In8`: Signal inputs.",
+		inputs: { generateMatrixModulesInputs.value(8) },
+		outputsDocSection: "\t- `Out1` ... `Out8`: Signal outputs.",
+		outputs: { generateMatrixModulesOutputs.value(8) },
+		paramsDocSection:
+			"\t- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms." ++ "\n" ++
+			"\t- `Gate_1_1` ... `Gate_8_8`: Toggles that determine what inputs (first number) are switched on to outputs (second number).",
 		params: { generateMatrixModulesParams.value(8, 8) },
 		ugenGraphFunc: {
 			|
@@ -1820,24 +2124,42 @@ var stdModules = [
 		// Inspiration from A-140
 		// TODO: is it possible to implement Retrig(?)
 		name: 'ADSREnv',
+		description: "ADSR Envelope",
+		inputs: [
+			'Gate' -> (
+				Description: "Gate control input. A signal > 0 triggers envelope."
+			)
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Envelope signal: 0 ... 0.8."
+			)
+		],
 		params: [
 			'Attack' -> (
 				Spec: ControlSpec(0.1, 2000, 'exp', 0, 5, "ms"),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Attack time. Range 0.1 - 2000 ms. Default is 5."
 			),
 			'Decay' -> (
 				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Decay time. Range 0.1 - 8000 ms. Default is 200."
 			),
 			'Sustain' -> (
 				Spec: ControlSpec(0, 1, 'lin', 0, 0.5, ""),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Sustain level 0 - 1.0. Default is 0.5."
 			),
 			'Release' -> (
 				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Release time. Range 0.1 - 8000 ms. Default is 200."
 			),
-			'Gate' -> ControlSpec(0, 1, step: 1, default: 0) // TODO: DRY the gate/reset/boolean specs
+			'Gate' -> (
+				Spec: ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
+				Description: "Scriptable gate. When parameter goes from 0 to a positive value a gate is triggered."
+			)
 //			'Curve' -> ControlSpec(-10, 10, 'lin', -4), TODO
 		],
 		ugenGraphFunc: {
@@ -1871,6 +2193,7 @@ var stdModules = [
 		// status: untested
 		// TODO: This is ADSREnv with Retrig input for testing
 		name: 'ADSREnv2',
+		experimental: true,
 		params: [
 			'Attack' -> (
 				Spec: ControlSpec(0.1, 2000, 'exp', 0, 5, "ms"),
@@ -1924,10 +2247,28 @@ var stdModules = [
 		// Status: tested
 		// TODO: test Exp input more
 		name: 'Amp',
+		description: "Simple amplifier with level parameter and exponential or linear gain modulation",
+		inputs: [
+			'Exp' -> (
+				Description: "Gain modulation control input (logarithmic)."
+			),
+			'Lin' -> (
+				Description: "Gain modulation control input (linear)."
+			),
+			'In' -> (
+				Description: "Input signal to attenuate."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Attenuated signal."
+			)
+		],
 		params: [
 			'Level' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Amplifier level 0 - 1.0."
 			)
 		],
 		ugenGraphFunc: {
@@ -1955,28 +2296,53 @@ var stdModules = [
 		// Status: partly tested, exp mode needs more testing
 		// Inspiration from A-130/A-131
 		name: 'Amp2',
+		description: "Amplifier with two inputs, level parameter and variable exponential or linear gain modulation",
+		inputs: [
+			'GainModulation' -> (
+				Description: "Control input for gain modulation."
+			),
+			'In1' -> (
+				Description: "Audio input 1."
+			),
+			'In2' -> (
+				Description: "Audio input 2."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Attenuated signal."
+			)
+		],
 		params: [
 			'Gain' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Initial gain 0 - 1.0."
 			),
 			'GainModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Gain modulation amount 0 - 1.0."
 			),
 			'In1' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio input 1 level 0 - 1.0."
 			),
 			'In2' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio input 2 level 0 - 1.0."
 			),
 			'Out' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio output level 0 - 1.0."
 			),
-			'Mode' -> ControlSpec.new(0, 1, 'lin', 1, 0),
+			'Mode' -> (
+				Spec: ControlSpec.new(0, 1, 'lin', 1, 0),
+				Description: "0 or 1 representing linear or exponential gain modulation."
+			)
 		],
 		ugenGraphFunc: {
 			|
@@ -2014,26 +2380,54 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'BPFilter',
+		description: "Resonant bandpass SVF filter",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'FM' -> (
+				Description: "Control input for frequency modulation."
+			),
+			'ResonanceModulation' -> (
+				Description: "Control input for resonance modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Filtered audio signal."
+			)
+		],
 		params: [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio level 0 ... 1.0. Default is 1."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance 0 ... 1.0. Default is 0."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount -1.0 ... 1.0."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance modulation amount -1.0 ... 1.0."
+			),
+		],
+		visuals: [
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				Description: "Cutoff frequency."
 			),
 		],
 		ugenGraphFunc: {
@@ -2046,7 +2440,8 @@ var stdModules = [
 				param_Frequency,
 				param_Resonance,
 				param_FM,
-				param_ResonanceModulation
+				param_ResonanceModulation,
+				visual_Frequency
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2060,6 +2455,7 @@ var stdModules = [
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
+			Out.kr(visual_Frequency, frequency);
 			Out.ar(
 				out_Out,
 				SVF.ar(
@@ -2078,26 +2474,54 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'BRFilter',
+		description: "Resonant bandreject (Notch) SVF filter",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'FM' -> (
+				Description: "Control input for frequency modulation."
+			),
+			'ResonanceModulation' -> (
+				Description: "Control input for resonance modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Filtered audio signal."
+			)
+		],
 		params: [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio level 0 ... 1.0. Default is 1."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance 0 ... 1.0. Default is 0."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount -1.0 ... 1.0."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance modulation amount -1.0 ... 1.0."
+			),
+		],
+		visuals: [
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				Description: "Cutoff frequency."
 			),
 		],
 		ugenGraphFunc: {
@@ -2110,7 +2534,8 @@ var stdModules = [
 				param_Frequency,
 				param_Resonance,
 				param_FM,
-				param_ResonanceModulation
+				param_ResonanceModulation,
+				visual_Frequency
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2124,6 +2549,7 @@ var stdModules = [
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
+			Out.kr(visual_Frequency, frequency);
 			Out.ar(
 				out_Out,
 				SVF.ar(
@@ -2140,13 +2566,54 @@ var stdModules = [
 		}
 	),
 	(
+		// status: untested
 		name: 'Comp2',
+		experimental: true,
+		inputs: [
+			'Left' -> (
+				Description: "Left audio input"
+			),
+			'Right' -> (
+				Description: "Right audio input."
+			),
+			'SideChain' -> (
+				Description: "Side chain control input."
+			),
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Left compressed audio signal."
+			),
+			'Right' -> (
+				Description: "Right compressed audio signal."
+			),
+		],
 		params: [
-			'Threshold' -> \db.asSpec.copy.default_(-10),
-			'Attack' -> ControlSpec(0.1, 250, 'exp', 0, 10, "ms"),
-			'Release' -> ControlSpec(0.1, 1000, 'exp', 0, 100, "ms"),
-			'Ratio' -> ControlSpec(0, 20, default: 3),
-			'MakeUp' -> \db.asSpec.copy.maxval_(20).default_(0)
+			'Threshold' -> (
+				Spec: \db.asSpec.copy.default_(-10),
+				Description: "Treshold."
+			),
+			'Attack' -> (
+				Spec: ControlSpec(0.1, 250, 'exp', 0, 10, "ms"),
+				Description: "Attack time."
+			),
+			'Release' -> (
+				Spec: ControlSpec(0.1, 1000, 'exp', 0, 100, "ms"),
+				Description: "Release time."
+			),
+			'Ratio' -> (
+				Spec: ControlSpec(0, 20, default: 3),
+				Description: "Compression ratio."
+			),
+			'MakeUp' -> (
+				Spec: \db.asSpec.copy.maxval_(20).default_(0),
+				Description: "Make up level."
+			),
+		],
+		visuals: [
+			'GR' -> (
+				Description: "Gain reduction."
+			),
 		],
 		ugenGraphFunc: { |
 				param_Threshold,
@@ -2186,28 +2653,39 @@ var stdModules = [
 	(
 		// Status: untested
 		name: 'DbMixer',
-		params: [
-			'In1' -> (
-				Spec: \db.asSpec,
-				LagTime: 0
-			),
-			'In2' -> (
-				Spec: \db.asSpec,
-				LagTime: 0
-			),
-			'In3' -> (
-				Spec: \db.asSpec,
-				LagTime: 0
-			),
-			'In4' -> (
-				Spec: \db.asSpec,
-				LagTime: 0
-			),
+		description: "Mixer suited for audio signals",
+		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs 1 ... 4.",
+		inputs: {
+			4.collect { |index|
+				("In"++(index+1)) -> (
+					Description: "Audio input" + (index+1) ++ "."
+				)
+			};
+		},
+		outputs: [
 			'Out' -> (
-				Spec: \db.asSpec,
-				LagTime: 0
-			)
+				Description: "Mixed signal."
+			),
 		],
+		paramsDocSection:
+			"\t- `In1` ... `In4`: Audio input 1 ... 4 levels TODO: range/spec." ++ "\n" ++
+			"\t- `Out`: Output level TODO: range/spec.",
+		params: {
+			4.collect { |index|
+				("In"++(index+1)).asSymbol -> (
+					Spec: \db.asSpec,
+					LagTime: 0,
+					Description: "Audio input" + (index+1) + "level TODO: range/spec."
+				)
+			} ++
+			[
+				'Out' -> (
+					Spec: \db.asSpec,
+					LagTime: 0,
+					Description: "Output level TODO: range/spec."
+				)
+			]
+		},
 		ugenGraphFunc: {
 			|
 				in_In1,
@@ -2239,16 +2717,121 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: tested (added by andrew)
+		name: 'Decimate',
+		experimental: true,
+		description: "Sample rate and bit depth reducer",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			// TODO: call this RateModulation, DepthModulation, SmoothModulation?
+			'Rate' -> (
+				Description: "TODO."
+			),
+			'Depth' -> (
+				Description: "TODO."
+			),
+			'Smooth' -> (
+				Description: "TODO."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Reduced signal."
+			),
+		],
+		params: [
+			'Rate' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1,
+				Description: "TODO."
+			),
+			'Depth' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1,
+				Description: "TODO."
+			),
+			'Smooth' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1,
+				Description: "TODO."
+			),
+			'RateModulation' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1,
+				Description: "TODO."
+			),
+			'DepthModulation' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1,
+				Description: "TODO."
+			),
+			'SmoothModulation' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.1,
+				Description: "TODO."
+			)
+		],
+		ugenGraphFunc: {
+			|
+				in_In,
+				in_Rate,
+				in_Depth,
+				in_Smooth
+				out_Out,
+				param_Rate,
+				param_Depth,
+				param_Smooth,
+				param_RateModulation,
+				param_DepthModulation,
+				param_SmoothModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_Rate = In.ar(in_Rate);
+			var sig_Depth = In.ar(in_Rate);
+			var sig_Smooth = In.ar(in_Rate);
+
+			// TODO: 48000 should be SampleRate.ir?
+			Out.ar(out_Out,
+			       SmoothDecimator.ar(Decimator.ar(sig_In, 48000, (param_Depth + (sig_Depth * param_Depth)) * 24), (param_Rate + (sig_Rate * param_RateModulation)) * 48000, param_Smooth + (sig_Smooth * param_SmoothModulation))
+			);
+		}
+	),
+	(
 		// Status: partly tested. TODO: what modulation input range should be used?
 		name: 'Delay',
+		description: "Delay line",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'DelayTimeModulation' -> (
+				Description: "Control signal for delay time modulation."
+			)
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Delayed signal."
+			),
+		],
 		params: [
 			'DelayTime' -> (
 				Spec: ControlSpec(0.1, 5000, 'exp', 0, 300, "ms"),
-				LagTime: 0.25
+				LagTime: 0.25,
+				Description: "Delay time."
 			),
 			'DelayTimeModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Delay time modulation amount."
+			),
+		],
+		visuals: [
+			'DelayTime' -> (
+				Spec: ControlSpec(0.1, 5000, 'exp', 0, 300, "ms"),
+				Description: "Delay time."
 			),
 		],
 		ugenGraphFunc: {
@@ -2257,7 +2840,8 @@ var stdModules = [
 				in_DelayTimeModulation,
 				out_Out,
 				param_DelayTime,
-				param_DelayTimeModulation
+				param_DelayTimeModulation,
+				visual_DelayTime
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2272,10 +2856,84 @@ var stdModules = [
 			var delayed = DelayC.ar(sig_In, maxdelaytime: delayTimeSpec.maxval/1000, delaytime: delayTimeMs/1000); // TODO: ControlDur.ir minimum
 
 			Out.ar(out_Out, delayed);
+			Out.kr(visual_DelayTime, delayTimeMs);
+		}
+	),
+	(
+		// Status: tested (added by andrew)
+		name: 'EQBP',
+		description: "Non-resonant, variable width bandpass filter",
+		params: [
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				LagTime: 0.1,
+				Description: "TODO"
+			),
+			'Bandwidth' -> (
+				Spec: ControlSpec.new(0, 10),
+				LagTime: 0.1,
+				Description: "TODO"
+			),
+			'FM' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.01,
+				Description: "TODO"
+			),
+			'BandwidthModulation' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.01,
+				Description: "TODO"
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_In,
+				in_FM,
+				in_BandwidthModulation,
+				out_Out,
+				param_Frequency,
+				param_Bandwidth,
+				param_FM,
+				param_BandwidthModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_FM = In.ar(in_FM);
+			var sig_BandwidthModulation = In.ar(in_BandwidthModulation);
+
+			var frequencySpec = \widefreq.asSpec;
+			var bandwidthSpec = ControlSpec.new(0, 10);
+
+			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
+			var bandwidth = bandwidthSpec.map(bandwidthSpec.unmap(param_Bandwidth) + (sig_BandwidthModulation * param_BandwidthModulation));
+
+			Out.ar(
+				out_Out,
+				BBandPass.ar(
+					sig_In,
+					frequency,
+					bandwidth,
+				)
+			);
 		}
 	),
 	(
 		name: 'EnvF',
+		experimental: true,
+		description: "Envelope follower",
+		inputs: [
+			'In' -> (
+				Description: "Input signal"
+			)
+		],
+		outputs: [
+			'Env' -> (
+				Description: "Envelope follower control output signal."
+			),
+			'Gate' -> (
+				Description: "Gte control output signal."
+			)
+		],
 		params: [
 /*
 			'Attack' -> (
@@ -2287,10 +2945,22 @@ var stdModules = [
 				LagTime: 0.1
 			),
 */
-			'Attack' -> ControlSpec(0.1, 2000, 'exp', 0, 100, "ms"),
-			'Decay' -> ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
-			'Sensitivity' -> ControlSpec(0, 1, default: 0.5),
-			'Threshold' -> ControlSpec(0, 1, default: 0.5)
+			'Attack' -> (
+				Spec: ControlSpec(0.1, 2000, 'exp', 0, 100, "ms"),
+				Description: "Envelope follower attack time."
+			),
+			'Decay' -> (
+				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
+				Description: "Envelope follower decay time."
+			),
+			'Sensitivity' -> (
+				Spec: ControlSpec(0, 1, default: 0.5),
+				Description: "Envelope follower sensitivity."
+			),
+			'Threshold' -> (
+				Spec: ControlSpec(0, 1, default: 0.5),
+				Description: "Envelope follower threshold."
+			),
 		],
 		ugenGraphFunc: { |
 				param_Attack,
@@ -2313,6 +2983,8 @@ var stdModules = [
 		// Status: not tested
 		// TODO: Fix parameter names
 		name: 'FMVoice',
+		experimental: true,
+		description: "FM voice",
 		params: {
 			var numOscs = 3;
 			var params = [
@@ -2435,9 +3107,27 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'FreqGate',
+		description: "CV/Gate thing [TODO: clarify]",
+		outputs: [
+			'Frequency' -> (
+				Description: "Frequency control signal."
+			),
+			'Gate' -> (
+				Description: "Gate control signal."
+			),
+			'Trig' -> (
+				Description: "Trig control signal."
+			)
+		],
 		params: [
-			'Frequency' -> \freq.asSpec,
-			'Gate' -> ControlSpec(0, 1, step: 1, default: 0) // TODO: DRY the gate/reset/boolean specs
+			'Frequency' -> (
+				Spec: \freq.asSpec,
+				Description: "Frequency parameter."
+			),
+			'Gate' -> (
+				Spec: ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
+				Description: "Gate parameter."
+			)
 		],
 		ugenGraphFunc: {
 			|
@@ -2458,14 +3148,42 @@ var stdModules = [
 	(
 		// Status: partly tested. TODO: review modulation input mapping
 		name: 'FShift',
+		description: "Frequency shifter",
+		inputs: [
+			'Left' -> (
+				Description: "Left audio input."
+			),
+			'Right' -> (
+				Description: "Right audio input."
+			),
+			'FM' -> (
+				Description: "Control signal for frequency shift modulation."
+			)
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Left shifted signal."
+			),
+			'Right' -> (
+				Description: "Right shifted signal."
+			),
+		],
 		params: [
 			'Frequency' -> (
 				Spec: ControlSpec(-2000, 2000, 'lin', 0, 0, "Hz"),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency shift. `-2000` Hz ... `+2000` Hz."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount. `-1.0` ... `+1.0`."
+			),
+		],
+		visuals: [
+			'Frequency' -> (
+				Spec: ControlSpec(-2000, 2000, 'lin', 0, 0, "Hz"),
+				Description: "Frequency shift."
 			),
 		],
 		ugenGraphFunc: {
@@ -2476,7 +3194,8 @@ var stdModules = [
 				out_Left,
 				out_Right,
 				param_Frequency,
-				param_FM
+				param_FM,
+				visual_Frequency
 			|
 
 			var frequencySpec = ControlSpec(-2000, 2000, 'lin', 0, 0, "Hz");
@@ -2485,38 +3204,65 @@ var stdModules = [
 			var sig_Right = In.ar(in_Right);
 			var sig_FM = In.ar(in_FM);
 
-			var shifted = FreqShift.ar(
-				[sig_Left, sig_Right],
-				frequencySpec.constrain(param_Frequency + (sig_FM * 2000 * param_FM))
-			);
+			var frequency = frequencySpec.constrain(param_Frequency + (sig_FM * 2000 * param_FM));
+			var shifted = FreqShift.ar([sig_Left, sig_Right], frequency);
 
 			Out.ar(out_Left, shifted[0]);
 			Out.ar(out_Right, shifted[1]);
+			Out.kr(visual_Frequency, frequency);
 		}
 	),
 	(
 		// Status: tested
 		name: 'HPFilter',
+		description: "Resonant highpass SVF filter",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'FM' -> (
+				Description: "Control input for frequency modulation."
+			),
+			'ResonanceModulation' -> (
+				Description: "Control input for resonance modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Filtered audio signal."
+			)
+		],
 		params: [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio level 0 ... 1.0. Default is 1."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance 0 ... 1.0. Default is 0."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount -1.0 ... 1.0."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance modulation amount -1.0 ... 1.0."
+			),
+		],
+		visuals: [
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				Description: "Cutoff frequency."
 			),
 		],
 		ugenGraphFunc: {
@@ -2529,7 +3275,8 @@ var stdModules = [
 				param_Frequency,
 				param_Resonance,
 				param_FM,
-				param_ResonanceModulation
+				param_ResonanceModulation,
+				visual_Frequency
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2543,6 +3290,7 @@ var stdModules = [
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
+			Out.kr(visual_Frequency, frequency);
 			Out.ar(
 				out_Out,
 				SVF.ar(
@@ -2607,28 +3355,39 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'LinMixer',
-		params: [
-			'In1' -> (
-				Spec: \unipolar.asSpec, // TODO: maxval 4?
-				LagTime: 0.1
+		description: "Mixer suited for control signals",
+		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs 1 ... 4.",
+		inputs: {
+			4.collect { |index|
+				("In"++(index+1)) -> (
+					Description: "Audio input" + (index+1) ++ "."
+				)
+			};
+		},
+		outputs: [
+			'Out' -> (
+				Description: "Mixed signal."
 			),
-			'In2' -> (
-				Spec: \unipolar.asSpec,
-				LagTime: 0.1
-			),
-			'In3' -> (
-				Spec: \unipolar.asSpec,
-				LagTime: 0.1
-			),
-			'In4' -> (
-				Spec: \unipolar.asSpec,
-				LagTime: 0.1
-			),
-			'Out' -> ( // TODO: 0 is default, is that right?
-				Spec: \unipolar.asSpec,
-				LagTime: 0.1
-			)
 		],
+		paramsDocSection:
+			"\t- `In1` ... `In4`: Audio input 1 ... 4 levels TODO: range/spec." ++ "\n" ++
+			"\t- `Out`: Output level TODO: range/spec.",
+		params: {
+			4.collect { |index|
+				("In"++(index+1)).asSymbol -> (
+					Spec: \unipolar.asSpec,
+					LagTime: 0.1,
+					Description: "Audio input" + (index+1) + "level TODO: range/spec."
+				)
+			} ++
+			[
+				'Out' -> (
+					Spec: \unipolar.asSpec,
+					LagTime: 0.1,
+					Description: "Output level TODO: range/spec."
+				)
+			]
+		},
 		ugenGraphFunc: {
 			|
 				in_In1,
@@ -2662,26 +3421,54 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'LPFilter',
+		description: "Resonant lowpass SVF filter",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'FM' -> (
+				Description: "Control input for frequency modulation."
+			),
+			'ResonanceModulation' -> (
+				Description: "Control input for resonance modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Filtered audio signal."
+			)
+		],
 		params: [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio level 0 ... 1.0. Default is 1."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance 0 ... 1.0. Default is 0."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount -1.0 ... 1.0."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance modulation amount -1.0 ... 1.0."
+			),
+		],
+		visuals: [
+			'Frequency' -> (
+				Spec: \widefreq.asSpec,
+				Description: "Cutoff frequency."
 			),
 		],
 		ugenGraphFunc: {
@@ -2694,7 +3481,8 @@ var stdModules = [
 				param_Frequency,
 				param_Resonance,
 				param_FM,
-				param_ResonanceModulation
+				param_ResonanceModulation,
+				visual_Frequency
 			|
 
 			var sig_In = In.ar(in_In);
@@ -2708,6 +3496,7 @@ var stdModules = [
 			var frequency = frequencySpec.map(frequencySpec.unmap(param_Frequency) + (sig_FM * param_FM));
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
+			Out.kr(visual_Frequency, frequency);
 			Out.ar(
 				out_Out,
 				SVF.ar(
@@ -2726,27 +3515,49 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'LPLadder',
+		description: "Lowpass ladder filter",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'FM' -> (
+				Description: "Control input for frequency modulation."
+			),
+			'ResonanceModulation' -> (
+				Description: "Control input for resonance modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Filtered audio signal."
+			)
+		],
 		params: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance 0 ... 1.0. Default is 0."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount -1.0 ... 1.0."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance modulation amount -1.0 ... 1.0."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
+				Description: "Cutoff frequency."
 			),
 		],
 		ugenGraphFunc: {
@@ -2783,12 +3594,28 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'MGain',
+		description: "Audio fader with db gain control and mute",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			)
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Attenuated audio signal."
+			)
+		],
 		params: [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
+				Description: "Attenuation control. -inf ... +12 dB."
 			),
-			'Mute' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
+			'Mute' -> (
+				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
+				// TODO LagTime: 0.1
+				Description: "If 1 signal is muted, otherwise not."
+			),
 		],
 		ugenGraphFunc: {
 			|
@@ -2809,31 +3636,63 @@ var stdModules = [
 		// Status: tested
 		// Inspiration from A-121
 		name: 'MMFilter',
+		description: "Resonant SVF multimode filter",
+		inputs: [
+			'In' -> (
+				Description: "Audio input."
+			),
+			'FM' -> (
+				Description: "Control input for frequency modulation."
+			),
+			'ResonanceModulation' -> (
+				Description: "Control input for resonance modulation."
+			),
+		],
+		outputs: [
+			'Notch' -> (
+				Description: "Band-reject filtered audio signal."
+			),
+			'Highpass' -> (
+				Description: "Highpass filtered audio signal."
+			),
+			'Bandpass' -> (
+				Description: "Bandpass filtered audio signal."
+			),
+			'Lowpass' -> (
+				Description: "Lowpass filtered audio signal."
+			),
+		],
 		params: [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Audio level 0 ... 1.0. Default is 1."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance 0 ... 1.0. Default is 0."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Frequency modulation amount -1.0 ... 1.0."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Resonance modulation amount -1.0 ... 1.0."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
+				Description: "Cutoff frequency."
 			),
 		],
 		ugenGraphFunc: {
@@ -2865,7 +3724,6 @@ var stdModules = [
 			var resonance = resonanceSpec.map(resonanceSpec.unmap(param_Resonance) + (sig_ResonanceModulation * param_ResonanceModulation));
 
 			Out.kr(visual_Frequency, frequency);
-
 			Out.ar(
 				out_Notch,
 				SVF.ar(
@@ -2924,38 +3782,43 @@ var stdModules = [
 		// Status: partly tested, TODO: test in_Reset together with param_Reset
 		// Inspiration from A-145
 		name: 'MultiLFO',
-		ins: [
-			'Reset': (
-				Description: "Patchable LFO reset trigger",
+		description: "LFO featuring multiple waveforms",
+		inputs: [
+			'Reset' -> (
+				Description: "Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered.",
 				Range: [0, 1]
 			),
 		],
-		outs: [
-			'InvSaw': (
-				Description: "Inverted Saw",
+		outputs: [
+			'InvSaw' -> (
+				Description: "Inverted saw signal output.",
 				Range: [-0.25, 0.25]
 			),
-			'Saw': (
-				Description: "Saw",
+			'Saw' -> (
+				Description: "Saw signal output.",
 				Range: [-0.25, 0.25]
 			),
-			'Sine': (
-				Description: "Sine",
+			'Sine' -> (
+				Description: "Sine signal output.",
 				Range: [-0.25, 0.25]
 			),
-			'Triangle': (
-				Description: "Triangle",
+			'Triangle' -> (
+				Description: "Triangle signal output.",
+				Range: [-0.25, 0.25]
+			),
+			'Pulse' -> (
+				Description: "Pulse signal output.",
 				Range: [-0.25, 0.25]
 			),
 		],
 		params: [
 			'Frequency' -> (
-				Description: "LFO Frequency",
+				Description: "LFO Frequency 0.01 Hz .. 50 Hz.",
 				Spec: ControlSpec(0.01, 50, 'exp', 0, 1, "Hz"),
 				LagTime: 0.01
 			),
 			'Reset' -> (
-				Description: "Manual LFO reset trigger",
+				Description: "Manual LFO reset trigger.",
 				Spec: \unipolar.asSpec.copy.step_(1), // TODO: generalize booleans (or triggers)
 			)
 		],
@@ -3021,26 +3884,54 @@ var stdModules = [
 		// Status: tested
 		// Inspiration from A-110 (but no Sync input)
 		name: 'MultiOsc',
+		description: "Oscillator featuring multiple waveforms",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+			'PWM' -> (
+				Description: "Control signal for pulse width modulation."
+			)
+		],
+		outputs: [
+			'Sine' -> (
+				Description: "Sine wave oscillator output."
+			),
+			'Triangle' -> (
+				Description: "Triangle wave oscillator output."
+			),
+			'Saw' -> (
+				Description: "Saw wave oscillator output."
+			),
+			'Pulse' -> (
+				Description: "Pulse wave oscillator output."
+			),
+		],
 		params: [
 			'Range' -> (
 				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
 			),
 			'Tune' -> (
 				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
 			),
 			'PulseWidth' -> (
 				Spec: \unipolar.asSpec.copy.default_(0.5),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Pulse oscillator pulse width."
 			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar?
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
 			),
 			'PWM' -> (
 				Spec: \unipolar.asSpec,
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Pulse width modulation amount."
 			),
 		],
 		ugenGraphFunc: {
@@ -3099,14 +3990,183 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: experimental
+		// Inspiration from A-110 (but no Sync input)
+		name: 'MultiOscExp',
+		experimental: true,
+		description: "Oscillator featuring multiple waveforms (w/ linear FM features)",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+			'LinFM' -> (
+				Description: "Control signal for linear frequency modulation."
+			),
+			'PWM' -> (
+				Description: "Control signal for pulse width modulation."
+			)
+		],
+		outputs: [
+			'Sine' -> (
+				Description: "Sine wave oscillator output."
+			),
+			'Triangle' -> (
+				Description: "Triangle wave oscillator output."
+			),
+			'Saw' -> (
+				Description: "Saw wave oscillator output."
+			),
+			'Pulse' -> (
+				Description: "Pulse wave oscillator output."
+			),
+		],
+		params: [
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
+			),
+			'PulseWidth' -> (
+				Spec: \unipolar.asSpec.copy.default_(0.5),
+				LagTime: 0.01,
+				Description: "Pulse oscillator pulse width."
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2,
+				Description: "Linear frequency modulation amount."
+			),
+/*
+	TODO
+			'PM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2
+			),
+*/
+			'PWM' -> (
+				Spec: \unipolar.asSpec,
+				LagTime: 0.01,
+				Description: "Pulse width modulation amount."
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_FM,
+				in_LinFM,
+				in_PWM,
+				out_Sine,
+				out_Triangle,
+				out_Saw,
+				out_Pulse,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM,
+				param_PulseWidth,
+				param_PWM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+			var sig_PWM = In.ar(in_PWM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			var pulseWidth = (
+				param_PulseWidth + (sig_PWM * param_PWM)
+			).clip(0, 1);
+
+			Out.ar(
+				out_Sine,
+				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000)) * 0.5
+			);
+
+			Out.ar(
+				out_Triangle,
+				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // not band limited
+			);
+
+			Out.ar(
+				out_Saw,
+				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
+			);
+
+			Out.ar(
+				out_Pulse,
+				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
+			);
+		}
+	),
+	(
+		// Status: tested, TODO: make a script
+		name: 'Noise',
+		description: "White noise generator",
+		outputs: [
+			'Out' -> (
+				Description: "Noise signal."
+			)
+		],
+		ugenGraphFunc: {
+			|
+				out_Out
+			|
+
+			Out.ar(
+				out_Out,
+				WhiteNoise.ar
+			);
+		}
+	),
+	(
 		// Status: not tested
 		name: 'OGain',
+		description: "8-in/8-out audio fader with db gain control and mute",
+		inputsDocSection: "\t- `In1` ... `In8`: Audio inputs.",
+		inputs: {
+			8.collect { |index|
+				("In"++(index+1)).asSymbol -> (
+					Description: "Audio input" + (index+1) ++ "."
+				)
+			};
+		},
+		outputsDocSection: "\t- `Out1` ... `Out8`: Attenuated audio signal outputs.",
+		outputs: {
+			8.collect { |index|
+				("Out"++(index+1)).asSymbol -> (
+					Description: "Attenuated audio signal output" + (index+1) ++ "."
+				)
+			};
+		},
 		params: [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
+				Description: "Attenuation control. -inf ... +12 dB."
 			),
-			'Mute' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
+			'Mute' -> (
+				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
+				// TODO LagTime: 0.1
+				Description: "If 1 signal is muted, otherwise not."
+			),
 		],
 		ugenGraphFunc: {
 			|
@@ -3152,31 +4212,92 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: tested (added by andrew)
+		name: 'Pan',
+		description: "Stereo panner with monophonic input",
+		inputs: [
+			'In' -> (
+				Description: "Mono audio signal."
+			),
+			'PositionModulation' -> (
+				Description: "Right audio signal."
+			),
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Left audio signal."
+			),
+			'Right' -> (
+				Description: "Right audio signal."
+			),
+		],
+		params: [
+			'Position' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.1,
+				Description: "Pan position."
+			),
+			'PositionModulation' -> (
+				Spec: \bipolar.asSpec,
+				LagTime: 0.1,
+				Description: "Pan position modulation amount."
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_In,
+				in_PositionModulation,
+				out_Left,
+				out_Right,
+				param_Position,
+				param_PositionModulation
+			|
+
+			var sig_In = In.ar(in_In);
+			var sig_PositionModulation = In.ar(in_PositionModulation);
+
+			var sig = Pan2.ar(sig_In, param_Position + (sig_PositionModulation * param_PositionModulation));
+			Out.ar(out_Left, sig[0]);
+			Out.ar(out_Right, sig[1]);
+		}
+	),
+	(
 		// Status: tested
 		// TODO: or just extend LinMixer, make it bipolar?
 		name: 'PolMixer',
-		params: [
-			'In1' -> (
-				Spec: \bipolar.asSpec,
-				LagTime: 0.1
+		experimental: true,
+		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs 1 ... 4",
+		inputs: {
+			4.collect { |index|
+				("In"++(index+1)).asSymbol -> (
+					Description: "Audio input" + (index+1) ++ "."
+				)
+			};
+		},
+		outputs: [
+			'Out' -> (
+				Description: "Mixed signal."
 			),
-			'In2' -> (
-				Spec: \bipolar.asSpec,
-				LagTime: 0.1
-			),
-			'In3' -> (
-				Spec: \bipolar.asSpec,
-				LagTime: 0.1
-			),
-			'In4' -> (
-				Spec: \bipolar.asSpec,
-				LagTime: 0.1
-			),
-			'Out' -> ( // TODO: 0 is default, is that right?
-				Spec: \unipolar.asSpec,
-				LagTime: 0.1
-			)
 		],
+		paramsDocSection:
+			"\t- `In1` ... `In4`: Audio input 1 ... 4 levels TODO: range/spec." ++ "\n" ++
+			"\t- `Out`: Output level TODO: range/spec.",
+		params: {
+			4.collect { |index|
+				("In"++(index+1)).asSymbol -> (
+					Spec: \bipolar.asSpec,
+					LagTime: 0.1,
+					Description: "Audio input" + (index+1) + "level TODO: range/spec."
+				)
+			} ++
+			[
+				'Out' -> ( // TODO: 0 is default, is that right?
+					Spec: \unipolar.asSpec,
+					LagTime: 0.1,
+					Description: "Output level TODO: range/spec."
+				)
+			]
+		},
 		ugenGraphFunc: {
 			|
 				in_In1,
@@ -3210,22 +4331,66 @@ var stdModules = [
 	(
 		// Status: partly tested. TODO: review modulation input mapping
 		name: 'PShift',
+		description: "Pitch shifter",
+		inputs: [
+			'Left' -> (
+				Description: "Left audio signal."
+			),
+			'Right' -> (
+				Description: "Right audio signal."
+			),
+			'PitchRatioModulation' -> (
+				Description: "Pitch ratio modulation amount."
+			),
+			'PitchDispersionModulation' -> (
+				Description: "Pitch dispersion modulation amount."
+			),
+			'TimeDispersionModulation' -> (
+				Description: "Time dispersion modulation amount."
+			),
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Left processed audio signal."
+			),
+			'Right' -> (
+				Description: "Right processed audio signal."
+			),
+		],
 		params: [
 			'PitchRatio' -> (
 				Spec: ControlSpec(0, 4, default: 1),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Pitch ratio: `0` ... `4`. Default is `1`."
 			),
 			'PitchDispersion' -> (
 				Spec: ControlSpec(0, 4),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Pitch dispersion: `0` ... `4`. Default is `0`."
 			),
 			'TimeDispersion' -> (
 				Spec: ControlSpec(0, 1),
-				LagTime: 0.1
+				LagTime: 0.1,
+				Description: "Time dispersion: `0` ... `1`. Default is `0`."
 			),
-			'PitchRatioModulation' -> \bipolar.asSpec,
-			'PitchDispersionModulation' -> \bipolar.asSpec,
-			'TimeDispersionModulation' -> \bipolar.asSpec
+			'PitchRatioModulation' -> (
+				Spec: \bipolar.asSpec,
+				Description: "Pitch ratio modulation amount: `-1` ... `1`."
+			),
+			'PitchDispersionModulation' -> (
+				Spec: \bipolar.asSpec,
+				Description: "Pitch dispersion modulation amount: `-1` ... `1`."
+			),
+			'TimeDispersionModulation' -> (
+				Spec: \bipolar.asSpec,
+				Description: "Time dispersion modulation amount: `-1` ... `1`."
+			),
+		],
+		visuals: [
+			'PitchRatio' -> (
+				Spec: ControlSpec(0, 4, default: 1),
+				Description: "Time dispersion modulation amount: `-1` ... `1`."
+			),
 		],
 		ugenGraphFunc: {
 			|
@@ -3241,7 +4406,10 @@ var stdModules = [
 				param_TimeDispersion,
 				param_PitchRatioModulation,
 				param_PitchDispersionModulation,
-				param_TimeDispersionModulation
+				param_TimeDispersionModulation,
+				visual_PitchRatio
+				// TODO: visual_PitchDispersion
+				// TODO: visual_TimeDispersion
 			|
 
 			var pitchRatioSpec = ControlSpec(0, 4, default: 1);
@@ -3254,13 +4422,15 @@ var stdModules = [
 			var sig_PitchDispersionModulation = In.ar(in_PitchDispersionModulation);
 			var sig_TimeDispersionModulation = In.ar(in_TimeDispersionModulation);
 
+			var pitchRatio = pitchRatioSpec.map(
+				pitchRatioSpec.unmap(param_PitchRatio) +
+				(sig_PitchRatioModulation * param_PitchRatioModulation)
+			);
+
 			var shifted = PitchShift.ar(
 				[sig_Left, sig_Right],
 				0.2,
-				pitchRatioSpec.map(
-					pitchRatioSpec.unmap(param_PitchRatio) +
-					(sig_PitchRatioModulation * param_PitchRatioModulation)
-				),
+				pitchRatio,
 				pitchDispersionSpec.map(
 					pitchDispersionSpec.unmap(param_PitchDispersion) +
 					(sig_PitchDispersionModulation * param_PitchDispersionModulation)
@@ -3273,31 +4443,51 @@ var stdModules = [
 
 			Out.ar(out_Left, shifted[0]);
 			Out.ar(out_Right, shifted[1]);
+			Out.kr(visual_PitchRatio, pitchRatio);
 		}
 	),
 	(
 		// Status: tested
 		name: 'PulseOsc',
+		description: "Pulse/square oscillator with pulse width control",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+			'PWM' -> (
+				Description: "Control signal for pulse width modulation."
+			)
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Pulse wave oscillator output."
+			),
+		],
 		params: [
 			'Range' -> (
 				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
 			),
 			'Tune' -> (
 				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
 			),
 			'PulseWidth' -> (
 				Spec: \unipolar.asSpec.copy.default_(0.5),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Pulse oscillator Pulse width."
 			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar?
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
 			),
 			'PWM' -> (
 				Spec: \unipolar.asSpec.copy.default_(0.4),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Pulse width modulation amount."
 			),
 		],
 		ugenGraphFunc: {
@@ -3337,14 +4527,128 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: experimental
+		name: 'PulseOscExp',
+		experimental: true,
+		description: "Pulse/square oscillator with pulse width control (w/ linear FM features)",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+			'LinFM' -> (
+				Description: "Control signal for linear frequency modulation."
+			),
+			'PWM' -> (
+				Description: "Control signal for pulse width modulation."
+			)
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Pulse wave oscillator output."
+			),
+		],
+		params: [
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
+			),
+			'PulseWidth' -> (
+				Spec: \unipolar.asSpec.copy.default_(0.5),
+				LagTime: 0.01,
+				Description: "Pulse oscillator pulse width."
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
+			),
+			'PWM' -> (
+				Spec: \unipolar.asSpec.copy.default_(0.4),
+				LagTime: 0.01,
+				Description: "Pulse width modulation amount."
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2,
+				Description: "Linear frequency modulation amount."
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_FM,
+				in_LinFM,
+				in_PWM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM,
+				param_PulseWidth,
+				param_PWM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+			var sig_PWM = In.ar(in_PWM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				(
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			var pulseWidth = (
+				param_PulseWidth + (sig_PWM * param_PWM)
+			).clip(0, 1);
+
+			Out.ar(
+				out_Out,
+				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
+			);
+		}
+	),
+	(
 		// Status: not tested
 		name: 'QGain',
+		description: "4-in/4-out audio fader with db gain control and mute",
+		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs",
+		inputs: {
+			4.collect { |index|
+				("In"++(index+1)).asSymbol -> (
+					Description: "Audio input" + (index+1)
+				)
+			};
+		},
+		outputsDocSection: "\t- `Out1` ... `Out4`: Attenuated audio signal outputs",
+		outputs: {
+			4.collect { |index|
+				("Out"++(index+1)).asSymbol -> (
+					Description: "Attenuated audio signal output" + (index+1) ++ "."
+				)
+			};
+		},
 		params: [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
+				Description: "Attenuation control. -inf ... +12 dB."
 			),
-			'Mute' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
+			'Mute' -> (
+				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
+				// TODO LagTime: 0.1
+				Description: "If 1 signal is muted, otherwise not."
+			),
 		],
 		ugenGraphFunc: {
 			|
@@ -3374,27 +4678,11 @@ var stdModules = [
 		}
 	),
 	(
-		// Status: partly tested
-		name: 'SampHold',
-		ugenGraphFunc: {
-			|
-				in_In,
-				in_Trig,
-				out_Out
-			|
-
-			var sig_In = In.ar(in_In);
-			var sig_Trig = In.ar(in_Trig);
-
-			Out.ar(
-				out_Out,
-				Latch.ar(sig_In, sig_Trig)
-			);
-		}
-	),
-	(
+		// status: untested
 		// From https://en.wikibooks.org/wiki/Designing_Sound_in_SuperCollider/Schroeder_reverb
 		name: 'Rev1',
+		experimental: true,
+		description: "Schroeder reverb",
 		params: [
 			'Volume' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(-10),
@@ -3486,6 +4774,20 @@ var stdModules = [
 	(
 		// Status: partly tested
 		name: 'RingMod',
+		description: "Ring modulator",
+		inputs: [
+			'In' -> (
+				Description: "Audio signal input."
+			),
+			'Carrier' -> (
+				Description: "Carrier signal input."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Ring modulated audio signal."
+			),
+		],
 		ugenGraphFunc: {
 			|
 				in_In,
@@ -3500,34 +4802,67 @@ var stdModules = [
 		}
 	),
 	(
-		// Status: tested, TODO: make a script
-		name: 'Noise',
+		// Status: partly tested
+		name: 'SampHold',
+		description: "Sample and hold module",
+		inputs: [
+			'In' -> (
+				Description: "Audio signal input."
+			),
+			'Trig' -> (
+				Description: "Trigger signal input."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Processed audio signal."
+			),
+		],
 		ugenGraphFunc: {
 			|
+				in_In,
+				in_Trig,
 				out_Out
 			|
 
+			var sig_In = In.ar(in_In);
+			var sig_Trig = In.ar(in_Trig);
+
 			Out.ar(
 				out_Out,
-				WhiteNoise.ar
+				Latch.ar(sig_In, sig_Trig)
 			);
 		}
 	),
 	(
 		// Status: tested
 		name: 'SawOsc',
+		description: "Sawtooth oscillator",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Saw wave oscillator output."
+			),
+		],
 		params: [
 			'Range' -> (
 				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
 			),
 			'Tune' -> (
 				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
 			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar?
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
 			),
 		],
 		ugenGraphFunc: {
@@ -3559,78 +4894,172 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: experimental
+		name: 'SawOscExp',
+		experimental: true,
+		description: "Sawtooth oscillator (w/ linear FM features)",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Saw wave oscillator output."
+			),
+		],
+		params: [
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2,
+				Description: "Linear frequency modulation amount."
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_FM,
+				in_LinFM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			Out.ar(
+				out_Out,
+				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
+			);
+		}
+	),
+	(
 		// TODO: align out and param naming wrt Xyz_1 vs Xyz1
 		// Status: not tested
 		// Inspiration from A-155
 		name: 'Seq1',
-		ins: (
-			'Clock': (
-				Description: ""
+		experimental: true,
+		description: "Control signal sequencer",
+		inputs: [
+			'Clock' -> (
+				Description: "Clock input."
 			),
-			'Reset': (
-				Description: ""
+			'Reset' -> (
+				Description: "Reset input."
 			),
-			'SampleAndHoldCtrl1': (
-				Description: ""
+			'SampleAndHoldCtrl1' -> (
+				Description: "Sample and hold control 1."
 			),
-			'GlideCtrl1': (
-				Description: ""
+			'GlideCtrl1' -> (
+				Description: "Glide control input 1."
 			),
-			'SampleAndHoldCtrl2': (
-				Description: ""
+			'SampleAndHoldCtrl2' -> (
+				Description: "Sample and hold control 2."
 			),
-			'GlideCtrl2': (
-				Description: ""
+			'GlideCtrl2' -> (
+				Description: "Glide control input 2."
 			)
-		),
-		outs: (
-			'Trig1': (
-				Description: ""
+		],
+		outputs: [
+			'Trig1' -> (
+				Description: "Trigger output 1."
 			),
-			'Trig2': (
-				Description: ""
+			'Trig2' -> (
+				Description: "Trigger output 2."
 			),
-			'Gate': (
-				Description: ""
+			'Gate' -> (
+				Description: "Gate output."
 			),
-			'PreOut1': (
-				Description: ""
+			'PreOut1' -> (
+				Description: "Pre-output 1."
 			),
-			'Out1': (
-				Description: ""
+			'Out1' -> (
+				Description: "Output 1."
 			),
-			'PreOut2': (
-				Description: ""
+			'PreOut2' -> (
+				Description: "Pre-output 2."
 			),
-			'Out2': (
-				Description: ""
+			'Out2' -> (
+				Description: "Output 2."
 			)
-		),
+		],
 		params: {
 			var numSteps = 8;
 			var numRows = 2;
 			var result = [
 					'Reset' -> (
 						Spec: \unipolar.asSpec.copy.step_(1), // TODO
-						Description: ""
+						Description: "Manual reset."
 					),
-					'Step' -> \unipolar.asSpec.copy.step_(1), // TODO
-					'Range' -> ControlSpec.new(0, 2, step: 1, default: 0), // 0 = 1V, 1 = 2V, 2 = 4V
-					'Scale' -> \unipolar.asSpec.copy.default_(1), // TODO
-					'Glide_1' -> \unipolar.asSpec, // TODO: longer, up to 10 seconds lag as in Softube slew
-					'Glide_2' -> \unipolar.asSpec // TODO: longer, up to 10 seconds lag as in Softube slew
+					'Step' -> (
+						Spec: \unipolar.asSpec.copy.step_(1), // TODO
+						Description: "Manual forward step."
+					),
+					'Range' -> (
+						Spec: ControlSpec.new(0, 2, step: 1, default: 0), // 0 = 1V, 1 = 2V, 2 = 4V
+						Description: "Output range: 0, 1 or 2, specifying ranges 0.1, 0.2, 0,4 respectively."
+					),
+					'Scale' -> (
+						Spec: \unipolar.asSpec.copy.default_(1), // TODO
+						Description: "TODO"
+					),
+					'Glide_1' -> (
+						Spec: \unipolar.asSpec, // TODO: longer, up to 10 seconds lag as in Softube slew
+						Description: "Glide time 1."
+					),
+					'Glide_2' -> (
+						Spec: \unipolar.asSpec, // TODO: longer, up to 10 seconds lag as in Softube slew
+						Description: "Glide time 2."
+					)
 				] ++
 				(
 					numRows.collect { |rowIndex|
 						numSteps.collect { |stepIndex|
-							"Trig_"++(rowIndex+1)++"_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
+							"Trig_"++(rowIndex+1)++"_"++(stepIndex+1) -> (
+								Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
+								Description: "Tigger for row"+(rowIndex+1)+"step"+(stepIndex+1)
+							)
 						} ++
 						numSteps.collect { |stepIndex|
-							"Value_"++(rowIndex+1)++"_"++(stepIndex+1) -> \bipolar.asSpec // TODO: probably make this unipolar to comply with original module
+							"Value_"++(rowIndex+1)++"_"++(stepIndex+1) -> (
+								Spec: \bipolar.asSpec, // TODO: probably make this unipolar to comply with original module
+								Description: "Value for row"+(rowIndex+1)+"step"+(stepIndex+1)
+							)
 						}
 					}.flatten ++
 					numSteps.collect { |stepIndex|
-						"Gate_"++(stepIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "") // TODO: DRY the gate/reset/boolean specs
+						"Gate_"++(stepIndex+1) -> (
+							Spec: ControlSpec(0, 1, 'lin', 1, 0, ""), // TODO: DRY the gate/reset/boolean specs
+							Description: "Gate for step"+(stepIndex+1)
+						)
 					}
 				).collect { |assoc| assoc.key.asSymbol -> assoc.value };
 			result; // TODO: remember bug, perform validation that ensures array includes _symbol_ -> definition associations
@@ -3638,6 +5067,7 @@ var stdModules = [
 		visuals: [
 			'Position' -> (
 				Spec: \unipolar.asSpec,
+				Description: "Sequencer position: `0` ... `8`."
 			),
 		],
 		ugenGraphFunc: {
@@ -3805,12 +5235,34 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'SGain',
+		description: "2-in/2-out audio fader with db gain control and mute",
+		inputs: [
+			'Left' -> (
+				Description: "Left channel input."
+			),
+			'Right' -> (
+				Description: "Right channel input."
+			)
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Attenuated left channel signal."
+			),
+			'Right' -> (
+				Description: "Attenuated right channel signal."
+			)
+		],
 		params: [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
+				Description: "Attenuation control. -inf ... +12 dB."
 			),
-			'Mute' -> ControlSpec(0, 1, 'lin', 1, 0, ""),
+			'Mute' -> (
+				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
+				// TODO LagTime: 0.1
+				Description: "If 1 signal is muted, otherwise not."
+			),
 		],
 		ugenGraphFunc: {
 			|
@@ -3835,12 +5287,29 @@ var stdModules = [
 		// Status: partly tested, TODO: test in_Reset together with param_Reset
 		// Inspiration from A-145
 		name: 'SineLFO',
+		description: "Sine LFO",
+		inputs: [
+			'Reset' -> (
+				Description: "Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered.",
+				Range: [0, 1]
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Sine output",
+				Range: [-0.25, 0.25]
+			),
+		],
 		params: [
 			'Frequency' -> (
+				Description: "Frequency `0.01` Hz .. `50` Hz.",
 				Spec: ControlSpec(0.01, 50, 'exp', 0, 1, "Hz"),
 				LagTime: 0.01
 			),
-			'Reset' -> \unipolar.asSpec.copy.step_(1), // TODO
+			'Reset' -> (
+				Description: "Script reset trigger: when value is changed from 0 to 1 the LFO is retriggered.",
+				Spec: \unipolar.asSpec.copy.step_(1), // TODO: generalize booleans (or triggers)
+			)
 		],
 		ugenGraphFunc: {
 			|
@@ -3867,18 +5336,32 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'SineOsc',
+		description: "Sine oscillator",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Sine wave oscillator output."
+			),
+		],
 		params: [
 			'Range' -> (
 				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
 			),
 			'Tune' -> (
 				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
 			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar?
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
 			),
 		],
 		ugenGraphFunc: {
@@ -3910,37 +5393,200 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: tested
+		name: 'SineOscExp',
+		experimental: true,
+		description: "Sine oscillator (w/ linear FM features)",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Sine wave oscillator output."
+			),
+		],
+		params: [
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2,
+				Description: "Linear frequency modulation amount."
+			),
+			'PM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2,
+				Description: "Phase modulation amount."
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_FM,
+				in_LinFM,
+				in_PM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM,
+				param_PM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+			var sig_PM = In.ar(in_PM);
+
+			//var fullRange = ControlSpec(12.midicps, 120.midicps); -- removed by andrew (allow higher frequencies for FM synthesis?)
+
+			var frequency =  ( //fullRange.constrain( -- removed by andrew
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			Out.ar(
+				out_Out,
+				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000), (sig_PM * param_PM * 30).mod(2pi)) * 0.5
+			);
+		}
+	),
+	(
+		// Status: tested (added by andrew)
+		name: 'Slew',
+		description: "Slew rate limiter",
+		inputs: [
+			'In' -> (
+				Description: "TODO",
+				Range: [0, 1]
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "TODO",
+				Range: [-0.25, 0.25]
+			),
+		],
+		params: [
+			'Time' -> (
+				Spec: ControlSpec.new(0, 60),
+				LagTime: 0.1,
+				Description: "(seconds) -- TODO: milliseconds",
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_In,
+				out_Out,
+				param_Time
+			|
+
+			var sig_In = In.ar(in_In);
+
+			Out.ar(
+				out_Out,
+				Lag.ar(sig_In, param_Time)
+			);
+		}
+	),
+	(
 		// Status: untested
 		name: 'SPVoice',
+		experimental: true,
+		inputs: [
+			'Gate' -> (
+				Description: "Control signal for gate",
+			),
+			'FM' -> (
+				Description: "Control signal for frequency modulation",
+			),
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Left audio signal",
+			),
+			'Right' -> (
+				Description: "Right audio signal",
+			),
+		],
 		params: [
-			'Gate' -> ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
-			'SampleStart' -> \unipolar.asSpec,
-			'SampleEnd' -> \unipolar.asSpec.copy.default_(1),
-			'LoopPoint' -> \unipolar.asSpec,
-			'LoopEnable' -> ControlSpec(0, 1, step: 1, default: 0),
-			'Frequency' -> \freq.asSpec,
-			'RootFrequency' -> \freq.asSpec, // default root is 440 = A4
-			'Volume' -> \db.asSpec.copy.default_(-10),
-			'Pan' -> \pan.asSpec,
+			'Gate' -> (
+				Spec: ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
+				Description: "Manual gate."
+			),
+			'SampleStart' -> (
+				Spec: \unipolar.asSpec,
+				Description: "Sample start position normalized to `0` ... `1`."
+			),
+			'SampleEnd' -> (
+				Spec: \unipolar.asSpec.copy.default_(1),
+				Description: "Sample end position normalized to `0` ... `1`."
+			),
+			'LoopPoint' -> (
+				Spec: \unipolar.asSpec,
+				Description: "Loop point within sample start and end position normalized to `0` ... `1`."
+			),
+			'LoopEnable' -> (
+				Spec: ControlSpec(0, 1, step: 1, default: 0),
+				Description: "Loop enabled. 1 means enabled, 0 not."
+			),
+			'Frequency' -> (
+				Spec: \freq.asSpec,
+				Description: "Frequency."
+			),
+			'RootFrequency' -> (
+				Spec: \freq.asSpec, // default root is 440 = A4
+				Description: "Root frequency."
+			),
+			'Volume' -> (
+				Spec: \db.asSpec.copy.default_(-10),
+				Description: "Volume."
+			),
+			'Pan' -> (
+				Spec: \pan.asSpec,
+				Description: "Pan position."
+			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar? nah: enfore unipolar on other modules
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
 			),
 		],
 		sampleSlots: [
 			'Sample' -> (
-				Channels: [1, 2]
+				Channels: [1, 2],
+				Description: "Mono or stereo sample to play."
 			) // TODO: include metadata on whether samples are supposed to be enabled for read, write or both, and whether to set a default size for initial sample(s) (to set up a fixed recording buffer, etc)
 		],
 		visuals: [
 			'Phase' -> (
 				Spec: \unipolar.asSpec,
+				Description: "Sample phase normalized to `0` ... `1`."
 			),
 			'Gate' -> (
-				Spec: ControlSpec(0, 1, step: 1) // TODO: DRY the gate/reset/boolean specs
+				Spec: ControlSpec(0, 1, step: 1), // TODO: DRY the gate/reset/boolean specs
+				Description: "Gate: `0` or `1`."
 			),
 			'Playing' -> (
-				Spec: ControlSpec(0, 1, step: 1) // TODO: DRY the gate/reset/boolean specs
+				Spec: ControlSpec(0, 1, step: 1), // TODO: DRY the gate/reset/boolean specs
+				Description: "Playing: `0` or `1`."
 			),
 		],
 		ugenGraphFunc: {
@@ -4107,13 +5753,25 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'TestGen',
+		outputs: [
+			'Out' -> (
+				Description: "Sine wave signal or noise output."
+			)
+		],
 		params: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				LagTime: 0 // TODO: all lag times have to be 0 if params with \db spec (such as param_Amplitude) are used (fixed by resorting to NamedControls in R?)
+				LagTime: 0, // TODO: all lag times have to be 0 if params with \db spec (such as param_Amplitude) are used (fixed by resorting to NamedControls in R?)
+				Description: "Sine wave frequency."
 			),
-			'Amplitude' -> \db.asSpec,
-			'Wave' -> ControlSpec(0, 1, step: 1, default: 0)
+			'Amplitude' -> (
+				Spec: \db.asSpec,
+				Description: "Audio output signal amplitude."
+			),
+			'Wave' -> (
+				Spec: ControlSpec(0, 1, step: 1, default: 0),
+				Description: "Wave: `0` means sine wave, `1` white noise."
+			)
 		],
 		ugenGraphFunc: {
 			|
@@ -4129,18 +5787,32 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'TriOsc',
+		description: "Triangle oscillator (non-bandlimited)",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Triangle wave oscillator output."
+			),
+		],
 		params: [
 			'Range' -> (
 				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
 			),
 			'Tune' -> (
 				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
 			),
 			'FM' -> (
 				Spec: \unipolar.asSpec, // TODO: bipolar?
-				LagTime: 0.01
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
 			),
 		],
 		ugenGraphFunc: {
@@ -4172,13 +5844,116 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: experimental
+		name: 'TriOscExp',
+		experimental: true,
+		description: "Triangle oscillator (non-bandlimited, w/ linear FM features)",
+		inputs: [
+			'FM' -> (
+				Description: "Control signal for frequency modulation."
+			),
+		],
+		outputs: [
+			'Out' -> (
+				Description: "Triangle wave oscillator output."
+			),
+		],
+		params: [
+			'Range' -> (
+				Spec: ControlSpec.new(-2, 2, 'lin', 1, 0),
+				LagTime: 0.01,
+				Description: "`-2` ... `+2` octaves."
+			),
+			'Tune' -> (
+				Spec: ControlSpec.new(-600, 600, 'lin', 0, 0, "cents"),
+				LagTime: 0.01,
+				Description: "`-1200` ... `+1200` cents."
+			),
+			'FM' -> (
+				Spec: \unipolar.asSpec, // TODO: bipolar?
+				LagTime: 0.01,
+				Description: "Frequency modulation amount."
+			),
+			'LinFM' -> (
+				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
+				LagTime: 0.2,
+				Description: "Linear frequency modulation amount."
+			),
+		],
+		ugenGraphFunc: {
+			|
+				in_FM,
+				in_LinFM,
+				out_Out,
+				param_Range,
+				param_Tune,
+				param_FM,
+				param_LinFM
+			|
+
+			var sig_FM = In.ar(in_FM);
+			var sig_LinFM = In.ar(in_LinFM);
+
+			var fullRange = ControlSpec(12.midicps, 120.midicps);
+
+			var frequency = fullRange.constrain(
+				( // TODO: optimization - implement overridable set handlers and do this calculation in sclang rather than server
+					3 +
+					param_Range +
+					(param_Tune / 1200) +
+					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
+				).octcps
+			);
+
+			Out.ar(
+				out_Out,
+				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // TODO: not band-limited
+			);
+		}
+	),
+	(
 		// Status: not tested
 		name: 'XFader',
+		description: "Crossfader",
+		inputs: [
+			'InALeft' -> (
+				Description: "Signal A left audio signal."
+			),
+			'InARight' -> (
+				Description: "Signal A right audio signal."
+			),
+			'InBLeft' -> (
+				Description: "Signal B left audio signal."
+			),
+			'InBRight' -> (
+				Description: "Signal B right audio signal."
+			),
+		],
+		outputs: [
+			'Left' -> (
+				Description: "Crossfaded left audio signal."
+			),
+			'Right' -> (
+				Description: "Crossfaded right audio signal."
+			),
+		],
 		params: [
-			'Fade' -> \bipolar.asSpec, // TODO: remove need for .asSpec
-			'TrimA' -> \db.asSpec.copy.maxval_(12),
-			'TrimB' -> \db.asSpec.copy.maxval_(12),
-			'Master' -> \db.asSpec.copy.maxval_(12)
+			'Fade' -> (
+				Spec: \bipolar.asSpec, // TODO: remove need for .asSpec
+				Description: "Fader position: `-1` fully attenuates stereo signal A, `1` fully attenuates stereo signal B, anything in between mixes the signals."
+			),
+			'TrimA' -> (
+				Spec: \db.asSpec.copy.maxval_(12),
+				Description: "Signal A trim."
+			),
+			'TrimB' -> (
+				Spec: \db.asSpec.copy.maxval_(12),
+				Description: "Signal B trim."
+			),
+			'Master' -> (
+				Spec: \db.asSpec.copy.maxval_(12),
+				Description: "Master output level."
+			)
 		],
 		ugenGraphFunc: {
 			|
@@ -4208,18 +5983,58 @@ var stdModules = [
 	)
 ];
 
-var generateMatrixModulesParams = { |numRows, numCols|
+var generateMatrixModulesParams = { |numInputs, numOutputs|
 	var result = [
-		'FadeTime' -> ControlSpec(0, 1000, 'lin', 0, 5, "ms")
-	] ++ numCols.collect { |colIndex|
-		numRows.collect { |rowIndex|
-				"Gate_"++(colIndex+1)++"_"++(rowIndex+1) -> ControlSpec(0, 1, 'lin', 1, 0, "")
+		'FadeTime' -> (
+			Spec: ControlSpec(0, 1000, 'lin', 0, 5, "ms"),
+			Description: "Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms."
+		)
+	] ++ numInputs.collect { |inIndex|
+		numOutputs.collect { |outIndex|
+			"Gate_"++(outIndex+1)++"_"++(inIndex+1) -> (
+				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
+				Description: ("Toggle that determine whether input " ++ (inIndex+1) ++ " is switched on to output " ++ (outIndex+1)) ++ "."
+			)
 		}
 	}.flatten.collect { |assoc| assoc.key.asSymbol -> assoc.value };
 	result;
 };
 
-var publicAPI = [init, free, newCommand, connectCommand, disconnectCommand, deleteCommand, setCommand, bulksetCommand, newmacroCommand, deletemacroCommand, macrosetCommand, readsampleCommand, tapoutputCommand, tapclearCommand, getTapBus, getVisualBus];
+var generateMatrixModulesInputs = { |numInputs|
+	numInputs.collect { |index|
+		("In"++(index+1)).asSymbol -> (
+			Description: "Input " ++ (index+1)
+		)
+	};
+};
 
-publicAPI;
+var generateMatrixModulesOutputs = { |numOutputs|
+	numOutputs.collect { |index|
+		("Out"++(index+1)).asSymbol -> (
+			Description: "Output " ++ (index+1)
+		)
+	};
+};
+
+var publicAPI = IdentityDictionary[
+	\init -> init,
+	\free -> free,
+	\newCommand -> newCommand,
+	\connectCommand -> connectCommand,
+	\disconnectCommand -> disconnectCommand,
+	\deleteCommand -> deleteCommand,
+	\setCommand -> setCommand,
+	\bulksetCommand -> bulksetCommand,
+	\newmacroCommand -> newmacroCommand,
+	\deletemacroCommand -> deletemacroCommand,
+	\macrosetCommand -> macrosetCommand,
+	\readsampleCommand -> readsampleCommand,
+	\tapoutputCommand -> tapoutputCommand,
+	\tapclearCommand -> tapclearCommand,
+	\getTapBus -> getTapBus,
+	\getVisualBus -> getVisualBus,
+	\generateDocsForAllModules -> generateDocsForAllModules
+];
+
+publicAPI
 )

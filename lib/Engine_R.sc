@@ -1,7 +1,7 @@
 Engine_R : CroneEngine {
 	var <rrrr;
 
-	var scdBasedRrrr = false;
+	var useScdBasedR = false;
 	var numPolls = 10;
 
 	var <pollConfigs;
@@ -13,7 +13,7 @@ Engine_R : CroneEngine {
 	*new { |context, callback| ^super.new(context, callback) }
 
 	spawnScdBasedRrrr {
-		var scdFilePath = PathName(this.class.filenameSymbol.asString).pathOnly +/+ "r.scd";
+		var scdFilePath = (PathName(this.class.filenameSymbol.asString).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
 
 		var postPollIndexNotWithinBoundsError = { |pollIndex|
 			"poll index not within bounds: pollIndex % referred, only % polls available".format(pollIndex, numPolls).error;
@@ -72,8 +72,24 @@ Engine_R : CroneEngine {
 	}
 
 	alloc {
-		if (scdBasedRrrr) {
-			# init, free, newCommand, connectCommand, disconnectCommand, deleteCommand, setCommand, bulksetCommand, newmacroCommand, deletemacroCommand, macrosetCommand, readsampleCommand, tapoutputCommand, tapclearCommand, getTapBus, getVisualBus = this.spawnScdBasedRrrr;
+		if (useScdBasedR) {
+			var rScdAPI = this.spawnScdBasedRrrr;
+			init = rScdAPI[\init];
+			free = rScdAPI[\free];
+			newCommand = rScdAPI[\newCommand];
+			connectCommand = rScdAPI[\connectCommand];
+			disconnectCommand = rScdAPI[\disconnectCommand];
+			deleteCommand = rScdAPI[\deleteCommand];
+			setCommand = rScdAPI[\setCommand];
+			bulksetCommand = rScdAPI[\bulksetCommand];
+			newmacroCommand = rScdAPI[\newmacroCommand];
+			deletemacroCommand = rScdAPI[\deletemacroCommand];
+			macrosetCommand = rScdAPI[\macrosetCommand];
+			readsampleCommand = rScdAPI[\readsampleCommand];
+			tapoutputCommand = rScdAPI[\tapoutputCommand];
+			tapclearCommand = rScdAPI[\tapclearCommand];
+			getTapBus = rScdAPI[\getTapBus];
+			getVisualBus = rScdAPI[\getVisualBus];
 
 			rrrr=init.(
 				(
@@ -84,7 +100,6 @@ Engine_R : CroneEngine {
 					numTaps: numPolls
 				)
 			);
-
 		} {
 			rrrr = Rrrr.new(
 				(
@@ -102,7 +117,7 @@ Engine_R : CroneEngine {
 	}
 
 	addCommands {
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('new', "ss") { |msg|
 				var moduleRef = msg[1];
 				var moduleType = msg[2];
@@ -120,7 +135,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('delete', "s") { |msg|
 				var moduleRef = msg[1];
 				if (rrrr[\trace]) {
@@ -137,7 +152,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('connect', "ss") { |msg|
 				var moduleOutputRef = msg[1];
 				var moduleInputRef = msg[2];
@@ -155,7 +170,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('disconnect', "ss") { |msg|
 				var moduleOutputRef = msg[1];
 				var moduleInputRef = msg[2];
@@ -173,7 +188,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('set', "sf") { |msg|
 				var moduleParameterRef = msg[1];
 				var value = msg[2];
@@ -191,7 +206,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('bulkset', "s") { |msg|
 				var bundle = msg[1];
 				if (rrrr[\trace]) {
@@ -208,7 +223,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('newmacro', "ss") { |msg|
 				var name = msg[1];
 				var bundle = msg[2];
@@ -226,7 +241,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('deletemacro', "s") { |msg|
 				var name = msg[1];
 				if (rrrr[\trace]) {
@@ -243,7 +258,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('macroset', "sf") { |msg|
 				var name = msg[1];
 				var value = msg[2];
@@ -261,7 +276,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('polloutput', "is") { |msg|
 				var oneBasedIndex = msg[1];
 				var moduleOutputRef = msg[2];
@@ -281,7 +296,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('pollvisual', "is") { |msg|
 				var oneBasedIndex = msg[1];
 				var moduleVisualRef = msg[2];
@@ -301,7 +316,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('pollclear', "i") { |msg|
 				var oneBasedIndex = msg[1];
 				if (rrrr[\trace]) {
@@ -319,7 +334,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('readsample', "ss") { |msg|
 				var moduleSampleSlotRef = msg[1];
 				var path = msg[2];
@@ -335,7 +350,7 @@ Engine_R : CroneEngine {
 				if (rrrr.trace) {
 					[SystemClock.seconds, \readsampleCommand, (sampleSlot.asString + path.asString)[0..20]].debug(\received);
 				};
-				if (scdBasedRrrr) {
+				if (useScdBasedR) {
 					readsampleCommand.(rrrr, sampleSlot, path.asString);
 				} {
 					rrrr.readsampleCommand(sampleSlot, path.asString);
@@ -343,7 +358,7 @@ Engine_R : CroneEngine {
 			};
 		};
 
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			this.addCommand('trace', "i") { |msg|
 				rrrr[\trace] = msg[1].asBoolean;
 			};
@@ -405,7 +420,7 @@ Engine_R : CroneEngine {
 	}
 
 	free {
-		if (scdBasedRrrr) {
+		if (useScdBasedR) {
 			free.(rrrr);
 		} {
 			rrrr.free;
