@@ -5471,24 +5471,22 @@ var stdModules = [
 	(
 		// Status: tested (added by andrew)
 		name: 'Slew',
-		description: "Slew rate limiter",
+		description: "Slew rate limiter.",
 		inputs: [
 			'In' -> (
-				Description: "TODO",
-				Range: [0, 1]
+				Description: "Audio signal imput."
 			),
 		],
 		outputs: [
 			'Out' -> (
-				Description: "TODO",
-				Range: [-0.25, 0.25]
+				Description: "Processed audio signal."
 			),
 		],
 		params: [
 			'Time' -> (
-				Spec: ControlSpec.new(0, 60),
+				Spec: ControlSpec.new(0, 60000, units: "ms"),
 				LagTime: 0.1,
-				Description: "(seconds) -- TODO: milliseconds",
+				Description: "Slew time `0` ... `60 000` ms.",
 			),
 		],
 		ugenGraphFunc: {
@@ -5502,7 +5500,7 @@ var stdModules = [
 
 			Out.ar(
 				out_Out,
-				Lag.ar(sig_In, param_Time)
+				Lag.ar(sig_In, param_Time/1000)
 			);
 		}
 	),

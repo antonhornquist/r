@@ -4673,7 +4673,7 @@ RSlewModule : RModule {
 	*params {
 		^[
 			'Time' -> (
-				Spec: ControlSpec.new(0, 60),
+				Spec: ControlSpec.new(0, 60000, units: "ms"),
 				LagTime: 0.1
 			)
 		]
@@ -4691,7 +4691,7 @@ RSlewModule : RModule {
 
 			Out.ar(
 				out_Out,
-				Lag.ar(sig_In, param_Time)
+				Lag.ar(sig_In, param_Time/1000)
 			);
 		}
 	}

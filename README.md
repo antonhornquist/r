@@ -536,14 +536,14 @@ Sine oscillator
 
 ### Slew
 
-Slew rate limiter
+Slew rate limiter.
 
 - Inputs:
-	- `In`: TODO
+	- `In`: Audio signal imput.
 - Outputs:
-	- `Out`: TODO
+	- `Out`: Processed audio signal.
 - Parameters:
-	- `Time`: (seconds) -- TODO: milliseconds
+	- `Time`: Slew time `0` ... `60 000` ms.
 
 ### SoundIn
 
