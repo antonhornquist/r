@@ -4,7 +4,7 @@ var r_api = this.executeFile(r_path);
 s.waitForBoot {
 	var init = r_api[\init];
 	var generateDocsForAllModules = r_api[\generateDocsForAllModules];
-	var r_instance = init.value();
-	postln(generateDocsForAllModules.value(r_instance));
+	var r = init.value();
+	postln(generateDocsForAllModules.value(r));
 };
 )

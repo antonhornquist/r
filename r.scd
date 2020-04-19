@@ -1849,13 +1849,13 @@ var stdModules = [
 	(
 		// Status: tested
 		name: '44Matrix',
-		description: "4x4 matrix signal router",
+		description: "4x4 matrix signal router.",
 		inputsDocSection: "\t- `In1` ... `In4`: Signal inputs.",
 		inputs: { generateMatrixModulesInputs.value(4) },
 		outputsDocSection: "\t- `Out1` ... `Out4`: Signal outputs.",
 		outputs: { generateMatrixModulesOutputs.value(4) },
 		paramsDocSection:
-			"\t- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms." ++ "\n" ++
+			"\t- `FadeTime`: Fade time in milliseconds (range: `0` - `100000` ms) applied when an input is switched on to or off from an output. Default is `5` ms." ++ "\n" ++
 			"\t- `Gate_1_1` ... `Gate_4_4`: Toggles that determine what inputs (first number) are switched on to outputs (second number).",
 		params: { generateMatrixModulesParams.value(4, 4) },
 		ugenGraphFunc: {
@@ -1925,13 +1925,13 @@ var stdModules = [
 	(
 		// Status: tested
 		name: '88Matrix',
-		description: "8x8 matrix signal router",
+		description: "8x8 matrix signal router.",
 		inputsDocSection: "\t- `In1` ... `In8`: Signal inputs.",
 		inputs: { generateMatrixModulesInputs.value(8) },
 		outputsDocSection: "\t- `Out1` ... `Out8`: Signal outputs.",
 		outputs: { generateMatrixModulesOutputs.value(8) },
 		paramsDocSection:
-			"\t- `FadeTime`: Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms." ++ "\n" ++
+			"\t- `FadeTime`: Fade time in milliseconds (range: `0`-`100000` ms) applied when an input is switched on to or off from an output. Default is `5` ms." ++ "\n" ++
 			"\t- `Gate_1_1` ... `Gate_8_8`: Toggles that determine what inputs (first number) are switched on to outputs (second number).",
 		params: { generateMatrixModulesParams.value(8, 8) },
 		ugenGraphFunc: {
@@ -2124,7 +2124,7 @@ var stdModules = [
 		// Inspiration from A-140
 		// TODO: is it possible to implement Retrig(?)
 		name: 'ADSREnv',
-		description: "ADSR Envelope",
+		description: "ADSR Envelope.",
 		inputs: [
 			'Gate' -> (
 				Description: "Gate control input. A signal > 0 triggers envelope."
@@ -2132,29 +2132,29 @@ var stdModules = [
 		],
 		outputs: [
 			'Out' -> (
-				Description: "Envelope signal: 0 ... 0.8."
+				Description: "Envelope signal: `0` ... `0.8`."
 			)
 		],
 		params: [
 			'Attack' -> (
 				Spec: ControlSpec(0.1, 2000, 'exp', 0, 5, "ms"),
 				LagTime: 0.1,
-				Description: "Attack time. Range 0.1 - 2000 ms. Default is 5."
+				Description: "Attack time. Range `0.1` - `2000` ms. Default is `5`."
 			),
 			'Decay' -> (
 				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
 				LagTime: 0.1,
-				Description: "Decay time. Range 0.1 - 8000 ms. Default is 200."
+				Description: "Decay time. Range `0.1` - `8000` ms. Default is `200`."
 			),
 			'Sustain' -> (
 				Spec: ControlSpec(0, 1, 'lin', 0, 0.5, ""),
 				LagTime: 0.1,
-				Description: "Sustain level 0 - 1.0. Default is 0.5."
+				Description: "Sustain level `0` - `1.0`. Default is `0.5`."
 			),
 			'Release' -> (
 				Spec: ControlSpec(0.1, 8000, 'exp', 0, 200, "ms"),
 				LagTime: 0.1,
-				Description: "Release time. Range 0.1 - 8000 ms. Default is 200."
+				Description: "Release time. Range `0.1` - `8000` ms. Default is `200`."
 			),
 			'Gate' -> (
 				Spec: ControlSpec(0, 1, step: 1, default: 0), // TODO: DRY the gate/reset/boolean specs
@@ -2247,7 +2247,7 @@ var stdModules = [
 		// Status: tested
 		// TODO: test Exp input more
 		name: 'Amp',
-		description: "Simple amplifier with level parameter and exponential or linear gain modulation",
+		description: "Simple amplifier with level parameter and exponential or linear gain modulation.",
 		inputs: [
 			'Exp' -> (
 				Description: "Gain modulation control input (logarithmic)."
@@ -2268,7 +2268,7 @@ var stdModules = [
 			'Level' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Amplifier level 0 - 1.0."
+				Description: "Amplifier level `0` - `1.0`."
 			)
 		],
 		ugenGraphFunc: {
@@ -2296,7 +2296,7 @@ var stdModules = [
 		// Status: partly tested, exp mode needs more testing
 		// Inspiration from A-130/A-131
 		name: 'Amp2',
-		description: "Amplifier with two inputs, level parameter and variable exponential or linear gain modulation",
+		description: "Amplifier with two inputs, level parameter and variable exponential or linear gain modulation.",
 		inputs: [
 			'GainModulation' -> (
 				Description: "Control input for gain modulation."
@@ -2317,31 +2317,31 @@ var stdModules = [
 			'Gain' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Initial gain 0 - 1.0."
+				Description: "Initial gain `0` - `1.0`."
 			),
 			'GainModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Gain modulation amount 0 - 1.0."
+				Description: "Gain modulation amount `0` - `1.0`."
 			),
 			'In1' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Audio input 1 level 0 - 1.0."
+				Description: "Audio input 1 level `0` - `1.0`."
 			),
 			'In2' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Audio input 2 level 0 - 1.0."
+				Description: "Audio input 2 level `0` - `1.0`."
 			),
 			'Out' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Audio output level 0 - 1.0."
+				Description: "Audio output level `0` - `1.0`."
 			),
 			'Mode' -> (
 				Spec: ControlSpec.new(0, 1, 'lin', 1, 0),
-				Description: "0 or 1 representing linear or exponential gain modulation."
+				Description: "`0` or `1` representing linear or exponential gain modulation."
 			)
 		],
 		ugenGraphFunc: {
@@ -2380,7 +2380,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'BPFilter',
-		description: "Resonant bandpass SVF filter",
+		description: "Resonant bandpass SVF filter.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -2401,33 +2401,33 @@ var stdModules = [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1,
-				Description: "Audio level 0 ... 1.0. Default is 1."
+				Description: "Audio level `0` ... `1.0`. Default is `1`."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
 				LagTime: 0.1,
-				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz. Default is `440` Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance 0 ... 1.0. Default is 0."
+				Description: "Resonance `0` ... `1.0`. Default is `0`."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Frequency modulation amount -1.0 ... 1.0."
+				Description: "Frequency modulation amount `-1.0` ... `1.0`."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance modulation amount -1.0 ... 1.0."
+				Description: "Resonance modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				Description: "Cutoff frequency."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz."
 			),
 		],
 		ugenGraphFunc: {
@@ -2474,7 +2474,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'BRFilter',
-		description: "Resonant bandreject (Notch) SVF filter",
+		description: "Resonant bandreject (Notch) SVF filter.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -2495,33 +2495,33 @@ var stdModules = [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1,
-				Description: "Audio level 0 ... 1.0. Default is 1."
+				Description: "Audio level `0` ... `1.0`. Default is `1`."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
 				LagTime: 0.1,
-				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz. Default is `440` Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance 0 ... 1.0. Default is 0."
+				Description: "Resonance `0` ... `1.0`. Default is `0`."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Frequency modulation amount -1.0 ... 1.0."
+				Description: "Frequency modulation amount `-1.0` ... `1.0`."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance modulation amount -1.0 ... 1.0."
+				Description: "Resonance modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				Description: "Cutoff frequency."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz."
 			),
 		],
 		ugenGraphFunc: {
@@ -2653,7 +2653,7 @@ var stdModules = [
 	(
 		// Status: untested
 		name: 'DbMixer',
-		description: "Mixer suited for audio signals",
+		description: "Mixer suited for audio signals.",
 		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs 1 ... 4.",
 		inputs: {
 			4.collect { |index|
@@ -2720,7 +2720,7 @@ var stdModules = [
 		// Status: tested (added by andrew)
 		name: 'Decimate',
 		experimental: true,
-		description: "Sample rate and bit depth reducer",
+		description: "Sample rate and bit depth reducer.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -2802,7 +2802,7 @@ var stdModules = [
 	(
 		// Status: partly tested. TODO: what modulation input range should be used?
 		name: 'Delay',
-		description: "Delay line",
+		description: "Delay line.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -2820,7 +2820,7 @@ var stdModules = [
 			'DelayTime' -> (
 				Spec: ControlSpec(0.1, 5000, 'exp', 0, 300, "ms"),
 				LagTime: 0.25,
-				Description: "Delay time."
+				Description: "Delay time `0.1` ... `5000` ms."
 			),
 			'DelayTimeModulation' -> (
 				Spec: \bipolar.asSpec,
@@ -2862,7 +2862,7 @@ var stdModules = [
 	(
 		// Status: tested (added by andrew)
 		name: 'EQBP',
-		description: "Non-resonant, variable width bandpass filter",
+		description: "Non-resonant, variable width bandpass filter.",
 		params: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
@@ -2920,7 +2920,7 @@ var stdModules = [
 	(
 		name: 'EnvF',
 		experimental: true,
-		description: "Envelope follower",
+		description: "Envelope follower.",
 		inputs: [
 			'In' -> (
 				Description: "Input signal"
@@ -2984,7 +2984,7 @@ var stdModules = [
 		// TODO: Fix parameter names
 		name: 'FMVoice',
 		experimental: true,
-		description: "FM voice",
+		description: "FM synthesis voice.",
 		params: {
 			var numOscs = 3;
 			var params = [
@@ -3107,7 +3107,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'FreqGate',
-		description: "CV/Gate thing [TODO: clarify]",
+		description: "CV/Gate like thing.",
 		outputs: [
 			'Frequency' -> (
 				Description: "Frequency control signal."
@@ -3148,7 +3148,7 @@ var stdModules = [
 	(
 		// Status: partly tested. TODO: review modulation input mapping
 		name: 'FShift',
-		description: "Frequency shifter",
+		description: "Frequency shifter.",
 		inputs: [
 			'Left' -> (
 				Description: "Left audio input."
@@ -3215,7 +3215,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'HPFilter',
-		description: "Resonant highpass SVF filter",
+		description: "Resonant highpass SVF filter.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -3236,33 +3236,33 @@ var stdModules = [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1,
-				Description: "Audio level 0 ... 1.0. Default is 1."
+				Description: "Audio level `0` ... `1.0`. Default is `1`."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
 				LagTime: 0.1,
-				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz. Default is `440` Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance 0 ... 1.0. Default is 0."
+				Description: "Resonance `0` ... `1.0`. Default is `0`."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Frequency modulation amount -1.0 ... 1.0."
+				Description: "Frequency modulation amount `-1.0` ... `1.0`."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance modulation amount -1.0 ... 1.0."
+				Description: "Resonance modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				Description: "Cutoff frequency."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz."
 			),
 		],
 		ugenGraphFunc: {
@@ -3355,7 +3355,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'LinMixer',
-		description: "Mixer suited for control signals",
+		description: "Mixer suited for control signals.",
 		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs 1 ... 4.",
 		inputs: {
 			4.collect { |index|
@@ -3421,7 +3421,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'LPFilter',
-		description: "Resonant lowpass SVF filter",
+		description: "Resonant lowpass SVF filter.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -3442,33 +3442,33 @@ var stdModules = [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1,
-				Description: "Audio level 0 ... 1.0. Default is 1."
+				Description: "Audio level `0` ... `1.0`. Default is `1`."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
 				LagTime: 0.1,
-				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz. Default is `440` Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance 0 ... 1.0. Default is 0."
+				Description: "Resonance `0` ... `1.0`. Default is `0`."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Frequency modulation amount -1.0 ... 1.0."
+				Description: "Frequency modulation amount `-1.0` ... `1.0`."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance modulation amount -1.0 ... 1.0."
+				Description: "Resonance modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				Description: "Cutoff frequency."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz."
 			),
 		],
 		ugenGraphFunc: {
@@ -3515,7 +3515,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'LPLadder',
-		description: "Lowpass ladder filter",
+		description: "Lowpass ladder filter.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -3536,28 +3536,28 @@ var stdModules = [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
 				LagTime: 0.1,
-				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz. Default is `440` Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance 0 ... 1.0. Default is 0."
+				Description: "Resonance `0` ... `1.0`. Default is `0`."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Frequency modulation amount -1.0 ... 1.0."
+				Description: "Frequency modulation amount `-1.0` ... `1.0`."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance modulation amount -1.0 ... 1.0."
+				Description: "Resonance modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				Description: "Cutoff frequency."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz."
 			),
 		],
 		ugenGraphFunc: {
@@ -3594,7 +3594,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'MGain',
-		description: "Audio fader with db gain control and mute",
+		description: "Audio fader with db gain control and mute.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -3609,12 +3609,12 @@ var stdModules = [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
-				Description: "Attenuation control. -inf ... +12 dB."
+				Description: "Attenuation control. `-inf` ... `+12` dB."
 			),
 			'Mute' -> (
 				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
 				// TODO LagTime: 0.1
-				Description: "If 1 signal is muted, otherwise not."
+				Description: "If `1` signal is muted, otherwise not."
 			),
 		],
 		ugenGraphFunc: {
@@ -3636,7 +3636,7 @@ var stdModules = [
 		// Status: tested
 		// Inspiration from A-121
 		name: 'MMFilter',
-		description: "Resonant SVF multimode filter",
+		description: "Resonant SVF multimode filter.",
 		inputs: [
 			'In' -> (
 				Description: "Audio input."
@@ -3666,33 +3666,33 @@ var stdModules = [
 			'AudioLevel' -> (
 				Spec: \amp.asSpec.copy.default_(1), // TODO: updated
 				LagTime: 0.1,
-				Description: "Audio level 0 ... 1.0. Default is 1."
+				Description: "Audio level `0` ... `1.0`. Default is `1`."
 			),
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
 				LagTime: 0.1,
-				Description: "Cutoff frequency 0.1 ... 20000 Hz. Default is 440 Hz."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz. Default is `440` Hz."
 			),
 			'Resonance' -> (
 				Spec: \unipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance 0 ... 1.0. Default is 0."
+				Description: "Resonance `0` ... `1.0`. Default is `0`."
 			),
 			'FM' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Frequency modulation amount -1.0 ... 1.0."
+				Description: "Frequency modulation amount `-1.0` ... `1.0`."
 			),
 			'ResonanceModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Resonance modulation amount -1.0 ... 1.0."
+				Description: "Resonance modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		visuals: [
 			'Frequency' -> (
 				Spec: \widefreq.asSpec,
-				Description: "Cutoff frequency."
+				Description: "Cutoff frequency `0.1` ... `20000` Hz."
 			),
 		],
 		ugenGraphFunc: {
@@ -3782,7 +3782,7 @@ var stdModules = [
 		// Status: partly tested, TODO: test in_Reset together with param_Reset
 		// Inspiration from A-145
 		name: 'MultiLFO',
-		description: "LFO featuring multiple waveforms",
+		description: "LFO featuring multiple waveforms.",
 		inputs: [
 			'Reset' -> (
 				Description: "Audio rate reset trigger: when signal is changed from 0 to 1 the LFO is retriggered.",
@@ -3813,7 +3813,7 @@ var stdModules = [
 		],
 		params: [
 			'Frequency' -> (
-				Description: "LFO Frequency 0.01 Hz .. 50 Hz.",
+				Description: "LFO Frequency `0.01` Hz ... `50` Hz.",
 				Spec: ControlSpec(0.01, 50, 'exp', 0, 1, "Hz"),
 				LagTime: 0.01
 			),
@@ -3884,7 +3884,7 @@ var stdModules = [
 		// Status: tested
 		// Inspiration from A-110 (but no Sync input)
 		name: 'MultiOsc',
-		description: "Oscillator featuring multiple waveforms",
+		description: "Oscillator featuring multiple waveforms.",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -3994,7 +3994,7 @@ var stdModules = [
 		// Inspiration from A-110 (but no Sync input)
 		name: 'MultiOscExp',
 		experimental: true,
-		description: "Oscillator featuring multiple waveforms (w/ linear FM features)",
+		description: "Oscillator featuring multiple waveforms (w/ linear FM features).",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -4119,7 +4119,7 @@ var stdModules = [
 	(
 		// Status: tested, TODO: make a script
 		name: 'Noise',
-		description: "White noise generator",
+		description: "White noise generator.",
 		outputs: [
 			'Out' -> (
 				Description: "Noise signal."
@@ -4139,7 +4139,7 @@ var stdModules = [
 	(
 		// Status: not tested
 		name: 'OGain',
-		description: "8-in/8-out audio fader with db gain control and mute",
+		description: "8-in/8-out audio fader with db gain control and mute.",
 		inputsDocSection: "\t- `In1` ... `In8`: Audio inputs.",
 		inputs: {
 			8.collect { |index|
@@ -4160,12 +4160,12 @@ var stdModules = [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
-				Description: "Attenuation control. -inf ... +12 dB."
+				Description: "Attenuation control. `-inf` ... `+12` dB."
 			),
 			'Mute' -> (
 				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
 				// TODO LagTime: 0.1
-				Description: "If 1 signal is muted, otherwise not."
+				Description: "If `1` signal is muted, otherwise not."
 			),
 		],
 		ugenGraphFunc: {
@@ -4214,7 +4214,7 @@ var stdModules = [
 	(
 		// Status: tested (added by andrew)
 		name: 'Pan',
-		description: "Stereo panner with monophonic input",
+		description: "Stereo panner with monophonic input.",
 		inputs: [
 			'In' -> (
 				Description: "Mono audio signal."
@@ -4235,12 +4235,12 @@ var stdModules = [
 			'Position' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Pan position."
+				Description: "Pan position `-1.0` ... `1.0` referring to left ... right panning."
 			),
 			'PositionModulation' -> (
 				Spec: \bipolar.asSpec,
 				LagTime: 0.1,
-				Description: "Pan position modulation amount."
+				Description: "Pan position modulation amount `-1.0` ... `1.0`."
 			),
 		],
 		ugenGraphFunc: {
@@ -4331,7 +4331,7 @@ var stdModules = [
 	(
 		// Status: partly tested. TODO: review modulation input mapping
 		name: 'PShift',
-		description: "Pitch shifter",
+		description: "Pitch shifter.",
 		inputs: [
 			'Left' -> (
 				Description: "Left audio signal."
@@ -4449,7 +4449,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'PulseOsc',
-		description: "Pulse/square oscillator with pulse width control",
+		description: "Pulse/square oscillator with pulse width control.",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -4530,7 +4530,7 @@ var stdModules = [
 		// Status: experimental
 		name: 'PulseOscExp',
 		experimental: true,
-		description: "Pulse/square oscillator with pulse width control (w/ linear FM features)",
+		description: "Pulse/square oscillator with pulse width control (w/ linear FM features).",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -4621,7 +4621,7 @@ var stdModules = [
 	(
 		// Status: not tested
 		name: 'QGain',
-		description: "4-in/4-out audio fader with db gain control and mute",
+		description: "4-in/4-out audio fader with db gain control and mute.",
 		inputsDocSection: "\t- `In1` ... `In4`: Audio inputs",
 		inputs: {
 			4.collect { |index|
@@ -4642,12 +4642,12 @@ var stdModules = [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
-				Description: "Attenuation control. -inf ... +12 dB."
+				Description: "Attenuation control. `-inf` ... `+12` dB."
 			),
 			'Mute' -> (
 				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
 				// TODO LagTime: 0.1
-				Description: "If 1 signal is muted, otherwise not."
+				Description: "If `1` signal is muted, otherwise not."
 			),
 		],
 		ugenGraphFunc: {
@@ -4682,7 +4682,7 @@ var stdModules = [
 		// From https://en.wikibooks.org/wiki/Designing_Sound_in_SuperCollider/Schroeder_reverb
 		name: 'Rev1',
 		experimental: true,
-		description: "Schroeder reverb",
+		description: "Schroeder reverb.",
 		params: [
 			'Volume' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(-10),
@@ -4774,7 +4774,7 @@ var stdModules = [
 	(
 		// Status: partly tested
 		name: 'RingMod',
-		description: "Ring modulator",
+		description: "Ring modulator.",
 		inputs: [
 			'In' -> (
 				Description: "Audio signal input."
@@ -4804,7 +4804,7 @@ var stdModules = [
 	(
 		// Status: partly tested
 		name: 'SampHold',
-		description: "Sample and hold module",
+		description: "Sample and hold module.",
 		inputs: [
 			'In' -> (
 				Description: "Audio signal input."
@@ -4837,7 +4837,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'SawOsc',
-		description: "Sawtooth oscillator",
+		description: "Sawtooth oscillator.",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -4897,7 +4897,7 @@ var stdModules = [
 		// Status: experimental
 		name: 'SawOscExp',
 		experimental: true,
-		description: "Sawtooth oscillator (w/ linear FM features)",
+		description: "Sawtooth oscillator (w/ linear FM features).",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -4967,7 +4967,7 @@ var stdModules = [
 		// Inspiration from A-155
 		name: 'Seq1',
 		experimental: true,
-		description: "Control signal sequencer",
+		description: "Control signal sequencer.",
 		inputs: [
 			'Clock' -> (
 				Description: "Clock input."
@@ -5025,7 +5025,7 @@ var stdModules = [
 					),
 					'Range' -> (
 						Spec: ControlSpec.new(0, 2, step: 1, default: 0), // 0 = 1V, 1 = 2V, 2 = 4V
-						Description: "Output range: 0, 1 or 2, specifying ranges 0.1, 0.2, 0,4 respectively."
+						Description: "Output range: `0`, `1` or `2`, specifying ranges `0.1`, `0.2`, `0.4` respectively."
 					),
 					'Scale' -> (
 						Spec: \unipolar.asSpec.copy.default_(1), // TODO
@@ -5067,7 +5067,7 @@ var stdModules = [
 		visuals: [
 			'Position' -> (
 				Spec: \unipolar.asSpec,
-				Description: "Sequencer position: `0` ... `8`."
+				Description: "Sequencer position: `0` ... `7`."
 			),
 		],
 		ugenGraphFunc: {
@@ -5235,7 +5235,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'SGain',
-		description: "2-in/2-out audio fader with db gain control and mute",
+		description: "2-in/2-out audio fader with db gain control and mute.",
 		inputs: [
 			'Left' -> (
 				Description: "Left channel input."
@@ -5256,12 +5256,12 @@ var stdModules = [
 			'Gain' -> (
 				Spec: \db.asSpec.copy.maxval_(12).default_(0),
 				// TODO LagTime: 0.1
-				Description: "Attenuation control. -inf ... +12 dB."
+				Description: "Attenuation control. `-inf` ... `+12` dB."
 			),
 			'Mute' -> (
 				Spec: ControlSpec(0, 1, 'lin', 1, 0, ""),
 				// TODO LagTime: 0.1
-				Description: "If 1 signal is muted, otherwise not."
+				Description: "If `1` signal is muted, otherwise not."
 			),
 		],
 		ugenGraphFunc: {
@@ -5307,7 +5307,7 @@ var stdModules = [
 				LagTime: 0.01
 			),
 			'Reset' -> (
-				Description: "Script reset trigger: when value is changed from 0 to 1 the LFO is retriggered.",
+				Description: "Script reset trigger: when value is changed from `0` to `1` the LFO is retriggered.",
 				Spec: \unipolar.asSpec.copy.step_(1), // TODO: generalize booleans (or triggers)
 			)
 		],
@@ -5545,7 +5545,7 @@ var stdModules = [
 			),
 			'LoopEnable' -> (
 				Spec: ControlSpec(0, 1, step: 1, default: 0),
-				Description: "Loop enabled. 1 means enabled, 0 not."
+				Description: "Loop enabled. `1` means enabled, `0` not."
 			),
 			'Frequency' -> (
 				Spec: \freq.asSpec,
@@ -5753,6 +5753,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'TestGen',
+		description: "Test sound generator.",
 		outputs: [
 			'Out' -> (
 				Description: "Sine wave signal or noise output."
@@ -5787,7 +5788,7 @@ var stdModules = [
 	(
 		// Status: tested
 		name: 'TriOsc',
-		description: "Triangle oscillator (non-bandlimited)",
+		description: "Triangle oscillator (non-bandlimited).",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -5847,7 +5848,7 @@ var stdModules = [
 		// Status: experimental
 		name: 'TriOscExp',
 		experimental: true,
-		description: "Triangle oscillator (non-bandlimited, w/ linear FM features)",
+		description: "Triangle oscillator (non-bandlimited, w/ linear FM features).",
 		inputs: [
 			'FM' -> (
 				Description: "Control signal for frequency modulation."
@@ -5914,7 +5915,7 @@ var stdModules = [
 	(
 		// Status: not tested
 		name: 'XFader',
-		description: "Crossfader",
+		description: "Crossfader.",
 		inputs: [
 			'InALeft' -> (
 				Description: "Signal A left audio signal."
@@ -5987,7 +5988,7 @@ var generateMatrixModulesParams = { |numInputs, numOutputs|
 	var result = [
 		'FadeTime' -> (
 			Spec: ControlSpec(0, 1000, 'lin', 0, 5, "ms"),
-			Description: "Fade time in milliseconds (range: 0-100000 ms) applied when an input is switched on to or off from an output. Default is 5 ms."
+			Description: "Fade time in milliseconds (range: `0`-`100000` ms) applied when an input is switched on to or off from an output. Default is `5` ms."
 		)
 	] ++ numInputs.collect { |inIndex|
 		numOutputs.collect { |outIndex|
@@ -6016,7 +6017,7 @@ var generateMatrixModulesOutputs = { |numOutputs|
 	};
 };
 
-var publicAPI = IdentityDictionary[
+var api = IdentityDictionary[
 	\init -> init,
 	\free -> free,
 	\newCommand -> newCommand,
@@ -6036,5 +6037,5 @@ var publicAPI = IdentityDictionary[
 	\generateDocsForAllModules -> generateDocsForAllModules
 ];
 
-publicAPI
+api
 )
