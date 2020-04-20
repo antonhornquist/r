@@ -727,7 +727,7 @@ RTestModule : RModule { // subclassing RModule makes this a module
 
 To be usable with functions in the R Lua module `R.engine` table module parameter metadata has to be included in the `R.specs` table. `R.specs` can be generated in SuperCollider from RModule metadata using the `Rrrr.generateLuaSpecs` method.
 
-Module documentation stubs may be generated in SuperCollider using the `Engine\_R.generateModulesDocSection` method.
+Module documentation stubs may be generated in SuperCollider using the ```Engine_R.generateModulesDocSection``` method.
 
 ### Gotchas
 

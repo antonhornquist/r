@@ -304,6 +304,9 @@ specs['OGain'] = {
 	Mute = ControlSpec.new(0, 1, "linear", 1, 0, "")
 }
 
+specs['PNoise'] = {
+}
+
 specs['PShift'] = {
 	PitchRatio = ControlSpec.new(0, 4, "linear", 0, 1, ""),
 	PitchDispersion = ControlSpec.new(0, 4, "linear", 0, 0, ""),
@@ -467,7 +470,7 @@ specs['SineOscExp'] = {
 }
 
 specs['Slew'] = {
-	Time = ControlSpec.new(0, 60, "linear", 0, 0, "")
+	Time = ControlSpec.new(0, 60000, "linear", 0, 0, "ms")
 }
 
 specs['SoundIn'] = {
