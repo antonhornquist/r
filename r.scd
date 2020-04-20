@@ -4329,6 +4329,26 @@ var stdModules = [
 		}
 	),
 	(
+		// Status: tested
+		name: 'PNoise',
+		description: "Pink noise generator.",
+		outputs: [
+			'Out' -> (
+				Description: "Noise signal."
+			)
+		],
+		ugenGraphFunc: {
+			|
+				out_Out
+			|
+
+			Out.ar(
+				out_Out,
+				PinkNoise.ar
+			);
+		}
+	),
+	(
 		// Status: partly tested. TODO: review modulation input mapping
 		name: 'PShift',
 		description: "Pitch shifter.",
