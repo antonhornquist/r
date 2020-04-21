@@ -1381,8 +1381,8 @@ RMultiOscillatorExpModule : RModule {
 				Description: "Frequency modulation amount"
 			),
 			'LinFM' -> (
-				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
-				LagTime: 0.2
+				Spec: ControlSpec.new(0, 10000, 'lin', nil, 0, "Hz"),
+				LagTime: 0.2,
 			),
 /*
 	TODO
@@ -1429,7 +1429,7 @@ RMultiOscillatorExpModule : RModule {
 					param_Range +
 					(param_Tune / 1200) +
 					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
-				).octcps
+				).octcps + (sig_LinFM * param_LinFM)
 			);
 
 			var pulseWidth = (
@@ -1438,22 +1438,22 @@ RMultiOscillatorExpModule : RModule {
 
 			Out.ar(
 				out_Sine,
-				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000)) * 0.5
+				SinOsc.ar(frequency) * 0.5
 			);
 
 			Out.ar(
 				out_Triangle,
-				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // not band limited
+				LFTri.ar(frequency) * 0.5 // not band limited
 			);
 
 			Out.ar(
 				out_Saw,
-				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
+				Saw.ar(frequency) * 0.5
 			);
 
 			Out.ar(
 				out_Pulse,
-				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
+				Pulse.ar(frequency, pulseWidth / 2) * 0.5
 			);
 		}
 	}
@@ -1530,8 +1530,8 @@ RSineOscillatorExpModule : RModule {
 				LagTime: 0.01
 			),
 			'LinFM' -> (
-				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
-				LagTime: 0.2
+				Spec: ControlSpec.new(0, 10000, 'lin', nil, 0, "Hz"),
+				LagTime: 0.2,
 			),
 			'PM' -> (
 				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
@@ -1566,12 +1566,12 @@ RSineOscillatorExpModule : RModule {
 					param_Range +
 					(param_Tune / 1200) +
 					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
-				).octcps
+				).octcps + (sig_LinFM * param_LinFM)
 			);
 
 			Out.ar(
 				out_Out,
-				SinOsc.ar(frequency + (sig_LinFM * param_LinFM * 9000), (sig_PM * param_PM * 30).mod(2pi)) * 0.5
+				SinOsc.ar(frequency, (sig_PM * param_PM * 30).mod(2pi)) * 0.5
 			);
 		}
 	}
@@ -1648,8 +1648,8 @@ RTriangleOscillatorExpModule : RModule {
 				LagTime: 0.01
 			),
 			'LinFM' -> (
-				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
-				LagTime: 0.2
+				Spec: ControlSpec.new(0, 10000, 'lin', nil, 0, "Hz"),
+				LagTime: 0.2,
 			),
 		]
 	}
@@ -1677,12 +1677,12 @@ RTriangleOscillatorExpModule : RModule {
 					param_Range +
 					(param_Tune / 1200) +
 					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
-				).octcps
+				).octcps + (sig_LinFM * param_LinFM)
 			);
 
 			Out.ar(
 				out_Out,
-				LFTri.ar(frequency + (sig_LinFM * param_LinFM * 4000)) * 0.5 // TODO: not band-limited
+				LFTri.ar(frequency) * 0.5 // TODO: not band-limited
 			);
 		}
 	}
@@ -1759,8 +1759,8 @@ RSawtoothOscillatorExpModule : RModule {
 				LagTime: 0.01
 			),
 			'LinFM' -> (
-				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
-				LagTime: 0.2
+				Spec: ControlSpec.new(0, 10000, 'lin', nil, 0, "Hz"),
+				LagTime: 0.2,
 			),
 		]
 	}
@@ -1788,12 +1788,12 @@ RSawtoothOscillatorExpModule : RModule {
 					param_Range +
 					(param_Tune / 1200) +
 					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
-				).octcps
+				).octcps + (sig_LinFM * param_LinFM)
 			);
 
 			Out.ar(
 				out_Out,
-				Saw.ar(frequency + (sig_LinFM * param_LinFM * 500)) * 0.5
+				Saw.ar(frequency) * 0.5
 			);
 		}
 	}
@@ -1890,8 +1890,8 @@ RPulseOscExpModule : RModule {
 				LagTime: 0.01
 			),
 			'LinFM' -> (
-				Spec: ControlSpec.new(0, 5, 'lin', 0.01, 0, ""),
-				LagTime: 0.2
+				Spec: ControlSpec.new(0, 10000, 'lin', nil, 0, "Hz"),
+				LagTime: 0.2,
 			),
 			'PWM' -> (
 				Spec: \unipolar.asSpec.copy.default_(0.4),
@@ -1927,7 +1927,7 @@ RPulseOscExpModule : RModule {
 					param_Range +
 					(param_Tune / 1200) +
 					(sig_FM * 10 * param_FM) // 0.1 = 1 oct
-				).octcps
+				).octcps + (sig_LinFM * param_LinFM)
 			);
 
 			var pulseWidth = (
@@ -1936,7 +1936,7 @@ RPulseOscExpModule : RModule {
 
 			Out.ar(
 				out_Out,
-				Pulse.ar(frequency + (sig_LinFM * param_LinFM * 500), pulseWidth / 2) * 0.5
+				Pulse.ar(frequency, pulseWidth / 2) * 0.5
 			);
 		}
 	}
