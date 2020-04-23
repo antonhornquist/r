@@ -1,5 +1,5 @@
 (
-var inject_r_globals_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "util" +/+ "inject-r-globals.scd").standardizePath;
+var inject_r_globals_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "util" +/+ "inject_r_globals.scd").standardizePath;
 this.executeFile(inject_r_globals_path);
 
 r = ~init.value();
