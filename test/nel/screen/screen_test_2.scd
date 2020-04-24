@@ -30,11 +30,11 @@ var foreground_color = Color.white;
 /*
 TODO
 var num_levels = 16;
-var levels = num_levels.collect { |level|
+var colors = num_levels.collect { |level|
 	background_color.blend(foreground_color, level/(num_levels-1));
 };
 */
-var levels = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1].collect { |level| background_color.blend(foreground_color, level) };
+var colors = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1].collect { |level| background_color.blend(foreground_color, level) };
 
 var window = Window.new(
 	"screen test",
@@ -44,9 +44,9 @@ var window = Window.new(
 		window_width,
 		window_height
 	))
-	.background_(levels[0]);
+	.background_(colors[0]);
 
-var screen_instance = screen_init.value(window, margin_x, margin_y, scale, levels);
+var screen_instance = screen_init.value(window, margin_x, margin_y, scale, colors);
 
 window.view
 	.onResize_({ |windowView|

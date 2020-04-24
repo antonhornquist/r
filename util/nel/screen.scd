@@ -5,10 +5,16 @@ var screen_width = 128;
 var screen_height = 64;
 var default_font_size = 8;
 
+var default_background_color = Color.black;
+var default_foreground_color = Color.white;
+
+var default_colors = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1].collect { |level| default_background_color.blend(default_foreground_color, level) };
+
 var screen_init = { |parent_view, x_pos, y_pos, scale, colors|
+	var background_color = (colors ? default_colors)[0]; 
 	var instance = (
 		view: UserView(parent_view, Rect(x_pos, y_pos, round(screen_width*scale), round(screen_height*scale)))
-			.background_(colors[0])
+			.background_(background_color)
 			.drawFunc_({
 				instance[\queued_screen_ops].do { |screen_op|
 					screen_op.value;
@@ -20,7 +26,7 @@ var screen_init = { |parent_view, x_pos, y_pos, scale, colors|
 		font: Font(lookup_font.value, calculate_scaled_font_size.value(scale, default_font_size)),
 		position: 1@1,
 		scale: scale,
-		colors: colors,
+		colors: colors ? default_colors,
 		level: 15,
 		queued_screen_ops: []
 	);
@@ -39,7 +45,7 @@ var screen_rect = { |instance, x_pos, y_pos, width, height|
 
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \addRect, Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height))].debug;
+			// TODO [\Pen, \addRect, Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height))].debug;
 			Pen.addRect(Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height)));
 		}
 	);
@@ -52,7 +58,7 @@ var screen_move = { |instance, x_pos, y_pos|
 	y_pos = y_pos - 1;
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \moveTo, round(scale * x_pos)@round(scale * y_pos)].debug;
+			// TODO [\Pen, \moveTo, round(scale * x_pos)@round(scale * y_pos)].debug;
 			Pen.moveTo(round(scale * x_pos)@round(scale * y_pos));
 		}
 	);
@@ -66,9 +72,9 @@ var screen_line = { |instance, x_pos, y_pos|
 	y_pos = y_pos - 1;
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \width_, scale].debug;
+			// TODO [\Pen, \width_, scale].debug;
 			Pen.width = scale;
-			[\Pen, \lineTo, round(scale * x_pos)@round(scale * y_pos)].debug;
+			// TODO [\Pen, \lineTo, round(scale * x_pos)@round(scale * y_pos)].debug;
 			Pen.lineTo(round(scale * x_pos)@round(scale * y_pos));
 		}
 	);
@@ -79,9 +85,9 @@ var screen_stroke = { |instance|
 	var color = instance[\colors][level];
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \strokeColor_, color].debug;
+			// TODO [\Pen, \strokeColor_, color].debug;
 			Pen.strokeColor = color;
-			[\Pen, \stroke].debug;
+			// TODO [\Pen, \stroke].debug;
 			Pen.stroke;
 		}
 	);
@@ -102,11 +108,11 @@ var screen_text = { |instance, text|
 
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \font_, instance[\font]].debug;
+			// TODO [\Pen, \font_, instance[\font]].debug;
 			Pen.font = instance[\font];
-			[\Pen, \color_, color].debug;
+			// TODO [\Pen, \color_, color].debug;
 			Pen.color = color;
-			[\Pen, \stringAtPoint, text, round(scale * x_pos)@round(scale * y_pos)].debug;
+			// TODO [\Pen, \stringAtPoint, text, round(scale * x_pos)@round(scale * y_pos)].debug;
 			Pen.stringAtPoint(text, round(scale * x_pos)@round(scale * y_pos));
 		}
 	);
@@ -129,9 +135,9 @@ var screen_fill = { |instance|
 	var color = instance[\colors][level];
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \fillColor_, color].debug;
+			// TODO [\Pen, \fillColor_, color].debug;
 			Pen.fillColor = color;
-			[\Pen, \fill].debug;
+			// TODO [\Pen, \fill].debug;
 			Pen.fill;
 		}
 	);
@@ -140,25 +146,27 @@ var screen_fill = { |instance|
 var screen_clear = { |instance|
 	var scale = instance[\scale];
 	var view = instance[\view];
-	var width = view.bounds.width;
-	var height = view.bounds.height;
-	var x_pos = 0;
-	var y_pos = 0;
-	var backgroundColor = instance[\view].background;
+	var background_color = instance[\colors][0];
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
-			[\Pen, \addRect, Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height))].debug;
+			var width = view.bounds.width;
+			var height = view.bounds.height;
+			var x_pos = 0;
+			var y_pos = 0;
+			// TODO [\Pen, \addRect, Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height))].debug;
 			Pen.addRect(Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height)));
-			[\Pen, \fillColor_, backgroundColor].debug;
-			Pen.fillColor = backgroundColor;
-			[\Pen, \fill].debug;
+			// TODO [\Pen, \fillColor_, background_color].debug;
+			Pen.fillColor = background_color;
+			// TODO [\Pen, \fill].debug;
 			Pen.fill;
 		}
 	);
 };
 
 var screen_update = { |instance|
-	instance[\view].refresh;
+	defer {
+		instance[\view].refresh;
+	}
 };
 
 var calculate_scaled_font_size = { |scale, unscaled_font_size|

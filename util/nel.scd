@@ -30,64 +30,6 @@ var enc_area_pressed = false ! 3;
 var enc_area_prev_pos;
 var key_state = false ! 3;
 
-var create_screen_and_inject_globals = { |parent_view, x, y, scale|
-	var screen_instance = screen_init.value(parent_view, x, y, scale, {
-		screen_instance[\redraw] = false;
-		~redraw.value;
-		if (screen_instance[\redraw]) {
-			defer { screen_instance[\view].refresh };
-		};
-	});
-
-	~screen_rect = { |x, y, width, height|
-		screen_rect.value(screen_instance, x, y, width, height);
-	};
-
-	~screen_move = { |x, y|
-		screen_move.value(screen_instance, x, y);
-	};
-
-	~screen_line = { |x, y|
-		screen_line.value(screen_instance, x, y);
-	};
-
-	~screen_stroke = {
-		screen_stroke.value(screen_instance);
-	};
-
-	~screen_fill = {
-		screen_fill.value(screen_instance);
-	};
-
-	~screen_level = { |level|
-		screen_level.value(screen_instance, level);
-	};
-
-	~screen_text = { |text|
-		screen_text.value(screen_instance, text);
-	};
-
-	~screen_text_extents = { |text|
-		screen_text_extents.value(screen_instance, text);
-	};
-
-	~screen_font_size = { |size|
-		screen_font_size.value(screen_instance, size);
-	};
-
-	~screen_clear = {
-		screen_clear.value(screen_instance);
-	};
-
-	~screen_update = {
-		screen_update.value(screen_instance);
-	};
-
-	~screen_instance = screen_instance; // TODO
-
-	screen_instance[\view]
-};
-
 var mouse_move_action = { |view, x, y|
 	if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
 		var delta = enc_area_prev_pos.y - y;
@@ -171,6 +113,58 @@ var margin_y = 3 * scale;
 var window_width = screen_width + (margin_x*2);
 var window_height = screen_height + (margin_y*2);
 
+var create_screen_and_inject_globals = { |parent_view, x, y, scale|
+	var screen_instance = screen_init.value(parent_view, x, y, scale);
+
+	~screen_rect = { |x, y, width, height|
+		screen_rect.value(screen_instance, x, y, width, height);
+	};
+
+	~screen_move = { |x, y|
+		screen_move.value(screen_instance, x, y);
+	};
+
+	~screen_line = { |x, y|
+		screen_line.value(screen_instance, x, y);
+	};
+
+	~screen_stroke = {
+		screen_stroke.value(screen_instance);
+	};
+
+	~screen_fill = {
+		screen_fill.value(screen_instance);
+	};
+
+	~screen_level = { |level|
+		screen_level.value(screen_instance, level);
+	};
+
+	~screen_text = { |text|
+		screen_text.value(screen_instance, text);
+	};
+
+	~screen_text_extents = { |text|
+		screen_text_extents.value(screen_instance, text);
+	};
+
+	~screen_font_size = { |size|
+		screen_font_size.value(screen_instance, size);
+	};
+
+	~screen_clear = {
+		screen_clear.value(screen_instance);
+	};
+
+	~screen_update = {
+		screen_update.value(screen_instance);
+	};
+
+	~screen_instance = screen_instance; // TODO
+
+	screen_instance[\view]
+};
+
 var start_script = { |script_func|
 	var window = Window.new(
 		"[Script Name]",
@@ -182,7 +176,7 @@ var start_script = { |script_func|
 		))
 		.background_(Color.black);
 
-	var screen_view = create_screen_and_inject_globals.value(window, margin_x, margin_y, scale); // TODO: do not inject globals in screen.scd, instead do it here.
+	var screen_view = create_screen_and_inject_globals.value(window, margin_x, margin_y, scale);
 
 	screen_view
 		.mouseMoveAction_({false}) // false means: not handled in this view
@@ -276,6 +270,7 @@ var start_script = { |script_func|
 
 		~init.value;
 		window.front;
+		~redraw.value;
 	};
 
 	~window = window;

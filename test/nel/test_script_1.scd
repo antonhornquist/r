@@ -32,11 +32,11 @@ start_script.value {
 			}
 			{ hz < 0 } {
 				var str = round(hz, 0.001).asString;
-				"-" ++ str[2..str.length] ++ "Hz"
+				"-" ++ str[2..str.length] ++ "Hz"
 			}
 			{ hz < 1 } {
 				var str = round(hz, 0.001).asString;
-				str[1..str.length] ++ "Hz"
+				str[1..str.length] ++ "Hz"
 			}
 			{ hz < 10 } {
 				round(hz, 0.01).asString ++ "Hz"
@@ -59,8 +59,16 @@ start_script.value {
 
 		arc_device['delta'] = { |ring, delta|
 			// [ring, delta].debug('arc');
-			arc_device[\all].(1, 0);
-			arc_device[\led].(1, 64.rand+1, 16.rand);
+			arc_device[\all].(ring, 0);
+			arc_device[\led].(ring, 64.rand+1, 16.rand);
+
+			if (ring == 1) {
+				var val = ~params[\get_raw].('cutoff');
+				~params[\set_raw].('cutoff', val+(delta/500));
+			} {
+				var val = ~params[\get_raw].('res');
+				~params[\set_raw].('res', val+(delta/500));
+			};
 		};
 
 		grid_device[\led].(1, 1, 15);
@@ -78,14 +86,13 @@ start_script.value {
 				name: "CUTOFF",
 				controlspec: \freq.asSpec,
 				action: { |value|
-					~screen_instance[\redraw] = true;
+					~redraw.value;
 				},
 				formatter: adaptive_freq_formatter
 			)
 		);
 
 		~params[\set].('cutoff', 449);
-		postln(~params[\get].('cutoff'));
 
 		~params[\add].(
 			(
@@ -94,14 +101,13 @@ start_script.value {
 				name: "RES",
 				controlspec: \unipolar.asSpec,
 				action: { |value|
-					~screen_instance[\redraw] = true;
+					~redraw.value;
 				},
 				formatter: percentage_formatter
 			)
 		);
 
 		~params[\set].('res', 0.25);
-		postln(~params[\get].('res'));
 
 		"init".debug;
 	};
@@ -111,6 +117,7 @@ start_script.value {
 		case
 		{n == 1} {
 			~mix[\delta].('output', delta);
+			~redraw.value;
 		}
 		{n == 2} {
 			~params[\delta].('cutoff', delta);
@@ -155,14 +162,13 @@ start_script.value {
 		~screen_rect.(enc1_x, enc1_y-11, 1, 1);
 		~screen_fill.();
 	*/
-
 		~screen_level.(lo_level);
 		~screen_move.(enc1_x, enc1_y);
 		~screen_text.("LEVEL");
 
 		~screen_level.(hi_level);
 		~screen_move.((enc1_x + ~screen_text_extents.("LEVEL") + 3), enc1_y);
-		~screen_text.(~mix[\get_raw].('output') * 100);
+		~screen_text.(round(~mix[\get_raw].('output') * 100));
 
 		~screen_level.(lo_level);
 		~screen_rect.(122, enc1_y-7, 5, 5);
@@ -197,7 +203,7 @@ start_script.value {
 
 		~screen_level.(hi_level);
 		~screen_move.(enc3_x, enc3_y+12);
-		~screen_text.((~params[\get].('res')*100).asString ++ "%");
+		~screen_text.(~params[\string].('res'));
 
 		// value
 		~screen_level.(hi_level);
