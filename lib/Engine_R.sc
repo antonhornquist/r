@@ -93,7 +93,7 @@ Engine_R : CroneEngine {
 
 			rrrr=init.(
 				(
-					trace: true,
+					trace: false,
 					group: context.xg,
 					inBus: context.in_b,
 					outBus: context.out_b,
