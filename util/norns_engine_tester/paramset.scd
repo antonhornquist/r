@@ -1,5 +1,5 @@
 (
-var init_params = {
+var init_paramset = {
 	var params = [];
 
 	var paramset = IdentityDictionary[
@@ -9,16 +9,20 @@ var init_params = {
 			var name = param[\name];
 			var controlspec = param[\controlspec];
 			var action = param[\action];
+			var formatter = param[\formatter];
+
 			if (type != 'control') {
 				Error("only params of type 'control' are supported").throw;
 			};
+
 			params = params.add(
 				IdentityDictionary[
 					\type -> type,
 					\id -> id,
 					\name -> name,
 					\controlspec -> controlspec,
-					\action -> action
+					\action -> action,
+					\formatter -> formatter
 				]
 			);
 
@@ -34,7 +38,7 @@ var init_params = {
 			var param = paramset[\lookup_param].value(id);
 			param[\raw] = param[\controlspec].unmap(value);
 		},
-		\get -> { |id, value|
+		\get -> { |id|
 			var param = paramset[\lookup_param].value(id);
 			param[\controlspec].map(param[\raw]);
 		},
@@ -53,7 +57,8 @@ var init_params = {
 		},
 		\bang -> {
 			params.do { |param|
-				param[\action].value;
+				var value = paramset[\get].value(param[\id]);
+				param[\action].value(value);
 			};
 		},
 		\write -> {
@@ -62,13 +67,22 @@ var init_params = {
 		\read -> {
 			Error("not implemented yet").throw;
 		},
+		\string -> { |id|
+			var param = paramset[\lookup_param].value(id);
+			if (param[\formatter].notNil) {
+				param[\formatter].value(param);
+			} {
+				var a = round(paramset[\get].value(param[\id]), 0.01);
+				a.asString + param[\controlspec].units;
+			};
+		}
 	];
 
 	paramset;
 };
 
 var module = IdentityDictionary[
-	\init_params -> init_params
+	\init_paramset -> init_paramset
 ];
 
 module

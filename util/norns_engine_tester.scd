@@ -14,10 +14,9 @@ var screen_font_size = screen[\screen_font_size];
 var screen_clear = screen[\screen_clear];
 var screen_update = screen[\screen_update];
 
-var params_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "params.scd";
-var params = this.executeFile(params_path);
-
-var init_params = params[\init_params];
+var paramset_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "paramset.scd";
+var paramset = this.executeFile(paramset_path);
+var init_paramset = paramset[\init_paramset];
 
 var arc_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "arc.scd";
 var arc = this.executeFile(arc_path);
@@ -130,6 +129,7 @@ var mouse_down_action = { |view, x, y|
 };
 
 var mouse_up_action = { |view, x, y|
+/*
 	case
 		{ in_enc_1_area.value(x, y) }
 		{
@@ -143,6 +143,10 @@ var mouse_up_action = { |view, x, y|
 		{
 			enc_area_pressed[2] = false;
 		};
+*/
+	enc_area_pressed[0] = false;
+	enc_area_pressed[1] = false;
+	enc_area_pressed[2] = false;
 };
 
 var in_enc_1_area = { |x, y|
@@ -252,7 +256,19 @@ var start_script = { |script_func|
 		});
 
 	SerialOSCClient.init {
-		~params = init_params.value;
+		~params = init_paramset.value;
+
+		~mix = init_paramset.value;
+		~mix[\add].value(
+			(
+				type: 'control',
+				id: 'output',
+				name: "output",
+				controlspec: \db.asSpec
+			)
+		);
+		~mix[\set].value('output', 0);
+
 		~arc_connect = arc_connect;
 		~grid_connect = grid_connect;
 
