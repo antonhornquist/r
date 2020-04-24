@@ -1,5 +1,5 @@
 (
-var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "screen.scd";
+var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "screen.scd";
 var screen = this.executeFile(screen_path);
 var screen_init = screen[\screen_init];
 var screen_rect = screen[\screen_rect];
@@ -14,15 +14,15 @@ var screen_font_size = screen[\screen_font_size];
 var screen_clear = screen[\screen_clear];
 var screen_update = screen[\screen_update];
 
-var paramset_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "paramset.scd";
+var paramset_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "paramset.scd";
 var paramset = this.executeFile(paramset_path);
 var init_paramset = paramset[\init_paramset];
 
-var arc_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "arc.scd";
+var arc_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "arc.scd";
 var arc = this.executeFile(arc_path);
 var arc_connect = arc[\arc_connect];
 
-var grid_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "grid.scd";
+var grid_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "grid.scd";
 var grid = this.executeFile(grid_path);
 var grid_connect = grid[\grid_connect];
 

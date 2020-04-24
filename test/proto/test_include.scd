@@ -4,5 +4,5 @@ var include = { |relative_path|
 	this.executeFile(path);
 };
 
-var norns_engine_tester = include.("../util/norns_engine_tester.scd");
+var r = include.("../../r.scd");
 )
