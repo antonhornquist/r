@@ -1,7 +1,7 @@
 Engine_R : CroneEngine {
 	var <rrrr;
 
-	var useScdBasedR = false;
+	var useScdBasedR = true;
 	var numPolls = 10;
 
 	var <pollConfigs;
