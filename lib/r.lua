@@ -530,7 +530,7 @@ function eng.poly_connect(output, input, polyphony)
   local sourcemodule, outputref = util.split_ref(output)
   local destmodule, inputref = util.split_ref(input)
   for voicenum=1, polyphony do
-    engine.connect(sourcemodule..voicenum.."/"..outputref, destmodule..voicenum.."/"..inputref)
+    engine.connect(sourcemodule..voicenum.."/"..outputref, destmodule..voicenum.."*"..inputref)
   end
 end
 
