@@ -1,5 +1,5 @@
 (
-var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "screen.scd";
+var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "screen.scd";
 var screen = this.executeFile(screen_path);
 var screen_init = screen[\screen_init];
 var screen_rect = screen[\screen_rect];
@@ -14,16 +14,16 @@ var screen_font_size = screen[\screen_font_size];
 var screen_clear = screen[\screen_clear];
 var screen_update = screen[\screen_update];
 
-var params_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "params.scd";
+var params_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "params.scd";
 var params = this.executeFile(params_path);
 
 var init_params = params[\init_params];
 
-var arc_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "arc.scd";
+var arc_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "arc.scd";
 var arc = this.executeFile(arc_path);
 var arc_connect = arc[\arc_connect];
 
-var grid_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "grid.scd";
+var grid_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "norns_engine_tester" +/+ "grid.scd";
 var grid = this.executeFile(grid_path);
 var grid_connect = grid[\grid_connect];
 
@@ -157,7 +157,7 @@ var in_enc_3_area = { |x, y|
 	(x >= (window_width/2)) and: (y >= (window_height/2))
 };
 
-var scale = 7;
+var scale = 4;
 var screen_width = 128 * scale;
 var screen_height = 64 * scale;
 

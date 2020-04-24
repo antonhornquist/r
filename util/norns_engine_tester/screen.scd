@@ -5,75 +5,6 @@ var screen_width = 128;
 var screen_height = 64;
 var default_font_size = 8;
 
-/*
-var global_screen_init = { |parent_view, x, y, scale|
-	var instance = screen_init.value(parent_view, x, y, scale, {
-		~screen[\redraw] = false;
-		~redraw.value;
-		if (~screen[\redraw]) {
-			defer { instance[\view].refresh };
-		};
-	});
-
-	~screen = instance;
-
-	~screen_rect = { |x, y, width, height|
-		screen_rect.value(instance, x, y, width, height);
-	};
-
-	~screen_move = { |x, y|
-		screen_move.value(instance, x, y);
-	};
-
-	~screen_line = { |x, y|
-		screen_line.value(instance, x, y);
-	};
-
-	~screen_stroke = {
-		screen_stroke.value(instance);
-	};
-
-	~screen_fill = {
-		screen_fill.value(instance);
-	};
-
-	~screen_level = { |level|
-		screen_level.value(instance, level);
-	};
-
-	~screen_text = { |text|
-		screen_text.value(instance, text);
-	};
-
-	~screen_text_extents = { |text|
-		screen_text_extents.value(instance, text);
-	};
-
-	~screen_font_size = { |size|
-		screen_font_size.value(instance, size);
-	};
-
-	~screen_clear = {
-		screen_clear.value(instance);
-	};
-
-	~screen_update = {
-		screen_update.value(instance);
-	};
-};
-*/
-
-/*
-	TODO: when triggered?
-var global_screen_free = {
-	if (~screen.isNil) {
-		Error("~screen global already freed").throw;
-	} {
-		~screen = nil;
-	};
-};
-*/
-
 var screen_init = { |parent_view, x, y, scale, draw_func|
 	var view = UserView(parent_view, Rect(x, y, round(screen_width*scale), round(screen_height*scale)))
 		.background_(Color.black)
@@ -208,10 +139,6 @@ var lookup_font = {
 };
 
 var module = IdentityDictionary[
-/*
-	\global_screen_init -> global_screen_init,
-	//\global_screen_free -> global_screen_free
-*/
 	\screen_init -> screen_init,
 	\screen_rect -> screen_rect,
 	\screen_move -> screen_move,
