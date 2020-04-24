@@ -451,7 +451,7 @@ var bulksetCommand = { |self, bundle|
 */
 		Server.default.makeBundle(nil) { // TODO: consider udp package size limitations and bulksetCommand
 			bundle.asString.split($ ).clump(2).do { |cmd, i|
-				setCommand.value(cmd[0], cmd[1]); // TODO: use internal method?
+				setCommand.value(self, cmd[0], cmd[1]); // TODO: use internal method?
 			}
 		};
 /*
