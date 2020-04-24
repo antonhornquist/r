@@ -19,7 +19,7 @@ var screen_init = { |parent_view, x, y, scale, draw_func|
 		})
 */
 		.clearOnRefresh_(false)
-		.animate_(true) // TODO
+		//.animate_(true) // TODO
 		//.frameRate_(35)
 	;
 
@@ -29,7 +29,8 @@ var screen_init = { |parent_view, x, y, scale, draw_func|
 		font: Font(lookup_font.value, calculate_scaled_font_size.value(scale, default_font_size)),
 		position: 1@1,
 		scale: scale,
-		level: 15
+		level: 15,
+		queued_screen_ops: []
 	);
 };
 
@@ -46,7 +47,12 @@ var screen_rect = { |instance, x, y, width, height|
 	x = x - 1;
 	y = y - 1;
 
-	Pen.addRect(Rect(round(scale * x), round(scale * y), round(scale * width), round(scale * height)));
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[\Pen, \addRect, Rect(round(scale * x), round(scale * y), round(scale * width), round(scale * height))].debug;
+			Pen.addRect(Rect(round(scale * x), round(scale * y), round(scale * width), round(scale * height)));
+		}
+	);
 };
 
 // TODO: queue operation in draw queue
@@ -55,7 +61,12 @@ var screen_move = { |instance, x, y|
 	instance[\position] = x@y;
 	x = x - 1;
 	y = y - 1;
-	Pen.moveTo(round(scale * x)@round(scale * y));
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[\Pen, \moveTo, round(scale * x)@round(scale * y)].debug;
+			Pen.moveTo(round(scale * x)@round(scale * y));
+		}
+	);
 };
 
 // TODO: queue operation in draw queue
@@ -64,15 +75,27 @@ var screen_line = { |instance, x, y|
 	var color = instance[\color];
 	x = x - 1;
 	y = y - 1;
-	Pen.width = scale;
-	Pen.lineTo(round(scale * x)@round(scale * y));
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[\Pen, \width_, scale].debug;
+			Pen.width = scale;
+			[\Pen, \lineTo, round(scale * x)@round(scale * y)].debug;
+			Pen.lineTo(round(scale * x)@round(scale * y));
+		}
+	);
 };
 
 // TODO: queue operation in draw queue
 var screen_stroke = { |instance|
 	var color = instance[\color];
-	Pen.strokeColor = color;
-	Pen.stroke;
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[\Pen, \strokeColor_, color].debug;
+			Pen.strokeColor = color;
+			[\Pen, \stroke].debug;
+			Pen.stroke;
+		}
+	);
 };
 
 // TODO: queue operation in draw queue
@@ -89,9 +112,16 @@ var screen_text = { |instance, text|
 
 	text = text.asString;
 
-	Pen.font = instance[\font];
-	Pen.fillColor = color; // TODO: is this string color?
-	Pen.stringAtPoint(text, round(scale * x)@round(scale * y));
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[\Pen, \font_, instance[\font]].debug;
+			Pen.font = instance[\font];
+			[\Pen, \fillColor_, \color].debug; // TODO: is this string color?
+			Pen.fillColor = color; // TODO: is this string color?
+			[\Pen, \stringAtPoint, text, round(scale * x)@round(scale * y)].debug;
+			Pen.stringAtPoint(text, round(scale * x)@round(scale * y));
+		}
+	);
 };
 
 // TODO: queue operation in draw queue
@@ -104,24 +134,48 @@ var screen_font_size = { |instance, font_size|
 var screen_text_extents = { |instance, text|
 	var scale = instance[\scale];
 	var font = instance[\font];
+/*
+	TODO: probably not needed?
 	Pen.font = font;
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			Pen.font = font;
+		}
+	);
+*/
 	(text.bounds(font).width)/scale;
 };
 
 // TODO: queue operation in draw queue
 var screen_fill = { |instance|
-	Pen.fillColor = instance[\color];
-	Pen.fill;
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[\Pen, \fillColor_, instance[\color]].debug;
+			Pen.fillColor = instance[\color];
+			[\Pen, \fill].debug;
+			Pen.fill;
+		}
+	);
 };
 
 // TODO: queue operation in draw queue
 var screen_clear = { |instance|
-	instance[\view].clearDrawing;
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			[instance[\view], \clearDrawing].debug;
+			instance[\view].clearDrawing;
+		}
+	);
 };
 
 // TODO: redraw all queued operations and flush queue
 var screen_update = { |instance|
-	instance[\redraw] = true;
+"deferring".debug;
+	defer {
+"in deferred context..".debug;
+		instance[\view].refresh;
+"refreshed..".debug;
+	};
 };
 
 var calculate_scaled_font_size = { |scale, unscaled_font_size|
