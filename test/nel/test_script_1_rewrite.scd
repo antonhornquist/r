@@ -1,5 +1,5 @@
 (
-var norns_engine_tester_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/norns_engine_tester.scd").standardizePath;
+var norns_engine_tester_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../../util/norns_engine_tester.scd").standardizePath;
 var norns_engine_tester = this.executeFile(norns_engine_tester_path);
 
 var start_script = norns_engine_tester[\start_script];
