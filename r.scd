@@ -479,7 +479,7 @@ var newmacroCommand = { |self, name, bundle|
 
 				macro = (
 					moduleParameterRefs: moduleParameterRefs,
-					bus: bus
+					bus: bus,
 					controlSpec: getControlSpecByModuleParameterRef.value(self, moduleParameterRefs.first)
 				);
 
@@ -1007,7 +1007,7 @@ var moduleParametersHaveConsistentControlSpecs = { |self, moduleParameterRefs|
 
 		firstControlSpec = getControlSpecByModuleParameterRef.value(self, moduleParameterRefs.first);
 
-		while (consistent and: (i < moduleParameterRefs.size)) {
+		while { consistent and: (i < moduleParameterRefs.size) } {
 			consistent = (firstControlSpec == getControlSpecByModuleParameterRef.value(self, moduleParameterRefs[i]));
 			i = i + 1;
 		};
