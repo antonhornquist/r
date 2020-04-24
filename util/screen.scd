@@ -1,17 +1,12 @@
 (
 // utility library to mock a UserView as a norns screen, drawable with a limited subset of norns screen functions. uses 1 based coordinates. uses global ~screen global for storage of relevant objects (not functions). relies on global ~redraw function wherein screen_* commands are performed.
 
-var width = 128;
-var height = 64;
+var screen_width = 128;
+var screen_height = 64;
 var default_font_size = 8;
 
-var global_screen_init = { |parent_view, x, y, scale|
 /*
-	TODO
-	if (~screen.notNil) {
-		Error("~screen global already initialized").throw;
-	};
-*/
+var global_screen_init = { |parent_view, x, y, scale|
 	var instance = screen_init.value(parent_view, x, y, scale, {
 		~screen[\redraw] = false;
 		~redraw.value;
@@ -66,6 +61,7 @@ var global_screen_init = { |parent_view, x, y, scale|
 		screen_update.value(instance);
 	};
 };
+*/
 
 /*
 	TODO: when triggered?
@@ -79,7 +75,7 @@ var global_screen_free = {
 */
 
 var screen_init = { |parent_view, x, y, scale, draw_func|
-	var view = UserView(parent_view, Rect(x, y, round(width*scale), round(height*scale)))
+	var view = UserView(parent_view, Rect(x, y, round(screen_width*scale), round(screen_height*scale)))
 		.background_(Color.black)
 		.drawFunc_(draw_func)
 /*
@@ -92,7 +88,7 @@ var screen_init = { |parent_view, x, y, scale, draw_func|
 		})
 */
 		.clearOnRefresh_(false)
-		//.animate_(true)
+		.animate_(true) // TODO
 		//.frameRate_(35)
 	;
 
@@ -106,11 +102,13 @@ var screen_init = { |parent_view, x, y, scale, draw_func|
 	);
 };
 
+// TODO: queue operation in draw queue
 var screen_level = { |instance, level|
 	instance[\level] = level;
 	instance[\color] = Color.new(level/15, level/15, level/15);
 };
 
+// TODO: queue operation in draw queue
 var screen_rect = { |instance, x, y, width, height|
 	var scale = instance[\scale];
 
@@ -120,6 +118,7 @@ var screen_rect = { |instance, x, y, width, height|
 	Pen.addRect(Rect(round(scale * x), round(scale * y), round(scale * width), round(scale * height)));
 };
 
+// TODO: queue operation in draw queue
 var screen_move = { |instance, x, y|
 	var scale = instance[\scale];
 	instance[\position] = x@y;
@@ -128,6 +127,7 @@ var screen_move = { |instance, x, y|
 	Pen.moveTo(round(scale * x)@round(scale * y));
 };
 
+// TODO: queue operation in draw queue
 var screen_line = { |instance, x, y|
 	var scale = instance[\scale];
 	var color = instance[\color];
@@ -137,12 +137,14 @@ var screen_line = { |instance, x, y|
 	Pen.lineTo(round(scale * x)@round(scale * y));
 };
 
+// TODO: queue operation in draw queue
 var screen_stroke = { |instance|
 	var color = instance[\color];
 	Pen.strokeColor = color;
 	Pen.stroke;
 };
 
+// TODO: queue operation in draw queue
 var screen_text = { |instance, text|
 	var scale = instance[\scale];
 	var position = instance[\position];
@@ -161,6 +163,7 @@ var screen_text = { |instance, text|
 	Pen.stringAtPoint(text, round(scale * x)@round(scale * y));
 };
 
+// TODO: queue operation in draw queue
 var screen_font_size = { |instance, font_size|
 	var scale = instance[\scale];
 	instance[\font_size] = font_size;
@@ -174,15 +177,18 @@ var screen_text_extents = { |instance, text|
 	(text.bounds(font).width)/scale;
 };
 
+// TODO: queue operation in draw queue
 var screen_fill = { |instance|
 	Pen.fillColor = instance[\color];
 	Pen.fill;
 };
 
+// TODO: queue operation in draw queue
 var screen_clear = { |instance|
 	instance[\view].clearDrawing;
 };
 
+// TODO: redraw all queued operations and flush queue
 var screen_update = { |instance|
 	instance[\redraw] = true;
 };
@@ -202,9 +208,10 @@ var lookup_font = {
 };
 
 var module = IdentityDictionary[
+/*
 	\global_screen_init -> global_screen_init,
 	//\global_screen_free -> global_screen_free
-/*
+*/
 	\screen_init -> screen_init,
 	\screen_rect -> screen_rect,
 	\screen_move -> screen_move,
@@ -215,9 +222,8 @@ var module = IdentityDictionary[
 	\screen_text -> screen_text,
 	\screen_text_extents -> screen_text_extents,
 	\screen_font_size -> screen_font_size,
-	\screen_clear -> screen_clear
+	\screen_clear -> screen_clear,
 	\screen_update -> screen_update
-*/
 ];
 
 module

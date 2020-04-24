@@ -1,35 +1,72 @@
 (
-var norns_emu_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/norns_emu.scd").standardizePath;
-var norns_emu = this.executeFile(norns_emu_path);
+var norns_engine_tester_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/norns_engine_tester.scd").standardizePath;
+var norns_engine_tester = this.executeFile(norns_engine_tester_path);
 
-var start_script = norns_emu[\start_script];
+var start_script = norns_engine_tester[\start_script];
 
 start_script.value {
 	~init = {
 		var arc_device = ~arc_connect.value;
 		var grid_device = ~grid_connect.value;
 
-		arc_device.led(1, 1, 15);
+		arc_device[\led].value(1, 1, 15);
 
 		arc_device[\delta] = { |ring, delta|
 			[ring, delta].debug(\arc);
-			arc_device.all(1, 0);
-			arc_device.led(1, 64.rand+1, 16.rand);
+			arc_device[\all].value(1, 0);
+			arc_device[\led].value(1, 64.rand+1, 16.rand);
 		};
 
-		grid_device.led(1, 1, 15);
+		grid_device[\led].value(1, 1, 15);
 
 		grid_device[\key] = { |x, y, s|
 			[x, y, s].debug(\grid);
-			grid_device.all(0);
-			grid_device.led(grid_device.cols.rand+1, grid_device.rows.rand+1, 16.rand);
+			grid_device[\all].value(0);
+			grid_device[\led].value(grid_device.cols.rand+1, grid_device.rows.rand+1, 16.rand);
 		};
+
+		~params[\add].value(
+			(
+				type: 'control',
+				id: 'cutoff',
+				name: "CUTOFF",
+				controlspec: \freq.asSpec,
+				action: { |value|
+					~screen_instance[\redraw] = true;
+				}
+			)
+		);
+
+		~params[\set].value('cutoff', 449);
+		postln(~params[\get].value('cutoff'));
+
+		~params[\add].value(
+			(
+				type: 'control',
+				id: 'res',
+				name: "RES",
+				controlspec: \unipolar.asSpec,
+				action: { |value|
+					~screen_instance[\redraw] = true;
+				}
+			)
+		);
+
+		~params[\set].value('res', 0.25);
+		postln(~params[\get].value('res'));
 
 		"init".debug;
 	};
 
 	~enc = { |n, delta|
 		postln("enc" + n + delta);
+		case
+		{n == 2} {
+			~params[\delta].value('cutoff', delta);
+		}
+		{ n == 3 } {
+			~params[\delta].value('res', delta);
+		};
 	};
 
 	~key = { |n, z|
@@ -83,11 +120,11 @@ start_script.value {
 		// param 1
 		~screen_level.value(lo_level);
 		~screen_move.value(enc2_x, enc2_y);
-		~screen_text.value("CUTOFF");
+		~screen_text.value(~params[\get_name].value('cutoff'));
 
 		~screen_level.value(hi_level);
 		~screen_move.value(enc2_x, enc2_y+12);
-		~screen_text.value("488Hz");
+		~screen_text.value(~params[\get].value('cutoff').asString ++ "Hz");
 
 		// visuals
 		~screen_level.value(2);
@@ -105,11 +142,11 @@ start_script.value {
 		// param 2
 		~screen_level.value(lo_level);
 		~screen_move.value(enc3_x, enc3_y);
-		~screen_text.value("RES");
+		~screen_text.value(~params[\get_name].value('res'));
 
 		~screen_level.value(hi_level);
 		~screen_move.value(enc3_x, enc3_y+12);
-		~screen_text.value("35%");
+		~screen_text.value((~params[\get].value('res')*100).asString ++ "%");
 
 		// value
 		~screen_level.value(hi_level);
@@ -130,6 +167,8 @@ start_script.value {
 		~screen_level.value(lo_level);
 		~screen_move.value(key3_x, key3_y);
 		~screen_text.value("NEXT");
+
+		~screen_update.value();
 	};
 
 	~cleanup = {
