@@ -4,10 +4,10 @@ var init_paramset = {
 
 	var paramset = IdentityDictionary[
 		\add -> { |param|
-			var type = param[\type];
-			var id = param[\id];
+			var type = param[\type].asSymbol;
+			var id = param[\id].asSymbol;
 			var name = param[\name];
-			var controlspec = param[\controlspec];
+			var controlspec = param[\controlspec].asSpec;
 			var action = param[\action];
 			var formatter = param[\formatter];
 
@@ -22,13 +22,14 @@ var init_paramset = {
 					\name -> name,
 					\controlspec -> controlspec,
 					\action -> action,
-					\formatter -> formatter
+					\formatter -> formatter,
+					\raw -> if (controlspec.default.notNil) { controlspec.unmap(controlspec.default) } { 0 }
 				]
 			);
 
 		},
 		\lookup_param -> { |id|
-			params.detect { |param| param[\id] == id };
+			params.detect { |param| param[\id] == id.asSymbol };
 		},
 		\get_name -> { |id, value|
 			var param = paramset[\lookup_param].value(id);

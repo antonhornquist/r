@@ -26,6 +26,11 @@ var grid_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "g
 var grid = this.executeFile(grid_path);
 var grid_connect = grid[\grid_connect];
 
+var engine_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "r_engine.scd";
+var engine = this.executeFile(engine_path);
+var load_engine = engine[\load_engine];
+var free_engine = engine[\free_engine];
+
 var enc_area_pressed = false ! 3;
 var enc_area_prev_pos;
 var key_state = false ! 3;
@@ -103,7 +108,7 @@ var in_enc_3_area = { |x, y|
 	(x >= (window_width/2)) and: (y >= (window_height/2))
 };
 
-var scale = 4;
+var scale = 2;
 var screen_width = 128 * scale;
 var screen_height = 64 * scale;
 
@@ -249,28 +254,33 @@ var start_script = { |script_func|
 			;
 		});
 
-	SerialOSCClient.init {
-		~params = init_paramset.value;
+	s.waitForBoot {
+		var r_engine = load_engine.value;
+		~engine = r_engine[\engine];
 
-		~mix = init_paramset.value;
-		~mix[\add].value(
-			(
-				type: 'control',
-				id: 'output',
-				name: "output",
-				controlspec: \db.asSpec
-			)
-		);
-		~mix[\set].value('output', 0);
+		SerialOSCClient.init {
+			~params = init_paramset.value;
 
-		~arc_connect = arc_connect;
-		~grid_connect = grid_connect;
+			~mix = init_paramset.value;
+			~mix[\add].value(
+				(
+					type: 'control',
+					id: 'output',
+					name: "output",
+					controlspec: \db.asSpec
+				)
+			);
+			~mix[\set].value('output', 0);
 
-		script_func.value;
+			~arc_connect = arc_connect;
+			~grid_connect = grid_connect;
 
-		~init.value;
-		window.front;
-		~redraw.value;
+			script_func.value;
+
+			~init.value;
+			window.front;
+			~redraw.value;
+		};
 	};
 
 	~window = window;
