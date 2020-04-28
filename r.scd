@@ -709,12 +709,16 @@ var parseModuleParameterReference = { |reference|
 	reference.asString.split(moduleParameterRefDelimiter);
 };
 
+var constructModuleParameterReference = { |moduleRef, parameterRef|
+	(moduleRef.asString++moduleParameterRefDelimiter.asString++parameterRef.asString).asSymbol;
+};
+
 var parseModuleInputReference = { |reference|
 	reference.asString.split(moduleInputRefDelimiter);
 };
 
 var constructModuleInputReference = { |moduleRef, inputRef|
-	(moduleRef.asString++moduleInputRefDelimiter.asString++inputRef.asString).asSymbol
+	(moduleRef.asString++moduleInputRefDelimiter.asString++inputRef.asString).asSymbol;
 };
 
 var parseModuleOutputReference = { |reference|
@@ -722,7 +726,7 @@ var parseModuleOutputReference = { |reference|
 };
 
 var constructModuleOutputReference = { |moduleRef, outputRef|
-	(moduleRef.asString++moduleOutputRefDelimiter.asString++outputRef.asString).asSymbol
+	(moduleRef.asString++moduleOutputRefDelimiter.asString++outputRef.asString).asSymbol;
 };
 
 var parseModuleVisualReference = { |reference|
@@ -6054,6 +6058,40 @@ var generateMatrixModulesOutputs = { |numOutputs|
 	};
 };
 
+var getModuleDefs = { |self|
+	self[\moduleDefs]
+};
+
+var getSpecs = { |self|
+	var getModuleDefParamControlSpecs = { |moduleDef|
+		var params = getModuleDefParams.value(moduleDef);
+		if (params.notNil) {
+			// TODO: refactor to local asDict that takes an array of associations
+			IdentityDictionary.newFrom(
+				params.collect { |assoc|
+					var assocValue = assoc.value;
+					[
+						assoc.key, // key
+						// value ...
+						if (assocValue.class == ControlSpec) { // TODO: DRY this up
+							assocValue
+						} {
+							// TODO: Event assumed
+							assocValue[\Spec]
+						}
+					]
+				}.flatten
+			)
+		}
+	};
+
+	getModuleDefs.value(self).collect { |moduleDef|
+		var moduleRef = moduleDef[\name];
+		var spec = getModuleDefSpec.value(moduleDef);
+		moduleRef -> getModuleDefParamControlSpecs.value(moduleDef);
+	}.asEvent;
+};
+
 var api = IdentityDictionary[
 	\init -> init,
 	\free -> free,
@@ -6071,7 +6109,8 @@ var api = IdentityDictionary[
 	\tapclearCommand -> tapclearCommand,
 	\getTapBus -> getTapBus,
 	\getVisualBus -> getVisualBus,
-	\generateDocsForAllModules -> generateDocsForAllModules
+	\generateDocsForAllModules -> generateDocsForAllModules,
+	\getSpecs -> getSpecs
 ];
 
 api

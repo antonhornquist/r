@@ -26,15 +26,24 @@ var percentage = { |param|
 	format.value(param, round(param.get__*100), "%");
 };
 
+var round = { |precision|
+	{ |param|
+		format.value(param, round(param.get__, precision));
+	}
+};
+
 /*
 var format_freq = { |param|
 	format_freq_raw.value(param.get__);
 };
 */
 
-var module = IdentityDictionary[
-	\percentage -> percentage,
-];
+var module = (
+	percentage: percentage,
+	round__: { |self, precision|
+		round.value(precision);
+	}
+);
 
 module
 )

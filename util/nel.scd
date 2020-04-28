@@ -313,6 +313,7 @@ var start_script = { |script_func|
 	s.waitForBoot {
 		var r_engine = load_engine.value;
 		~engine = r_engine[\engine];
+		~r = r_engine[\library];
 
 		SerialOSCClient.init {
 			~params = get_crunched_version.value(init_paramset.value);

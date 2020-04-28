@@ -6,11 +6,6 @@ var start_script = nel['start_script'];
 start_script.value {
 	// scriptname: 2_pwm
 	// v1.1.0 @jah
-/*
-	~engine.name = 'R'
-
-	~r = require 'r/lib/r'
-*/
 	var formatters_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "formatters.scd").standardizePath;
 	var formatters = this.executeFile(formatters_path);
 
@@ -26,7 +21,7 @@ start_script.value {
 				type: "control",
 				id: "osc_range",
 				name: "Osc.Range",
-//				controlspec: ~r.specs__[\PulseOsc][\Range],
+				controlspec: ~r.specs__['PulseOsc']['Range'],
 				action: { |value| ~engine.set__("Osc.Range", value) }
 			)
 		);
@@ -36,7 +31,7 @@ start_script.value {
 				type: "control",
 				id: "osc_tune",
 				name: "Osc.Tune",
-//				controlspec: ~r.specs__[\PulseOsc][\Tune],
+				controlspec: ~r.specs__['PulseOsc']['Tune'],
 				action: { |value| ~engine.set__("Osc.Tune", value) }
 			)
 		);
@@ -46,8 +41,8 @@ start_script.value {
 				type: "control",
 				id: "osc_pulsewidth",
 				name: "Osc.PulseWidth",
-//				controlspec: ~r.specs__[\PulseOsc][\PulseWidth],
-				formatter: formatters[\percentage],
+				controlspec: ~r.specs__['PulseOsc']['PulseWidth'],
+				formatter: formatters['percentage'],
 				action: { |value| ~engine.set__("Osc.PulseWidth", value) }
 			)
 		);

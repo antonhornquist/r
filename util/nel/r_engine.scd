@@ -16,8 +16,9 @@ var macrosetCommand = r_api[\macrosetCommand];
 var readsampleCommand = r_api[\readsampleCommand];
 var tapoutputCommand = r_api[\tapoutputCommand];
 var tapclearCommand = r_api[\tapclearCommand];
+var getSpecs = r_api[\getSpecs];
 
-// TODO: server booted assumed
+// server booted assumed
 var load_engine = {
 	var r_instance;
 	var engine;
@@ -60,7 +61,10 @@ var load_engine = {
 
 	(
 		instance: r_instance,
-		engine: engine
+		engine: engine,
+		library: (
+			specs__: getSpecs.value(r_instance)
+		)
 	)
 };
 
