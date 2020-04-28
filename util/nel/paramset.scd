@@ -23,7 +23,15 @@ var init_paramset = {
 					\controlspec -> controlspec,
 					\action -> action,
 					\formatter -> formatter,
-					\raw -> if (controlspec.default.notNil) { controlspec.unmap(controlspec.default) } { 0 }
+					\raw -> if (controlspec.default.notNil) { controlspec.unmap(controlspec.default) } { 0 },
+					\get__ -> { |self| // TODO
+						self[\controlspec].map(self[\raw])
+					}
+/*
+					\set__ -> { |self, value| // TODO
+						self[\raw] = self[\controlspec].unmap(round(value, self[\controlspec].step));
+					}
+*/
 				]
 			);
 
@@ -86,5 +94,5 @@ var module = IdentityDictionary[
 	\init_paramset -> init_paramset
 ];
 
-module
+module;
 )

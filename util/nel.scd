@@ -35,6 +35,23 @@ var enc_area_pressed = false ! 3;
 var enc_area_prev_pos;
 var key_state = false ! 3;
 
+var get_crunched_version = { |uncrunched|
+	var crunched = ();
+
+	uncrunched.keysValuesDo.collect { |value, key|
+		if (value.class == Function) {
+			var func = value;
+			crunched[(key.asString++"__").asSymbol] = { |self ... args|
+				func.valueArray(args);
+			};
+		} {
+			crunched[key] = value;
+		}
+	};
+
+	crunched;
+};
+
 var mouse_move_action = { |view, x, y|
 	if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
 		var delta = enc_area_prev_pos.y - y;
@@ -121,6 +138,7 @@ var window_height = screen_height + (margin_y*2);
 var create_screen_and_inject_globals = { |parent_view, x, y, scale|
 	var screen_instance = screen_init.value(parent_view, x, y, scale);
 
+/*
 	~screen_rect = { |x, y, width, height|
 		screen_rect.value(screen_instance, x, y, width, height);
 	};
@@ -164,6 +182,44 @@ var create_screen_and_inject_globals = { |parent_view, x, y, scale|
 	~screen_update = {
 		screen_update.value(screen_instance);
 	};
+*/
+	~screen = get_crunched_version.value(
+		IdentityDictionary[
+			\rect -> { |x, y, width, height|
+				screen_rect.value(screen_instance, x, y, width, height);
+			},
+			\move -> { |x, y|
+				screen_move.value(screen_instance, x, y);
+			},
+			\line -> { |x, y|
+				screen_line.value(screen_instance, x, y);
+			},
+			\stroke -> {
+				screen_stroke.value(screen_instance);
+			},
+			\fill -> {
+				screen_fill.value(screen_instance);
+			},
+			\level -> { |level|
+				screen_level.value(screen_instance, level);
+			},
+			\text -> { |text|
+				screen_text.value(screen_instance, text);
+			},
+			\text_extents -> { |text|
+				screen_text_extents.value(screen_instance, text);
+			},
+			\font_size -> { |size|
+				screen_font_size.value(screen_instance, size);
+			},
+			\clear -> {
+				screen_clear.value(screen_instance);
+			},
+			\update -> {
+				screen_update.value(screen_instance);
+			}
+		]
+	);
 
 	~screen_instance = screen_instance; // TODO
 
@@ -259,10 +315,26 @@ var start_script = { |script_func|
 		~engine = r_engine[\engine];
 
 		SerialOSCClient.init {
-			~params = init_paramset.value;
+			~params = get_crunched_version.value(init_paramset.value);
+			~mix = get_crunched_version.value(init_paramset.value);
 
-			~mix = init_paramset.value;
-			~mix[\add].value(
+			~arc = get_crunched_version.value(
+				IdentityDictionary[
+					\connect -> {
+						get_crunched_version.value(arc_connect.value)
+					}
+				]
+			);
+
+			~grid = get_crunched_version.value(
+				IdentityDictionary[
+					\connect -> {
+						get_crunched_version.value(grid_connect.value)
+					}
+				]
+			);
+
+			~mix.add__(
 				(
 					type: 'control',
 					id: 'output',
@@ -270,10 +342,8 @@ var start_script = { |script_func|
 					controlspec: \db.asSpec
 				)
 			);
-			~mix[\set].value('output', 0);
+			~mix.set__('output', 0);
 
-			~arc_connect = arc_connect;
-			~grid_connect = grid_connect;
 
 			script_func.value;
 
