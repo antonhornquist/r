@@ -154,7 +154,7 @@ start_script.value {
 
 	~enc = { |n, delta|
 		if (n == 1) {
-			~mix.delta("output", delta);
+			~mix.delta__("output", delta);
 		};
 	};
 };
