@@ -10,20 +10,19 @@ var grid_connect = { |n|
 		Error("multiple grids not supported").throw
 	};
 
-	grid = IdentityDictionary[
-		\led -> { |x, y, val|
-			SerialOSCGrid.ledLevelSet(x-1, y-1, val);
-		},
-		\all -> { |val|
-			SerialOSCGrid.ledLevelAll(val);
-		},
-		\cols -> {
-			SerialOSCGrid.numCols;
-		},
-		\rows -> {
-			SerialOSCGrid.numRows;
-		}
-	];
+	grid = ();
+	grid.led_ = { |self, x, y, val|
+		SerialOSCGrid.ledLevelSet(x-1, y-1, val);
+	};
+	grid.all_ = { |self, val|
+		SerialOSCGrid.ledLevelAll(val);
+	};
+	grid.cols_ = { |self|
+		SerialOSCGrid.numCols;
+	};
+	grid.rows_ = { |self|
+		SerialOSCGrid.numRows;
+	};
 
 	GridKeydef( // TODO: use Func, cleanup in a nornsemu_free function
 		\nornsemu_gridkey,

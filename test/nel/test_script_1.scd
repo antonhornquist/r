@@ -6,16 +6,16 @@ var start_script = nel['start_script'];
 
 start_script.value {
 	~init = {
-		var arc_device = ~arc.connect__();
-		var grid_device = ~grid.connect__();
+		var arc_device = ~arc.connect_();
+		var grid_device = ~grid.connect_();
 
 		var percentage_formatter = { |param|
-			var value = ~params.get__(param['id']);
+			var value = ~params.get_(param['id']);
 			round(value * 100, 1).asString ++ "%"
 		};
 
 		var adaptive_freq_formatter = { |param|
-			var hz = ~params.get__(param['id']);
+			var hz = ~params.get_(param['id']);
 
 			case
 			{ hz <= -1000 } {
@@ -54,32 +54,31 @@ start_script.value {
 				round(hz/1000, 1).asString ++ "kHz"
 			}
 		};
-
-		arc_device.led__(1, 1, 15);
+		arc_device.led_(1, 1, 15);
 
 		arc_device['delta'] = { |ring, delta|
 			// [ring, delta].debug('arc');
-			arc_device.all__(ring, 0);
-			arc_device.led__(ring, 64.rand+1, 16.rand);
+			arc_device.all_(ring, 0);
+			arc_device.led_(ring, 64.rand+1, 16.rand);
 
 			if (ring == 1) {
-				var val = ~params.get_raw__('cutoff');
-				~params.set_raw__('cutoff', val+(delta/500));
+				var val = ~params.get_raw_('cutoff');
+				~params.set_raw_('cutoff', val+(delta/500));
 			} {
-				var val = ~params.get_raw__('res');
-				~params.set_raw__('res', val+(delta/500));
+				var val = ~params.get_raw_('res');
+				~params.set_raw_('res', val+(delta/500));
 			};
 		};
 
-		grid_device.led__(1, 1, 15);
+		grid_device.led_(1, 1, 15);
 
 		grid_device['key'] = { |x, y, s|
 			// [x, y, s].debug(\grid);
-			grid_device.all__(0);
-			grid_device.led__(grid_device.cols__().rand+1, grid_device.rows__().rand+1, 16.rand);
+			grid_device.all_(0);
+			grid_device.led_(grid_device.cols_().rand+1, grid_device.rows_().rand+1, 16.rand);
 		};
 
-		~params.add__(
+		~params.add_(
 			(
 				type: 'control',
 				id: 'cutoff',
@@ -92,9 +91,9 @@ start_script.value {
 			)
 		);
 
-		~params.set__('cutoff', 449);
+		~params.set_('cutoff', 449);
 
-		~params.add__(
+		~params.add_(
 			(
 				type: 'control',
 				id: 'res',
@@ -107,7 +106,7 @@ start_script.value {
 			)
 		);
 
-		~params.set__('res', 0.25);
+		~params.set_('res', 0.25);
 
 		"init".debug;
 	};
@@ -116,14 +115,14 @@ start_script.value {
 		//["enc" + n + delta].debug;
 		case
 		{n == 1} {
-			~mix.delta__('output', delta);
+			~mix.delta_('output', delta);
 			~redraw.value;
 		}
 		{n == 2} {
-			~params.delta__('cutoff', delta);
+			~params.delta_('cutoff', delta);
 		}
 		{ n == 3 } {
-			~params.delta__('res', delta);
+			~params.delta_('res', delta);
 		};
 	};
 
@@ -152,81 +151,73 @@ start_script.value {
 		var hi_level = 15;
 		var lo_level = 5;
 
-		~screen.clear__();
-		~screen.font_size__(16);
+		~screen.clear_();
+		~screen.font_size_(16);
 
-	/*
-		TODO
-		~screen_level.(hi_level);
-		~screen_rect.(enc1_x, enc1_y, 1, 1);
-		~screen_rect.(enc1_x, enc1_y-11, 1, 1);
-		~screen_fill.();
-	*/
+		~screen.level_(lo_level);
+		~screen.move_(enc1_x, enc1_y);
+		~screen.text_("LEVEL");
 
-		~screen.level__(lo_level);
-		~screen.move__(enc1_x, enc1_y);
-		~screen.text__("LEVEL");
+		~screen.level_(hi_level);
+		~screen.move_((enc1_x + ~screen.text_extents_("LEVEL") + 3), enc1_y);
+		~screen.text_(round(~mix.get_raw_('output')*100));
 
-		~screen.level__(hi_level);
-		~screen.move__((enc1_x + ~screen.text_extents__("LEVEL") + 3), enc1_y);
-		~screen.text__(round(~mix.get_raw__('output')*100));
-
-		~screen.level__(lo_level);
-		~screen.rect__(122, enc1_y-7, 5, 5);
-		~screen.fill__();
+		~screen.level_(lo_level);
+		~screen.rect_(122, enc1_y-7, 5, 5);
+		~screen.fill_();
 
 		// param 1
-		~screen.level__(lo_level);
-		~screen.move__(enc2_x, enc2_y);
-		~screen.text__(~params.get_name__('cutoff'));
+		~screen.level_(lo_level);
+		~screen.move_(enc2_x, enc2_y);
+		~screen.text_(~params.get_name_('cutoff'));
 
-		~screen.level__(hi_level);
-		~screen.move__(enc2_x, enc2_y+12);
-		~screen.text__(~params.string__('cutoff'));
+		~screen.level_(hi_level);
+		~screen.move_(enc2_x, enc2_y+12);
+		~screen.text_(~params.string_('cutoff'));
 
 		// visuals
-		~screen.level__(2);
-		~screen.rect__(enc2_x+1 + 9, enc2_y + 14, 5, 2);
-		~screen.fill__;
-		~screen.level__(4);
-		~screen.rect__(enc2_x+1 + 14, enc2_y + 14, 6, 2);
-		~screen.fill__();
+		~screen.level_(2);
+		~screen.rect_(enc2_x+1 + 9, enc2_y + 14, 5, 2);
+		~screen.fill_;
+		~screen.level_(4);
+		~screen.rect_(enc2_x+1 + 14, enc2_y + 14, 6, 2);
+		~screen.fill_();
 
 		// value
-		~screen.level__(hi_level);
-		~screen.rect__(enc2_x+1 + 20, enc2_y + 14, 2, 2);
-		~screen.fill__();
+		~screen.level_(hi_level);
+		~screen.rect_(enc2_x+1 + 20, enc2_y + 14, 2, 2);
+		~screen.fill_();
 
 		// param 2
-		~screen.level__(lo_level);
-		~screen.move__(enc3_x, enc3_y);
-		~screen.text__(~params.get_name__('res'));
+		~screen.level_(lo_level);
+		~screen.move_(enc3_x, enc3_y);
+		~screen.text_(~params.get_name_('res'));
 
-		~screen.level__(hi_level);
-		~screen.move__(enc3_x, enc3_y+12);
-		~screen.text__(~params.string__('res'));
+		~screen.level_(hi_level);
+		~screen.move_(enc3_x, enc3_y+12);
+		~screen.text_(~params.string_('res'));
 
 		// value
-		~screen.level__(hi_level);
-		~screen.rect__(enc3_x+1 + 10, enc3_y + 14, 2, 2);
-		~screen.fill__();
+		~screen.level_(hi_level);
+		~screen.rect_(enc3_x+1 + 10, enc3_y + 14, 2, 2);
+		~screen.fill_();
 
 		// page indicator
-		~screen.level__(lo_level);
-		~screen.rect__(1, page_indicator_y, 128/4, 2);
-		~screen.fill__();
+		~screen.level_(lo_level);
+		~screen.rect_(1, page_indicator_y, 128/4, 2);
+		~screen.fill_();
 
 		// key2
-		~screen.level__(lo_level);
-		~screen.move__(key2_x, key2_y);
-		~screen.text__("PREV");
+		~screen.level_(lo_level);
+		~screen.move_(key2_x, key2_y);
+		~screen.text_("PREV");
 
 		// key3
-		~screen.level__(lo_level);
-		~screen.move__(key3_x, key3_y);
-		~screen.text__("NEXT");
+		~screen.level_(lo_level);
+		~screen.move_(key3_x, key3_y);
+		~screen.text_("NEXT");
 
-		~screen.update__();
+		~screen.update_();
 	};
 
 	~cleanup = {

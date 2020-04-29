@@ -31,31 +31,31 @@ var load_engine = {
 	);
 
 	engine = ();
-	engine.new__ = { |self, name, kind|
+	engine.new_ = { |self, name, kind|
 		newCommand.value(r_instance, name, kind);
 	};
-	engine.connect__ = { |self, moduleOutputRef, moduleInputRef|
+	engine.connect_ = { |self, moduleOutputRef, moduleInputRef|
 		connectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
 	};
-	engine.disconnect__ = { |self, moduleOutputRef, moduleInputRef|
+	engine.disconnect_ = { |self, moduleOutputRef, moduleInputRef|
 		disconnectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
 	};
-	engine.delete__ = { |self, moduleRef|
+	engine.delete_ = { |self, moduleRef|
 		deleteCommand.value(r_instance, moduleRef);
 	};
-	engine.set__ = { |self, moduleParameterRef, value|
+	engine.set_ = { |self, moduleParameterRef, value|
 		setCommand.value(r_instance, moduleParameterRef, value);
 	};
-	engine.bulkset__ = { |self, bundle|
+	engine.bulkset_ = { |self, bundle|
 		bulksetCommand.value(r_instance, bundle);
 	};
-	engine.newmacro__ = { |self, name, bundle|
+	engine.newmacro_ = { |self, name, bundle|
 		newmacroCommand.value(r_instance, name, bundle);
 	};
-	engine.deletemacro__ = { |self, name|
+	engine.deletemacro_ = { |self, name|
 		deletemacroCommand.value(r_instance, name);
 	};
-	engine.macroset__ = { |self, name, value|
+	engine.macroset_ = { |self, name, value|
 		macrosetCommand.value(r_instance, name, value);
 	};
 
@@ -63,7 +63,7 @@ var load_engine = {
 		instance: r_instance,
 		engine: engine,
 		library: (
-			specs__: getSpecs.value(r_instance)
+			specs_: getSpecs.value(r_instance)
 		)
 	)
 };

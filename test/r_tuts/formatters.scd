@@ -23,24 +23,24 @@ var format_freq_raw = { |freq|
 */
 
 var percentage = { |param|
-	format.value(param, round(param.get__*100), "%");
+	format.value(param, round(param.get_*100), "%");
 };
 
 var round = { |precision|
 	{ |param|
-		format.value(param, round(param.get__, precision));
+		format.value(param, round(param.get_, precision));
 	}
 };
 
 /*
 var format_freq = { |param|
-	format_freq_raw.value(param.get__);
+	format_freq_raw.value(param.get_);
 };
 */
 
 var module = (
 	percentage: percentage,
-	round__: { |self, precision|
+	round_: { |self, precision|
 		round.value(precision);
 	}
 );

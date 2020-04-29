@@ -35,23 +35,6 @@ var enc_area_pressed = false ! 3;
 var enc_area_prev_pos;
 var key_state = false ! 3;
 
-var get_crunched_version = { |uncrunched|
-	var crunched = ();
-
-	uncrunched.keysValuesDo.collect { |value, key|
-		if (value.class == Function) {
-			var func = value;
-			crunched[(key.asString++"__").asSymbol] = { |self ... args|
-				func.valueArray(args);
-			};
-		} {
-			crunched[key] = value;
-		}
-	};
-
-	crunched;
-};
-
 var mouse_move_action = { |view, x, y|
 	if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
 		var delta = enc_area_prev_pos.y - y;
@@ -137,89 +120,43 @@ var window_height = screen_height + (margin_y*2);
 
 var create_screen_and_inject_globals = { |parent_view, x, y, scale|
 	var screen_instance = screen_init.value(parent_view, x, y, scale);
+	var screen = ();
 
-/*
-	~screen_rect = { |x, y, width, height|
+	screen.rect_ = { |self, x, y, width, height|
 		screen_rect.value(screen_instance, x, y, width, height);
 	};
-
-	~screen_move = { |x, y|
+	screen.move_ = { |self, x, y|
 		screen_move.value(screen_instance, x, y);
 	};
-
-	~screen_line = { |x, y|
+	screen.line_ = { |self, x, y|
 		screen_line.value(screen_instance, x, y);
 	};
-
-	~screen_stroke = {
+	screen.stroke_ = { |self|
 		screen_stroke.value(screen_instance);
 	};
-
-	~screen_fill = {
+	screen.fill_ = { |self|
 		screen_fill.value(screen_instance);
 	};
-
-	~screen_level = { |level|
+	screen.level_ ={ |self, level|
 		screen_level.value(screen_instance, level);
 	};
-
-	~screen_text = { |text|
+	screen.text_ = { |self, text|
 		screen_text.value(screen_instance, text);
 	};
-
-	~screen_text_extents = { |text|
+	screen.text_extents_ = { |self, text|
 		screen_text_extents.value(screen_instance, text);
 	};
-
-	~screen_font_size = { |size|
+	screen.font_size_ = { |self, size|
 		screen_font_size.value(screen_instance, size);
 	};
-
-	~screen_clear = {
+	screen.clear_ = { |self|
 		screen_clear.value(screen_instance);
 	};
-
-	~screen_update = {
+	screen.update_ = { |self|
 		screen_update.value(screen_instance);
 	};
-*/
-	~screen = get_crunched_version.value(
-		IdentityDictionary[
-			\rect -> { |x, y, width, height|
-				screen_rect.value(screen_instance, x, y, width, height);
-			},
-			\move -> { |x, y|
-				screen_move.value(screen_instance, x, y);
-			},
-			\line -> { |x, y|
-				screen_line.value(screen_instance, x, y);
-			},
-			\stroke -> {
-				screen_stroke.value(screen_instance);
-			},
-			\fill -> {
-				screen_fill.value(screen_instance);
-			},
-			\level -> { |level|
-				screen_level.value(screen_instance, level);
-			},
-			\text -> { |text|
-				screen_text.value(screen_instance, text);
-			},
-			\text_extents -> { |text|
-				screen_text_extents.value(screen_instance, text);
-			},
-			\font_size -> { |size|
-				screen_font_size.value(screen_instance, size);
-			},
-			\clear -> {
-				screen_clear.value(screen_instance);
-			},
-			\update -> {
-				screen_update.value(screen_instance);
-			}
-		]
-	);
+
+	~screen = screen;
 
 	~screen_instance = screen_instance; // TODO
 
@@ -316,26 +253,20 @@ var start_script = { |script_func|
 		~r = r_engine[\library];
 
 		SerialOSCClient.init {
-			~params = get_crunched_version.value(init_paramset.value);
-			~mix = get_crunched_version.value(init_paramset.value);
+			~params = init_paramset.value;
+			~mix = init_paramset.value;
 
-			~arc = get_crunched_version.value(
-				IdentityDictionary[
-					\connect -> {
-						get_crunched_version.value(arc_connect.value)
-					}
-				]
-			);
+			~arc = ();
+			~arc.connect_ = {
+				arc_connect.value;
+			};
 
-			~grid = get_crunched_version.value(
-				IdentityDictionary[
-					\connect -> {
-						get_crunched_version.value(grid_connect.value)
-					}
-				]
-			);
+			~grid = ();
+			~grid.connect_ = {
+				grid_connect.value;
+			};
 
-			~mix.add__(
+			~mix.add_(
 				(
 					type: 'control',
 					id: 'output',
@@ -343,7 +274,7 @@ var start_script = { |script_func|
 					controlspec: \db.asSpec
 				)
 			);
-			~mix.set__('output', 0);
+			~mix.set_('output', 0);
 
 
 			script_func.value;

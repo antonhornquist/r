@@ -10,14 +10,13 @@ var arc_connect = { |n|
 		Error("multiple arcs not supported").throw
 	};
 
-	arc = IdentityDictionary[
-		\led -> { |ring, x, val|
-			SerialOSCEnc.ringSet(ring-1, x-1, val);
-		},
-		\all -> { |ring, val|
-			SerialOSCEnc.ringAll(ring-1, val);
-		}
-	];
+	arc = ();
+	arc.led_ = { |self, ring, x, val|
+		SerialOSCEnc.ringSet(ring-1, x-1, val);
+	};
+	arc.all_ = { |self, ring, val|
+		SerialOSCEnc.ringAll(ring-1, val);
+	};
 
 	EncDeltadef( // TODO: use Func, cleanup in a nornsemu_free function
 		\nornsemu_encdelta,
