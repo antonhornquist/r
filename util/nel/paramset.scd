@@ -44,7 +44,7 @@ var init_paramset = {
 		},
 		\set -> { |id, value|
 			var param = self.lookup_param_(id);
-			param[\raw] = param[\controlspec].unmap(value);
+			paramset[\set_raw].value(id, param[\controlspec].unmap(value));
 		},
 		\get -> { |id|
 			var param = self.lookup_param_(id);
@@ -144,6 +144,7 @@ var init_paramset = {
 	paramset.set_ = { |self, id, value|
 		var param = self.lookup_param_(id);
 		param[\raw] = param[\controlspec].unmap(value);
+		paramset.set_raw_(id, param[\controlspec].unmap(value));
 	};
 	paramset.get_ = { |self, id|
 		var param = self.lookup_param_(id);

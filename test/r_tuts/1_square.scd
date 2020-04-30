@@ -61,6 +61,7 @@ start_script.value {
 	};
 
 /*
+	TODO
 	~enc = { |n, delta|
 		if (n == 1) {
 			~mix.delta_("output", delta);
