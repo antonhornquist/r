@@ -234,9 +234,36 @@ start_script.value {
 		~screen.update_();
 	};
 
+/*
+	TODO
 	~enc = { |n, delta|
 		if (n == 1) {
 			~mix.delta_("output", delta);
+		};
+	};
+*/
+	~enc = { |n, delta|
+		case
+		{n == 1} {
+			~mix.delta_("output", delta);
+		}
+		{n == 2} {
+			~params.delta_("note", delta);
+		}
+		{n == 3} {
+			~params.delta_("filter_frequency", delta);
+		};
+	};
+
+	~key = { |n, z|
+		if (n == 3) {
+			case
+			{z == 1} {
+				~params.set_("gate", 1);
+			}
+			{z == 0} {
+				~params.set_("gate", 0);
+			};
 		};
 	};
 };

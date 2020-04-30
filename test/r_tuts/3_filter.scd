@@ -152,9 +152,24 @@ start_script.value {
 		~screen.update_();
 	};
 
+/*
+	TODO
 	~enc = { |n, delta|
 		if (n == 1) {
 			~mix.delta_("output", delta);
+		};
+	};
+*/
+	~enc = { |n, delta|
+		case
+		{n == 1} {
+			~mix.delta_("output", delta);
+		}
+		{n == 2} {
+			~params.delta_("lfo_frequency", delta);
+		}
+		{n == 3} {
+			~params.delta_("lfo_to_filter_fm", delta);
 		};
 	};
 };
