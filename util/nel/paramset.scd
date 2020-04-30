@@ -3,6 +3,7 @@ var init_paramset = {
 	var params = [];
 
 	var paramset = ();
+
 	paramset.add_ = { |self, arg_param|
 		var type = arg_param[\type].asSymbol;
 		var id = arg_param[\id].asSymbol;
@@ -40,7 +41,7 @@ var init_paramset = {
 	paramset.set_ = { |self, id, value|
 		var param = self.lookup_param_(id);
 		param[\raw] = param[\controlspec].unmap(value);
-		paramset.set_raw_(id, param[\controlspec].unmap(value));
+		self.set_raw_(id, param[\controlspec].unmap(value));
 	};
 	paramset.get_ = { |self, id|
 		var param = self.lookup_param_(id);
@@ -57,7 +58,7 @@ var init_paramset = {
 	};
 	paramset.delta_ = { |self, id, d|
 		var param = self.lookup_param_(id);
-		paramset.set_raw_(id, param[\raw] + (d/100));
+		self.set_raw_(id, param[\raw] + (d/100));
 	};
 	paramset.bang_ = { |self|
 		params.do { |param|

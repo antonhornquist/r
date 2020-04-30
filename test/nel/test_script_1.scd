@@ -91,8 +91,6 @@ start_script.value {
 			)
 		);
 
-		~params.set_('cutoff', 449);
-
 		~params.add_(
 			(
 				type: 'control',
@@ -106,6 +104,7 @@ start_script.value {
 			)
 		);
 
+		~params.set_('cutoff', 449);
 		~params.set_('res', 0.25);
 
 		"init".debug;
