@@ -335,19 +335,55 @@ libraries.screen = {
 		Font.defaultSansFace
 	};
 
+	var init_screen = { |parent_view, x, y, scale|
+		var screen_instance = screen_init.value(parent_view, x, y, scale);
+		var screen = ();
+
+		screen.rect_ = { |self, x, y, width, height|
+			screen_rect.value(screen_instance, x, y, width, height);
+		};
+		screen.move_ = { |self, x, y|
+			screen_move.value(screen_instance, x, y);
+		};
+		screen.line_ = { |self, x, y|
+			screen_line.value(screen_instance, x, y);
+		};
+		screen.line_rel_ = { |self, x, y|
+			screen_line_rel.value(screen_instance, x, y);
+		};
+		screen.stroke_ = { |self|
+			screen_stroke.value(screen_instance);
+		};
+		screen.fill_ = { |self|
+			screen_fill.value(screen_instance);
+		};
+		screen.level_ ={ |self, level|
+			screen_level.value(screen_instance, level);
+		};
+		screen.text_ = { |self, text|
+			screen_text.value(screen_instance, text);
+		};
+		screen.text_extents_ = { |self, text|
+			screen_text_extents.value(screen_instance, text);
+		};
+		screen.font_size_ = { |self, size|
+			screen_font_size.value(screen_instance, size);
+		};
+		screen.clear_ = { |self|
+			screen_clear.value(screen_instance);
+		};
+		screen.update_ = { |self|
+			screen_update.value(screen_instance);
+		};
+
+		(
+			singleton: screen,
+			view: screen_instance[\view]
+		);
+	};
+
 	var module = IdentityDictionary[
-		\screen_init -> screen_init,
-		\screen_rect -> screen_rect,
-		\screen_move -> screen_move,
-		\screen_line -> screen_line,
-		\screen_stroke -> screen_stroke,
-		\screen_fill -> screen_fill,
-		\screen_level -> screen_level,
-		\screen_text -> screen_text,
-		\screen_text_extents -> screen_text_extents,
-		\screen_font_size -> screen_font_size,
-		\screen_clear -> screen_clear,
-		\screen_update -> screen_update
+		\init_screen -> init_screen
 	];
 
 	module
@@ -449,6 +485,8 @@ libraries.paramset = {
 
 {
 	var screen = libraries[\screen];
+	var init_screen = screen[\init_screen];
+/*
 	var screen_init = screen[\screen_init];
 	var screen_rect = screen[\screen_rect];
 	var screen_move = screen[\screen_move];
@@ -462,6 +500,7 @@ libraries.paramset = {
 	var screen_font_size = screen[\screen_font_size];
 	var screen_clear = screen[\screen_clear];
 	var screen_update = screen[\screen_update];
+*/
 
 	var metro = libraries[\metro];
 	var init_metro = metro[\init_metro];
@@ -475,7 +514,7 @@ libraries.paramset = {
 	var grid = libraries[\grid];
 	var grid_connect = grid[\grid_connect];
 
-	var engine_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "nel" +/+ "r_engine.scd";
+	var engine_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "r_engine.scd";
 	var engine = this.executeFile(engine_path);
 	var load_engine = engine[\load_engine];
 	var free_engine = engine[\free_engine];
@@ -552,54 +591,6 @@ libraries.paramset = {
 	var window_width = screen_width + (margin_x*2);
 	var window_height = screen_height + (margin_y*2);
 
-	var create_screen_and_inject_globals = { |parent_view, x, y, scale|
-		var screen_instance = screen_init.value(parent_view, x, y, scale);
-		var screen = ();
-
-		screen.rect_ = { |self, x, y, width, height|
-			screen_rect.value(screen_instance, x, y, width, height);
-		};
-		screen.move_ = { |self, x, y|
-			screen_move.value(screen_instance, x, y);
-		};
-		screen.line_ = { |self, x, y|
-			screen_line.value(screen_instance, x, y);
-		};
-		screen.line_rel_ = { |self, x, y|
-			screen_line_rel.value(screen_instance, x, y);
-		};
-		screen.stroke_ = { |self|
-			screen_stroke.value(screen_instance);
-		};
-		screen.fill_ = { |self|
-			screen_fill.value(screen_instance);
-		};
-		screen.level_ ={ |self, level|
-			screen_level.value(screen_instance, level);
-		};
-		screen.text_ = { |self, text|
-			screen_text.value(screen_instance, text);
-		};
-		screen.text_extents_ = { |self, text|
-			screen_text_extents.value(screen_instance, text);
-		};
-		screen.font_size_ = { |self, size|
-			screen_font_size.value(screen_instance, size);
-		};
-		screen.clear_ = { |self|
-			screen_clear.value(screen_instance);
-		};
-		screen.update_ = { |self|
-			screen_update.value(screen_instance);
-		};
-
-		~screen = screen;
-
-		~screen_instance = screen_instance; // TODO
-
-		screen_instance[\view]
-	};
-
 	var start_script = { |script_func|
 		var window = Window.new(
 			"[Script Name]",
@@ -611,7 +602,9 @@ libraries.paramset = {
 			))
 			.background_(Color.black);
 
-		var screen_view = create_screen_and_inject_globals.value(window, margin_x, margin_y, scale);
+		var screen = init_screen.value(window, margin_x, margin_y, scale);
+		var screen_api = screen[\singleton];
+		var screen_view = screen[\view];
 
 		screen_view
 			.mouseMoveAction_({false}) // false means: not handled in this view
@@ -690,6 +683,8 @@ libraries.paramset = {
 			~r = r_engine[\library];
 
 			SerialOSCClient.init {
+				~screen = screen_api;
+
 				~metro = init_metro.value;
 				~params = init_paramset.value;
 				~mix = init_paramset.value;

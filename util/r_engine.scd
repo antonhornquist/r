@@ -1,5 +1,5 @@
 (
-var r_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ ".." +/+ "r.scd").standardizePath;
+var r_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
 var r_api = this.executeFile(r_path);
 
 var init = r_api[\init];
