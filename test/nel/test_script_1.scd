@@ -4,7 +4,7 @@ var nel = this.executeFile(nel_path);
 
 var start_script = nel['start_script'];
 
-start_script.value {
+start_script.value(nil) {
 	~init = {
 		var arc_device = ~arc.connect_();
 		var grid_device = ~grid.connect_();
@@ -76,6 +76,17 @@ start_script.value {
 			// [x, y, s].debug(\grid);
 			grid_device.all_(0);
 			grid_device.led_(grid_device.cols_().rand+1, grid_device.rows_().rand+1, 16.rand);
+		};
+
+		~midi_device = ~midi.connect_(0);
+		~midi_device.event = { |data|
+			case
+			{ (data.type == 'cc') and: (data.num ==1) } {
+				~params.set_raw_("cutoff", data.val/127);
+			}
+			{ (data.type == 'cc') and: (data.num ==2) } {
+				~params.set_raw_("res", data.val/127);
+			};
 		};
 
 		~params.add_(

@@ -31,9 +31,104 @@ libraries.arc = {
 		arc;
 	};
 
+	var init_arc = {
+		var arc = ();
+		arc.connect_ = {
+			arc_connect.value;
+		};
+		arc
+	};
+
 
 	var module = IdentityDictionary[
-		\arc_connect -> arc_connect,
+		\init_arc -> init_arc
+	];
+
+	module
+}.value;
+
+libraries.midi = {
+	var midi_connect = { |n|
+		var midi;
+
+		MIDIIn.connectAll;
+
+		n = n ? 1; 
+
+		if (n != 1) {
+			Error("multiple midi devices not supported").throw
+		};
+
+		midi = ();
+/*
+	TODO: midi out
+		midi.send_ = { |self, data|
+			MIDIOut....
+		};
+*/
+
+		MIDIdef.cc( // TODO: use Func, cleanup in a nornsemu_free function
+			\nornsemu_midi_cc,
+			{ |val, num, chan|
+				midi[\event].value(
+					(
+						type: 'cc',
+						val: val,
+						num: num,
+						chan: chan
+					)
+				);
+			}
+		);
+
+		MIDIdef.noteOn( // TODO: use Func, cleanup in a nornsemu_free function
+			\nornsemu_midi_noteon,
+			{ |vel, note, chan|
+				midi[\event].value(
+					(
+						type: 'note_on',
+						vel: vel,
+						note: note,
+						chan: chan
+					)
+				);
+			}
+		);
+
+		MIDIdef.noteOff( // TODO: use Func, cleanup in a nornsemu_free function
+			\nornsemu_midi_noteoff,
+			{ |vel, note, chan|
+				midi[\event].value(
+					(
+						type: 'note_off',
+						vel: vel,
+						note: note,
+						chan: chan
+					)
+				);
+			}
+		);
+
+		midi;
+	};
+
+	var init_midi = {
+		var midi = ();
+		midi.connect_ = {
+			midi_connect.value;
+		};
+		midi.to_data_ = { |msg|
+			msg // TODO
+		};
+		midi.to_msg_ = { |data|
+			data
+		};
+		midi
+	};
+
+
+	var module = IdentityDictionary[
+		\init_midi -> init_midi
 	];
 
 	module
@@ -75,8 +170,16 @@ libraries.grid = {
 		grid;
 	};
 
+	var init_grid = {
+		var grid = ();
+		grid.connect_ = {
+			grid_connect.value;
+		};
+		grid;
+	};
+
 	var module = IdentityDictionary[
-		\grid_connect -> grid_connect,
+		\init_grid -> init_grid
 	];
 
 	module
@@ -483,24 +586,91 @@ libraries.paramset = {
 	module;
 }.value;
 
+libraries.r_engine = {
+	var r_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
+	var r_api = this.executeFile(r_path);
+
+	var init = r_api[\init];
+	var free = r_api[\free];
+	var newCommand = r_api[\newCommand];
+	var connectCommand = r_api[\connectCommand];
+	var disconnectCommand = r_api[\disconnectCommand];
+	var deleteCommand = r_api[\deleteCommand];
+	var setCommand = r_api[\setCommand];
+	var bulksetCommand = r_api[\bulksetCommand];
+	var newmacroCommand = r_api[\newmacroCommand];
+	var deletemacroCommand = r_api[\deletemacroCommand];
+	var macrosetCommand = r_api[\macrosetCommand];
+	var readsampleCommand = r_api[\readsampleCommand];
+	var tapoutputCommand = r_api[\tapoutputCommand];
+	var tapclearCommand = r_api[\tapclearCommand];
+	var getSpecs = r_api[\getSpecs];
+
+	// server booted assumed
+	var load_engine = {
+		var r_instance;
+		var engine;
+
+		r_instance = init.value(
+			(
+				autostartServer: false,
+				trace: true
+			)
+		);
+
+		engine = ();
+		engine.new_ = { |self, name, kind|
+			newCommand.value(r_instance, name, kind);
+		};
+		engine.connect_ = { |self, moduleOutputRef, moduleInputRef|
+			connectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
+		};
+		engine.disconnect_ = { |self, moduleOutputRef, moduleInputRef|
+			disconnectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
+		};
+		engine.delete_ = { |self, moduleRef|
+			deleteCommand.value(r_instance, moduleRef);
+		};
+		engine.set_ = { |self, moduleParameterRef, value|
+			setCommand.value(r_instance, moduleParameterRef, value);
+		};
+		engine.bulkset_ = { |self, bundle|
+			bulksetCommand.value(r_instance, bundle);
+		};
+		engine.newmacro_ = { |self, name, bundle|
+			newmacroCommand.value(r_instance, name, bundle);
+		};
+		engine.deletemacro_ = { |self, name|
+			deletemacroCommand.value(r_instance, name);
+		};
+		engine.macroset_ = { |self, name, value|
+			macrosetCommand.value(r_instance, name, value);
+		};
+
+		(
+			instance: r_instance,
+			engine: engine,
+			library: (
+				specs_: getSpecs.value(r_instance)
+			)
+		)
+	};
+
+	var free_engine = { |instance|
+		free.value(instance[\r_instance]);
+	};
+
+	var module = IdentityDictionary[
+		\load_engine -> load_engine,
+		\free_engine -> free_engine
+	];
+
+	module
+}.value;
+
 {
 	var screen = libraries[\screen];
 	var init_screen = screen[\init_screen];
-/*
-	var screen_init = screen[\screen_init];
-	var screen_rect = screen[\screen_rect];
-	var screen_move = screen[\screen_move];
-	var screen_line = screen[\screen_line];
-	var screen_line_rel = screen[\screen_line_rel];
-	var screen_stroke = screen[\screen_stroke];
-	var screen_fill = screen[\screen_fill];
-	var screen_level = screen[\screen_level];
-	var screen_text = screen[\screen_text];
-	var screen_text_extents = screen[\screen_text_extents];
-	var screen_font_size = screen[\screen_font_size];
-	var screen_clear = screen[\screen_clear];
-	var screen_update = screen[\screen_update];
-*/
 
 	var metro = libraries[\metro];
 	var init_metro = metro[\init_metro];
@@ -509,77 +679,17 @@ libraries.paramset = {
 	var init_paramset = paramset[\init_paramset];
 
 	var arc = libraries[\arc];
-	var arc_connect = arc[\arc_connect];
+	var init_arc = arc[\init_arc];
+
+	var midi = libraries[\midi];
+	var init_midi = midi[\init_midi];
 
 	var grid = libraries[\grid];
-	var grid_connect = grid[\grid_connect];
+	var init_grid = grid[\init_grid];
 
-	var engine_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ "r_engine.scd";
-	var engine = this.executeFile(engine_path);
-	var load_engine = engine[\load_engine];
-	var free_engine = engine[\free_engine];
-
-	var enc_area_pressed = false ! 3;
-	var enc_area_prev_pos;
-	var key_state = false ! 3;
-
-	var mouse_move_action = { |view, x, y|
-		if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
-			var delta = enc_area_prev_pos.y - y;
-			if (delta != 0) {
-				case
-					{ enc_area_pressed[0] }
-					{
-						~enc.value(1, delta);
-					}
-					{ enc_area_pressed[1] }
-					{
-						~enc.value(2, delta);
-					}
-					{ enc_area_pressed[2] }
-					{
-						~enc.value(3, delta);
-					}
-					;
-				enc_area_prev_pos = x@y;
-			};
-		};
-	};
-
-	var mouse_down_action = { |view, x, y|
-		case
-			{ in_enc_1_area.value(x, y) }
-			{
-				enc_area_pressed[0] = true; // 
-			}
-			{ in_enc_2_area.value(x, y) }
-			{
-				enc_area_pressed[1] = true;
-			}
-			{ in_enc_3_area.value(x, y) }
-			{
-				enc_area_pressed[2] = true;
-			};
-		enc_area_prev_pos = x@y;
-	};
-
-	var mouse_up_action = { |view, x, y|
-		enc_area_pressed[0] = false;
-		enc_area_pressed[1] = false;
-		enc_area_pressed[2] = false;
-	};
-
-	var in_enc_1_area = { |x, y|
-		(x < (window_width/2)) and: (y < (window_height/2))
-	};
-
-	var in_enc_2_area = { |x, y|
-		(x < (window_width/2)) and: (y >= (window_height/2))
-	};
-
-	var in_enc_3_area = { |x, y|
-		(x >= (window_width/2)) and: (y >= (window_height/2))
-	};
+	var r_engine = libraries[\r_engine];
+	var load_engine = r_engine[\load_engine];
+	var free_engine = r_engine[\free_engine];
 
 	var scale = 7;
 	var screen_width = 128 * scale;
@@ -591,7 +701,7 @@ libraries.paramset = {
 	var window_width = screen_width + (margin_x*2);
 	var window_height = screen_height + (margin_y*2);
 
-	var start_script = { |script_func|
+	var start_script = { |engine, script_func|
 		var window = Window.new(
 			"[Script Name]",
 			Rect(
@@ -620,114 +730,183 @@ libraries.paramset = {
 					(bounds.width/2)-(screen_view.bounds.width/2),
 					(bounds.height/2)-(screen_view.bounds.height/2)
 				);
-			})
-			.mouseMoveAction_(mouse_move_action)
-			.acceptsMouseOver_(true)
-			.mouseOverAction_(mouse_move_action)
-			.mouseDownAction_(mouse_down_action)
-			.mouseUpAction_(mouse_up_action)
-			.keyModifiersChangedAction_({ |view, modifiers|
-				var shift_pressed;
-				var ctrl_pressed;
-				var alt_pressed;
-
-				shift_pressed = modifiers & 131072 == 131072;
-
-				ctrl_pressed = modifiers & 262144 == 262144;
-
-				alt_pressed = modifiers & 524288 == 524288;
-
-				case
-					{ key_state[0].not and: shift_pressed }
-					{
-						key_state[0] = true;
-						~key.value(1, 1);
-					}
-					{ key_state[0] and: shift_pressed.not }
-					{
-						key_state[0] = false;
-						~key.value(1, 0);
-					}
-				;
-
-				case
-					{ key_state[1].not and: ctrl_pressed }
-					{
-						key_state[1] = true;
-						~key.value(2, 1);
-					}
-					{ key_state[1] and: ctrl_pressed.not }
-					{
-						key_state[1] = false;
-						~key.value(2, 0);
-					}
-				;
-
-				case
-					{ key_state[2].not and: alt_pressed }
-					{
-						key_state[2] = true;
-						~key.value(3, 1);
-					}
-					{ key_state[2] and: alt_pressed.not }
-					{
-						key_state[2] = false;
-						~key.value(3, 0);
-					}
-				;
 			});
 
-		s.waitForBoot {
-			var r_engine = load_engine.value;
-			~engine = r_engine[\engine];
-			~r = r_engine[\library];
+		~engine = engine;
 
-			SerialOSCClient.init {
-				~screen = screen_api;
+		SerialOSCClient.init {
+			var setup_window_mouse_and_key_hooks = {
+				var enc_area_pressed = false ! 3;
+				var enc_area_prev_pos;
+				var key_state = false ! 3;
 
-				~metro = init_metro.value;
-				~params = init_paramset.value;
-				~mix = init_paramset.value;
-
-				~arc = ();
-				~arc.connect_ = {
-					arc_connect.value;
+				var mouse_move_action = { |view, x, y|
+					if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
+						var delta = enc_area_prev_pos.y - y;
+						if (delta != 0) {
+							case
+								{ enc_area_pressed[0] }
+								{
+									~enc.value(1, delta);
+								}
+								{ enc_area_pressed[1] }
+								{
+									~enc.value(2, delta);
+								}
+								{ enc_area_pressed[2] }
+								{
+									~enc.value(3, delta);
+								}
+								;
+							enc_area_prev_pos = x@y;
+						};
+					};
 				};
 
-				~grid = ();
-				~grid.connect_ = {
-					grid_connect.value;
+				var mouse_down_action = { |view, x, y|
+					case
+						{ in_enc_1_area.value(x, y) }
+						{
+							enc_area_pressed[0] = true; // 
+						}
+						{ in_enc_2_area.value(x, y) }
+						{
+							enc_area_pressed[1] = true;
+						}
+						{ in_enc_3_area.value(x, y) }
+						{
+							enc_area_pressed[2] = true;
+						};
+					enc_area_prev_pos = x@y;
 				};
 
-				~mix.add_(
-					(
-						type: 'control',
-						id: 'output',
-						name: "output",
-						controlspec: \db.asSpec
-					)
-				);
-				~mix.set_('output', 0);
+				var mouse_up_action = { |view, x, y|
+					enc_area_pressed[0] = false;
+					enc_area_pressed[1] = false;
+					enc_area_pressed[2] = false;
+				};
 
+				var in_enc_1_area = { |x, y|
+					(x < (window_width/2)) and: (y < (window_height/2))
+				};
 
-				script_func.value;
+				var in_enc_2_area = { |x, y|
+					(x < (window_width/2)) and: (y >= (window_height/2))
+				};
 
-				~init.value;
-				window.front;
-				~redraw.value;
+				var in_enc_3_area = { |x, y|
+					(x >= (window_width/2)) and: (y >= (window_height/2))
+				};
+
+				window.view
+					.mouseMoveAction_(mouse_move_action)
+					.acceptsMouseOver_(true)
+					.mouseOverAction_(mouse_move_action)
+					.mouseDownAction_(mouse_down_action)
+					.mouseUpAction_(mouse_up_action)
+					.keyModifiersChangedAction_({ |view, modifiers|
+						var shift_pressed;
+						var ctrl_pressed;
+						var alt_pressed;
+
+						shift_pressed = modifiers & 131072 == 131072;
+
+						ctrl_pressed = modifiers & 262144 == 262144;
+
+						alt_pressed = modifiers & 524288 == 524288;
+
+						case
+							{ key_state[0].not and: shift_pressed }
+							{
+								key_state[0] = true;
+								~key.value(1, 1);
+							}
+							{ key_state[0] and: shift_pressed.not }
+							{
+								key_state[0] = false;
+								~key.value(1, 0);
+							}
+						;
+
+						case
+							{ key_state[1].not and: ctrl_pressed }
+							{
+								key_state[1] = true;
+								~key.value(2, 1);
+							}
+							{ key_state[1] and: ctrl_pressed.not }
+							{
+								key_state[1] = false;
+								~key.value(2, 0);
+							}
+						;
+
+						case
+							{ key_state[2].not and: alt_pressed }
+							{
+								key_state[2] = true;
+								~key.value(3, 1);
+							}
+							{ key_state[2] and: alt_pressed.not }
+							{
+								key_state[2] = false;
+								~key.value(3, 0);
+							}
+						;
+					});
 			};
+
+			~screen = screen_api;
+
+			~metro = init_metro.value;
+			~params = init_paramset.value;
+			~mix = init_paramset.value;
+			~midi = init_midi.value.debug(\fdksajfksdajf);
+			~arc = init_arc.value;
+			~grid = init_grid.value;
+
+			~mix.add_(
+				(
+					type: 'control',
+					id: 'output',
+					name: "output",
+					controlspec: \db.asSpec
+				)
+			);
+			~mix.set_('output', 0);
+
+			defer {
+				setup_window_mouse_and_key_hooks.value;
+			};
+
+			script_func.value(engine);
+
+			~init.value;
+			window.front;
+			~redraw.value;
 		};
 
 		~window = window;
 	};
 
+	var start_r_engine_script = { |script_func|
+		s.waitForBoot {
+			var r_engine = load_engine.value;
+			var engine = r_engine[\engine];
+			~r = r_engine[\library];
+			start_script.value(engine, script_func)
+		};
+	};
+
 	var stop_script = { |script_instance|
 		// this should probably be triggered by CmdPeriod
 		// call ~cleanup
+		// call free_engine
 	};
 
 	var module = IdentityDictionary[
 		\start_script -> start_script,
+		\start_r_engine_script -> start_r_engine_script,
 		\stop_script -> stop_script
 	];
 

@@ -1,5 +1,5 @@
 (
-var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../../util/nel.scd").standardizePath;
+var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../../../util/nel.scd").standardizePath;
 var nel = this.executeFile(nel_path);
 
 var start_script = nel['start_script'];
@@ -7,8 +7,6 @@ var start_script = nel['start_script'];
 start_script.value {
 	~init = {
 		var screen_refresh_metro;
-		~screen_dirty = false
-		~framerate = 15
 /*
 		var arc_device = ~arc.connect_();
 		var grid_device = ~grid.connect_();
@@ -16,14 +14,20 @@ start_script.value {
 		arc_device.led_(1, 1, 15);
 		grid_device.led_(1, 1, 15);
 */
+		~screen_dirty = false;
+		~framerate = 60;
+
 		screen_refresh_metro = ~metro.init_();
-		screen_refresh_metro[\event_] = {
+		screen_refresh_metro[\event] = {
+/*
 			if (~screen_dirty) {
 				~screen_dirty = false;
 				~redraw.value;
 			};
+*/
+			~redraw.value;
 		};
-		screen_refresh_metro.start_(1 / framerate);
+		screen_refresh_metro.start_(1 / ~framerate);
 	};
 
 	~redraw = {
@@ -31,8 +35,10 @@ start_script.value {
 			~screen.clear_();
 		};
 		~screen.level_(15);
+		~screen.rect_(1, 1, 1, 1);
 		~screen.move_(128.rand+1, 64.rand+1);
 		~screen.line_(128.rand+1, 64.rand+1);
+		~screen.stroke_();
 		~screen.update_();
 	};
 

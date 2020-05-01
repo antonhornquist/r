@@ -1,9 +1,9 @@
 (
 var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../../util/nel.scd").standardizePath;
 var nel = this.executeFile(nel_path);
-var start_script = nel['start_script'];
+var start_r_engine_script = nel['start_r_engine_script'];
 
-start_script.value {
+start_r_engine_script.value {
 	// scriptname: 1_square
 	// v1.1.0 @jah
 	var formatters_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "formatters.scd").standardizePath;
@@ -221,7 +221,28 @@ start_script.value {
 		~engine.set_("FilterMod.Out", 1);
 		~engine.set_("Filter.FM", 1);
 
-		~params.bang_()
+		~params.bang_();
+
+		~midi_device = ~midi.connect_(0);
+		~midi_device.event = { |data|
+			case
+			{ data.type == 'note_on' } {
+				~params.set_("note", data.note);
+				~params.set_("gate", 1);
+			}
+			{ data.type == 'note_off' } {
+				~params.set_("gate", 0);
+			}
+			{ (data.type == 'cc') and: (data.num ==1) } {
+				~params.set_raw_("filter_frequency", data.val/127);
+			}
+			{ (data.type == 'cc') and: (data.num ==2) } {
+				~params.set_raw_("filter_resonance", data.val/127);
+			}
+			{ (data.type == 'cc') and: (data.num ==3) } {
+				~params.set_raw_("lfo_frequency", data.val/127);
+			};
+		};
 	};
 
 	~redraw = {

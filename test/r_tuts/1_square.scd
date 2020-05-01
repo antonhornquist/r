@@ -1,20 +1,20 @@
 (
 var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../../util/nel.scd").standardizePath;
 var nel = this.executeFile(nel_path);
-var start_script = nel['start_script'];
+var start_r_engine_script = nel['start_r_engine_script'];
 
-start_script.value {
+start_r_engine_script.value { |engine|
 	// scriptname: 2_pwm
 	// v1.1.0 @jah
 	var formatters_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "formatters.scd").standardizePath;
 	var formatters = this.executeFile(formatters_path);
 
 	~init = {
-		~engine.new_("Osc", "PulseOsc");
-		~engine.new_("SoundOut", "SoundOut");
+		engine.new_("Osc", "PulseOsc");
+		engine.new_("SoundOut", "SoundOut");
 
-		~engine.connect_("Osc/Out", "SoundOut*Left");
-		~engine.connect_("Osc/Out", "SoundOut*Right");
+		engine.connect_("Osc/Out", "SoundOut*Left");
+		engine.connect_("Osc/Out", "SoundOut*Right");
 
 		~params.add_(
 			(
@@ -22,7 +22,7 @@ start_script.value {
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: ~r.specs_['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
+				action: { |value| engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -32,7 +32,7 @@ start_script.value {
 				id: "osc_tune",
 				name: "Osc.Tune",
 				controlspec: ~r.specs_['PulseOsc']['Tune'],
-				action: { |value| ~engine.set_("Osc.Tune", value) }
+				action: { |value| engine.set_("Osc.Tune", value) }
 			)
 		);
 
@@ -43,7 +43,7 @@ start_script.value {
 				name: "Osc.PulseWidth",
 				controlspec: ~r.specs_['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
+				action: { |value| engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 
