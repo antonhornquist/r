@@ -453,6 +453,7 @@ libraries.paramset = {
 	var screen_rect = screen[\screen_rect];
 	var screen_move = screen[\screen_move];
 	var screen_line = screen[\screen_line];
+	var screen_line_rel = screen[\screen_line_rel];
 	var screen_stroke = screen[\screen_stroke];
 	var screen_fill = screen[\screen_fill];
 	var screen_level = screen[\screen_level];
@@ -563,6 +564,9 @@ libraries.paramset = {
 		};
 		screen.line_ = { |self, x, y|
 			screen_line.value(screen_instance, x, y);
+		};
+		screen.line_rel_ = { |self, x, y|
+			screen_line_rel.value(screen_instance, x, y);
 		};
 		screen.stroke_ = { |self|
 			screen_stroke.value(screen_instance);
