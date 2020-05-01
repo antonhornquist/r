@@ -67,9 +67,24 @@ var screen_move = { |instance, x_pos, y_pos|
 var screen_line = { |instance, x_pos, y_pos|
 	var scale = instance[\scale];
 	var level = instance[\level];
-	var color = instance[\colors][level];
 	x_pos = x_pos - 1;
 	y_pos = y_pos - 1;
+	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+		{
+			// TODO [\Pen, \width_, scale].debug;
+			Pen.width = scale;
+			// TODO [\Pen, \lineTo, round(scale * x_pos)@round(scale * y_pos)].debug;
+			Pen.lineTo(round(scale * x_pos)@round(scale * y_pos));
+		}
+	);
+};
+
+var screen_line_rel = { |instance, x_rel, y_rel|
+	var scale = instance[\scale];
+	var level = instance[\level];
+	var position = instance[\position];
+	var x_pos = position.x + x_rel;
+	var y_pos = position.y + y_rel;
 	instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 		{
 			// TODO [\Pen, \width_, scale].debug;
