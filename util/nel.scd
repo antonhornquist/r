@@ -1,7 +1,7 @@
 (
-var libraries = ();
+var namespaces = ();
 
-libraries.arc = {
+namespaces.arc = {
 	// utility library to use a SerialOSCEnc to mock a norns enc, implementing a subset of functions.
 
 	var arc_connect = { |n|
@@ -47,7 +47,7 @@ libraries.arc = {
 	module
 }.value;
 
-libraries.midi = {
+namespaces.midi = {
 	var midi_connect = { |n|
 		var midi;
 
@@ -134,7 +134,7 @@ libraries.midi = {
 	module
 }.value;
 
-libraries.grid = {
+namespaces.grid = {
 	// utility library to use a SerialOSCGrid to mock a norns grid, implementing a subset of functions.
 
 	var grid_connect = { |n|
@@ -185,7 +185,7 @@ libraries.grid = {
 	module
 }.value;
 
-libraries.metro = {
+namespaces.metro = {
 	var init_metro = {
 		var metros = [];
 
@@ -244,7 +244,7 @@ libraries.metro = {
 	module;
 }.value;
 
-libraries.screen = {
+namespaces.screen = {
 	// utility library to mock a UserView as a norns screen, drawable with a limited subset of norns screen functions. uses 1 based coordinates. uses global ~screen global for storage of relevant objects (not functions). relies on global ~redraw function wherein screen_* commands are performed.
 
 	var screen_width = 128;
@@ -291,7 +291,6 @@ libraries.screen = {
 
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \addRect, Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height))].debug;
 				Pen.addRect(Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height)));
 			}
 		);
@@ -304,7 +303,6 @@ libraries.screen = {
 		y_pos = y_pos - 1;
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \moveTo, round(scale * x_pos)@round(scale * y_pos)].debug;
 				Pen.moveTo(round(scale * x_pos)@round(scale * y_pos));
 			}
 		);
@@ -317,9 +315,7 @@ libraries.screen = {
 		y_pos = y_pos - 1;
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \width_, scale].debug;
 				Pen.width = scale;
-				// TODO [\Pen, \lineTo, round(scale * x_pos)@round(scale * y_pos)].debug;
 				Pen.lineTo(round(scale * x_pos)@round(scale * y_pos));
 			}
 		);
@@ -333,9 +329,7 @@ libraries.screen = {
 		var y_pos = position.y + y_rel;
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \width_, scale].debug;
 				Pen.width = scale;
-				// TODO [\Pen, \lineTo, round(scale * x_pos)@round(scale * y_pos)].debug;
 				Pen.lineTo(round(scale * x_pos)@round(scale * y_pos));
 			}
 		);
@@ -346,9 +340,7 @@ libraries.screen = {
 		var color = instance[\colors][level];
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \strokeColor_, color].debug;
 				Pen.strokeColor = color;
-				// TODO [\Pen, \stroke].debug;
 				Pen.stroke;
 			}
 		);
@@ -369,11 +361,8 @@ libraries.screen = {
 
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \font_, instance[\font]].debug;
 				Pen.font = instance[\font];
-				// TODO [\Pen, \color_, color].debug;
 				Pen.color = color;
-				// TODO [\Pen, \stringAtPoint, text, round(scale * x_pos)@round(scale * y_pos)].debug;
 				Pen.stringAtPoint(text, round(scale * x_pos)@round(scale * y_pos));
 			}
 		);
@@ -396,9 +385,7 @@ libraries.screen = {
 		var color = instance[\colors][level];
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
-				// TODO [\Pen, \fillColor_, color].debug;
 				Pen.fillColor = color;
-				// TODO [\Pen, \fill].debug;
 				Pen.fill;
 			}
 		);
@@ -414,11 +401,8 @@ libraries.screen = {
 				var height = view.bounds.height;
 				var x_pos = 0;
 				var y_pos = 0;
-				// TODO [\Pen, \addRect, Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height))].debug;
 				Pen.addRect(Rect(round(scale * x_pos), round(scale * y_pos), round(scale * width), round(scale * height)));
-				// TODO [\Pen, \fillColor_, background_color].debug;
 				Pen.fillColor = background_color;
-				// TODO [\Pen, \fill].debug;
 				Pen.fill;
 			}
 		);
@@ -492,7 +476,7 @@ libraries.screen = {
 	module
 }.value;
 
-libraries.paramset = {
+namespaces.paramset = {
 	var init_paramset = {
 		var params = [];
 
@@ -586,7 +570,7 @@ libraries.paramset = {
 	module;
 }.value;
 
-libraries.r_engine = {
+namespaces.r_engine = {
 	var r_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
 	var r_api = this.executeFile(r_path);
 
@@ -669,25 +653,25 @@ libraries.r_engine = {
 }.value;
 
 {
-	var screen = libraries[\screen];
+	var screen = namespaces[\screen];
 	var init_screen = screen[\init_screen];
 
-	var metro = libraries[\metro];
+	var metro = namespaces[\metro];
 	var init_metro = metro[\init_metro];
 
-	var paramset = libraries[\paramset];
+	var paramset = namespaces[\paramset];
 	var init_paramset = paramset[\init_paramset];
 
-	var arc = libraries[\arc];
+	var arc = namespaces[\arc];
 	var init_arc = arc[\init_arc];
 
-	var midi = libraries[\midi];
+	var midi = namespaces[\midi];
 	var init_midi = midi[\init_midi];
 
-	var grid = libraries[\grid];
+	var grid = namespaces[\grid];
 	var init_grid = grid[\init_grid];
 
-	var r_engine = libraries[\r_engine];
+	var r_engine = namespaces[\r_engine];
 	var load_engine = r_engine[\load_engine];
 	var free_engine = r_engine[\free_engine];
 
@@ -861,7 +845,7 @@ libraries.r_engine = {
 			~metro = init_metro.value;
 			~params = init_paramset.value;
 			~mix = init_paramset.value;
-			~midi = init_midi.value.debug(\fdksajfksdajf);
+			~midi = init_midi.value;
 			~arc = init_arc.value;
 			~grid = init_grid.value;
 
