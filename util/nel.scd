@@ -597,7 +597,7 @@ namespaces.r_engine = {
 		r_instance = init.value(
 			(
 				autostartServer: false,
-				trace: true
+				trace: false
 			)
 		);
 
