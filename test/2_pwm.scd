@@ -7,7 +7,7 @@ var include = { |relative_path|
 var nel = include.value("../util/nel.scd");
 var start_r_engine_script = nel['start_r_engine_script'];
 
-start_r_engine_script.value {
+start_r_engine_script.value { |engine|
 	// scriptname: 2_pwm
 	// v1.1.0 @jah
 	var formatters = include.value("formatters.scd");
@@ -17,13 +17,13 @@ start_r_engine_script.value {
 		var lfo_frequency_spec;
 		var lfo_to_osc_pwm_spec;
 
-		~engine.new_("LFO", "MultiLFO");
-		~engine.new_("Osc", "PulseOsc");
-		~engine.new_("SoundOut", "SoundOut");
+		engine.new_("LFO", "MultiLFO");
+		engine.new_("Osc", "PulseOsc");
+		engine.new_("SoundOut", "SoundOut");
 
-		~engine.connect_("LFO/Sine", "Osc*PWM");
-		~engine.connect_("Osc/Out", "SoundOut*Left");
-		~engine.connect_("Osc/Out", "SoundOut*Right");
+		engine.connect_("LFO/Sine", "Osc*PWM");
+		engine.connect_("Osc/Out", "SoundOut*Left");
+		engine.connect_("Osc/Out", "SoundOut*Right");
 
 		~params.add_(
 			(
@@ -31,7 +31,7 @@ start_r_engine_script.value {
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
+				action: { |value| engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -45,7 +45,7 @@ start_r_engine_script.value {
 				name: "LFO.Frequency",
 				controlspec: lfo_frequency_spec,
 				formatter: formatters.round_(0.001),
-				action: { |value| ~engine.set_("LFO.Frequency", value) }
+				action: { |value| engine.set_("LFO.Frequency", value) }
 			)
 		);
 
@@ -55,7 +55,7 @@ start_r_engine_script.value {
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
+				action: { |value| engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -65,7 +65,7 @@ start_r_engine_script.value {
 				id: "osc_tune",
 				name: "Osc.Tune",
 				controlspec: r_specs['PulseOsc']['Tune'],
-				action: { |value| ~engine.set_("Osc.Tune", value) }
+				action: { |value| engine.set_("Osc.Tune", value) }
 			)
 		);
 
@@ -76,7 +76,7 @@ start_r_engine_script.value {
 				name: "Osc.PulseWidth",
 				controlspec: r_specs['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
+				action: { |value| engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 
@@ -90,7 +90,7 @@ start_r_engine_script.value {
 				name: "LFO > Osc.PWM",
 				controlspec: lfo_to_osc_pwm_spec,
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PWM", value) }
+				action: { |value| engine.set_("Osc.PWM", value) }
 			)
 		);
 

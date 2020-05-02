@@ -7,7 +7,7 @@ var include = { |relative_path|
 var nel = include.value("../util/nel.scd");
 var start_r_engine_script = nel['start_r_engine_script'];
 
-start_r_engine_script.value {
+start_r_engine_script.value { |engine|
 	// scriptname: 3_filter
 	// v1.1.0 @jah
 	var formatters = include.value("formatters.scd");
@@ -20,18 +20,18 @@ start_r_engine_script.value {
 		var filter_resonance_spec;
 		var lfo_to_filter_fm_spec;
 
-		~engine.new_("LFO", "MultiLFO");
-		~engine.new_("Osc", "PulseOsc");
-		~engine.new_("Filter", "MMFilter");
-		~engine.new_("SoundOut", "SoundOut");
+		engine.new_("LFO", "MultiLFO");
+		engine.new_("Osc", "PulseOsc");
+		engine.new_("Filter", "MMFilter");
+		engine.new_("SoundOut", "SoundOut");
 
-		~engine.connect_("LFO/Sine", "Osc*PWM");
-		~engine.connect_("LFO/Sine", "Filter*FM");
+		engine.connect_("LFO/Sine", "Osc*PWM");
+		engine.connect_("LFO/Sine", "Filter*FM");
 
-		~engine.connect_("Osc/Out", "Filter*In");
+		engine.connect_("Osc/Out", "Filter*In");
 
-		~engine.connect_("Filter/Lowpass", "SoundOut*Left");
-		~engine.connect_("Filter/Lowpass", "SoundOut*Right");
+		engine.connect_("Filter/Lowpass", "SoundOut*Left");
+		engine.connect_("Filter/Lowpass", "SoundOut*Right");
 
 		~params.add_(
 			(
@@ -39,7 +39,7 @@ start_r_engine_script.value {
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
+				action: { |value| engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -53,7 +53,7 @@ start_r_engine_script.value {
 				name: "LFO.Frequency",
 				controlspec: lfo_frequency_spec,
 				formatter: formatters.round_(0.001),
-				action: { |value| ~engine.set_("LFO.Frequency", value) }
+				action: { |value| engine.set_("LFO.Frequency", value) }
 			)
 		);
 
@@ -63,7 +63,7 @@ start_r_engine_script.value {
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
+				action: { |value| engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -73,7 +73,7 @@ start_r_engine_script.value {
 				id: "osc_tune",
 				name: "Osc.Tune",
 				controlspec: r_specs['PulseOsc']['Tune'],
-				action: { |value| ~engine.set_("Osc.Tune", value) }
+				action: { |value| engine.set_("Osc.Tune", value) }
 			)
 		);
 
@@ -84,7 +84,7 @@ start_r_engine_script.value {
 				name: "Osc.PulseWidth",
 				controlspec: r_specs['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
+				action: { |value| engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 
@@ -98,7 +98,7 @@ start_r_engine_script.value {
 				name: "LFO > Osc.PWM",
 				controlspec: lfo_to_osc_pwm_spec,
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PWM", value) }
+				action: { |value| engine.set_("Osc.PWM", value) }
 			)
 		);
 
@@ -111,7 +111,7 @@ start_r_engine_script.value {
 				id: "filter_frequency",
 				name: "Filter.Frequency",
 				controlspec: filter_frequency_spec,
-				action: { |value| ~engine.set_("Filter.Frequency", value) }
+				action: { |value| engine.set_("Filter.Frequency", value) }
 			)
 		);
 
@@ -125,7 +125,7 @@ start_r_engine_script.value {
 				name: "Filter.Resonance",
 				controlspec: filter_resonance_spec,
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Filter.Resonance", value) }
+				action: { |value| engine.set_("Filter.Resonance", value) }
 			)
 		);
 
@@ -139,7 +139,7 @@ start_r_engine_script.value {
 				name: "LFO > Filter.FM",
 				controlspec: lfo_to_filter_fm_spec,
 				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Filter.FM", value) }
+				action: { |value| engine.set_("Filter.FM", value) }
 			)
 		);
 
