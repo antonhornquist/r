@@ -588,7 +588,6 @@ namespaces.r_engine = {
 	var readsampleCommand = r_api[\readsampleCommand];
 	var tapoutputCommand = r_api[\tapoutputCommand];
 	var tapclearCommand = r_api[\tapclearCommand];
-	var getSpecs = r_api[\getSpecs];
 
 	// server booted assumed
 	var load_engine = {
@@ -633,10 +632,7 @@ namespaces.r_engine = {
 
 		(
 			instance: r_instance,
-			engine: engine,
-			library: (
-				specs_: getSpecs.value(r_instance)
-			)
+			engine: engine
 		)
 	};
 

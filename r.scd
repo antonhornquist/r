@@ -6062,7 +6062,8 @@ var getModuleDefs = { |self|
 	self[\moduleDefs]
 };
 
-var getSpecs = { |self|
+// TODO: report *all* specs, deduce to param specs in r_specs.scd
+var getCoreStdModuleSpecs = {
 	var getModuleDefParamControlSpecs = { |moduleDef|
 		var params = getModuleDefParams.value(moduleDef);
 		if (params.notNil) {
@@ -6085,7 +6086,8 @@ var getSpecs = { |self|
 		}
 	};
 
-	getModuleDefs.value(self).collect { |moduleDef|
+	var moduleDefs = validateAndExpandModuleDefs.value(coreModules++stdModules);
+	moduleDefs.collect { |moduleDef|
 		var moduleRef = moduleDef[\name];
 		var spec = getModuleDefSpec.value(moduleDef);
 		moduleRef -> getModuleDefParamControlSpecs.value(moduleDef);
@@ -6110,7 +6112,7 @@ var api = IdentityDictionary[
 	\getTapBus -> getTapBus,
 	\getVisualBus -> getVisualBus,
 	\generateDocsForAllModules -> generateDocsForAllModules,
-	\getSpecs -> getSpecs
+	\getCoreStdModuleSpecs -> getCoreStdModuleSpecs
 ];
 
 api

@@ -1,13 +1,17 @@
 (
-var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/nel.scd").standardizePath;
-var nel = this.executeFile(nel_path);
+var include = { |relative_path|
+	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
+	this.executeFile(path);
+};
+
+var nel = include.value("../util/nel.scd");
 var start_r_engine_script = nel['start_r_engine_script'];
 
 start_r_engine_script.value {
-	// scriptname: 1_square
+	// scriptname: 4_voice
 	// v1.1.0 @jah
-	var formatters_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "formatters.scd").standardizePath;
-	var formatters = this.executeFile(formatters_path);
+	var formatters = include.value("formatters.scd");
+	var r_specs = include.value("r_specs.scd");
 
 	~init = {
 		var lfo_frequency_spec;
@@ -49,7 +53,7 @@ start_r_engine_script.value {
 				type: "control",
 				id: "gate",
 				name: "Gate",
-				controlspec: ~r.specs_['FreqGate']['Gate'],
+				controlspec: r_specs['FreqGate']['Gate'],
 				action: { |value| ~engine.set_("FreqGate.Gate", value) }
 			)
 		);
@@ -69,12 +73,12 @@ start_r_engine_script.value {
 				type: "control",
 				id: "osc_range",
 				name: "Osc.Range",
-				controlspec: ~r.specs_['PulseOsc']['Range'],
+				controlspec: r_specs['PulseOsc']['Range'],
 				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
 
-		lfo_frequency_spec = ~r.specs_['MultiLFO']['Frequency'].copy();
+		lfo_frequency_spec = r_specs['MultiLFO']['Frequency'].copy();
 		lfo_frequency_spec.default = 0.2;
 
 		~params.add_(
@@ -93,13 +97,13 @@ start_r_engine_script.value {
 				type: "control",
 				id: "osc_pulsewidth",
 				name: "Osc.PulseWidth",
-				controlspec: ~r.specs_['PulseOsc']['PulseWidth'],
+				controlspec: r_specs['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
 				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 
-		lfo_to_osc_pwm_spec = ~r.specs_['PulseOsc']['PWM'].copy();
+		lfo_to_osc_pwm_spec = r_specs['PulseOsc']['PWM'].copy();
 		lfo_to_osc_pwm_spec.default = 0.6;
 
 		~params.add_(
@@ -113,7 +117,7 @@ start_r_engine_script.value {
 			)
 		);
 
-		env_attack_spec = ~r.specs_['ADSREnv']['Attack'].copy();
+		env_attack_spec = r_specs['ADSREnv']['Attack'].copy();
 		env_attack_spec.default = 1;
 
 		~params.add_(
@@ -126,7 +130,7 @@ start_r_engine_script.value {
 			)
 		);
 
-		env_decay_spec = ~r.specs_['ADSREnv']['Decay'].copy();
+		env_decay_spec = r_specs['ADSREnv']['Decay'].copy();
 		env_decay_spec.default = 800;
 
 		~params.add_(
@@ -144,13 +148,13 @@ start_r_engine_script.value {
 				type: "control",
 				id: "env_sustain",
 				name: "Env.Sustain",
-				controlspec: ~r.specs_['ADSREnv']['Sustain'],
+				controlspec: r_specs['ADSREnv']['Sustain'],
 				formatter: formatters['percentage'],
 				action: { |value| ~engine.set_("Env.Sustain", value) }
 			)
 		);
 
-		env_release_spec = ~r.specs_['ADSREnv']['Release'].copy();
+		env_release_spec = r_specs['ADSREnv']['Release'].copy();
 		env_release_spec.default = 800;
 
 		~params.add_(
@@ -163,7 +167,7 @@ start_r_engine_script.value {
 			)
 		);
 
-		filter_frequency_spec = ~r.specs_['MMFilter']['Frequency'].copy();
+		filter_frequency_spec = r_specs['MMFilter']['Frequency'].copy();
 		filter_frequency_spec.default = 2000;
 
 		~params.add_(
@@ -176,7 +180,7 @@ start_r_engine_script.value {
 			)
 		);
 
-		filter_resonance_spec = ~r.specs_['MMFilter']['Resonance'].copy();
+		filter_resonance_spec = r_specs['MMFilter']['Resonance'].copy();
 		filter_resonance_spec.default = 0.4;
 
 		~params.add_(
@@ -190,7 +194,7 @@ start_r_engine_script.value {
 			)
 		);
 
-		lfo_to_filter_fm_spec = ~r.specs_['LinMixer']['In1'].copy();
+		lfo_to_filter_fm_spec = r_specs['LinMixer']['In1'].copy();
 		lfo_to_filter_fm_spec.default = 0.4;
 
 		~params.add_(
@@ -204,7 +208,7 @@ start_r_engine_script.value {
 			)
 		);
 
-		env_to_filter_fm_spec = ~r.specs_['LinMixer']['In2'].copy();
+		env_to_filter_fm_spec = r_specs['LinMixer']['In2'].copy();
 		env_to_filter_fm_spec.default = 0.3;
 
 		~params.add_(

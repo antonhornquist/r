@@ -1,13 +1,17 @@
 (
-var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/nel.scd").standardizePath;
-var nel = this.executeFile(nel_path);
-var start_script = nel['start_script'];
+var include = { |relative_path|
+	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
+	this.executeFile(path);
+};
 
-start_script.value {
-	// scriptname: 1_square
+var nel = include.value("../util/nel.scd");
+var start_r_engine_script = nel['start_r_engine_script'];
+
+start_r_engine_script.value {
+	// scriptname: 3_filter
 	// v1.1.0 @jah
-	var formatters_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "formatters.scd").standardizePath;
-	var formatters = this.executeFile(formatters_path);
+	var formatters = include.value("formatters.scd");
+	var r_specs = include.value("r_specs.scd");
 
 	~init = {
 		var lfo_frequency_spec;
@@ -34,12 +38,12 @@ start_script.value {
 				type: "control",
 				id: "osc_range",
 				name: "Osc.Range",
-				controlspec: ~r.specs_['PulseOsc']['Range'],
+				controlspec: r_specs['PulseOsc']['Range'],
 				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
 
-		lfo_frequency_spec = ~r.specs_['MultiLFO']['Frequency'].copy();
+		lfo_frequency_spec = r_specs['MultiLFO']['Frequency'].copy();
 		lfo_frequency_spec.default = 0.2;
 
 		~params.add_(
@@ -58,7 +62,7 @@ start_script.value {
 				type: "control",
 				id: "osc_range",
 				name: "Osc.Range",
-				controlspec: ~r.specs_['PulseOsc']['Range'],
+				controlspec: r_specs['PulseOsc']['Range'],
 				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
@@ -68,7 +72,7 @@ start_script.value {
 				type: "control",
 				id: "osc_tune",
 				name: "Osc.Tune",
-				controlspec: ~r.specs_['PulseOsc']['Tune'],
+				controlspec: r_specs['PulseOsc']['Tune'],
 				action: { |value| ~engine.set_("Osc.Tune", value) }
 			)
 		);
@@ -78,13 +82,13 @@ start_script.value {
 				type: "control",
 				id: "osc_pulsewidth",
 				name: "Osc.PulseWidth",
-				controlspec: ~r.specs_['PulseOsc']['PulseWidth'],
+				controlspec: r_specs['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
 				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 
-		lfo_to_osc_pwm_spec = ~r.specs_['PulseOsc']['PWM'].copy();
+		lfo_to_osc_pwm_spec = r_specs['PulseOsc']['PWM'].copy();
 		lfo_to_osc_pwm_spec.default = 0.6;
 
 		~params.add_(
@@ -98,7 +102,7 @@ start_script.value {
 			)
 		);
 
-		filter_frequency_spec = ~r.specs_['MMFilter']['Frequency'].copy();
+		filter_frequency_spec = r_specs['MMFilter']['Frequency'].copy();
 		filter_frequency_spec.default = 2000;
 
 		~params.add_(
@@ -111,7 +115,7 @@ start_script.value {
 			)
 		);
 
-		filter_resonance_spec = ~r.specs_['MMFilter']['Resonance'].copy();
+		filter_resonance_spec = r_specs['MMFilter']['Resonance'].copy();
 		filter_resonance_spec.default = 0.4;
 
 		~params.add_(
@@ -125,7 +129,7 @@ start_script.value {
 			)
 		);
 
-		lfo_to_filter_fm_spec = ~r.specs_['MMFilter']['FM'].copy();
+		lfo_to_filter_fm_spec = r_specs['MMFilter']['FM'].copy();
 		lfo_to_filter_fm_spec.default = 0.4;
 
 		~params.add_(
