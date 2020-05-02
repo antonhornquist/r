@@ -1,5 +1,5 @@
 (
-var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../../util/nel.scd").standardizePath;
+var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/nel.scd").standardizePath;
 var nel = this.executeFile(nel_path);
 var start_script = nel['start_script'];
 

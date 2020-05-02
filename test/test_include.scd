@@ -4,5 +4,5 @@ var include = { |relative_path|
 	this.executeFile(path);
 };
 
-var r = include.("../../r.scd");
+var r = include.("../r.scd");
 )

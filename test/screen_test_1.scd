@@ -1,5 +1,5 @@
 (
-var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ ".." +/+ ".." +/+ "util" +/+ "nel" +/+ "screen.scd";
+var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "util" +/+ "nel" +/+ "screen.scd";
 var screen = this.executeFile(screen_path);
 
 var scale = 4;
