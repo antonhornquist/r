@@ -8,7 +8,7 @@ var nel = include.value("../util/nel.scd");
 var start_r_engine_script = nel['start_r_engine_script'];
 
 start_r_engine_script.value { |engine|
-	// scriptname: 2_pwm
+	// scriptname: 1_square
 	// v1.1.0 @jah
 	var formatters = include.value("formatters.scd");
 	var r_specs = include.value("r_specs.scd");

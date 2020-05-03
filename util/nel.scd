@@ -685,7 +685,7 @@ if (~include_nel_libraries.asBoolean) {
 		var load_engine = r_engine[\load_engine];
 		var free_engine = r_engine[\free_engine];
 
-		var scale = 4;
+		var scale = 2;
 		var screen_width = 128 * scale;
 		var screen_height = 64 * scale;
 

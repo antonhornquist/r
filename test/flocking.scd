@@ -285,7 +285,8 @@ start_script.value(nil) {
 
 		~params.get_('boids').do {
 			//var boid = boid_new.value(vector3d_new.value(width/2, height/2), 1.0, 0.05);
-			var boid = boid_new.value(vector3d_new.value(width.rand, height.rand), 1.0, 0.05);
+			// var boid = boid_new.value(vector3d_new.value(width.rand, height.rand), 1.0, 0.05);
+			var boid = boid_new.value(vector3d_new.value(width.rand, height.rand), 3.0, 0.1);
 /*
 			boid.left_edge = function(b)
 				engine.hz(to_hz(notes[rand]))
@@ -316,7 +317,7 @@ start_script.value(nil) {
 				type: 'control',
 				id: 'boids',
 				name: "boids",
-				controlspec: ControlSpec(5, 25, default: 7),
+				controlspec: ControlSpec(5, 25, default: 10),
 			)
 		);
 
@@ -324,7 +325,7 @@ start_script.value(nil) {
 			(
 				type: 'control',
 				id: 'sep',
-				name: "sep",
+				name: "separation", // steer to avoid crowding local flockmates
 				controlspec: ControlSpec(1, 10, default: 2),
 			)
 		);
@@ -333,7 +334,7 @@ start_script.value(nil) {
 			(
 				type: 'control',
 				id: 'ali',
-				name: "ali",
+				name: "alignment", // steer towards the average heading of local flockmates
 				controlspec: ControlSpec(1, 10, default: 1),
 			)
 		);
@@ -342,7 +343,7 @@ start_script.value(nil) {
 			(
 				type: 'control',
 				id: 'coh',
-				name: "coh",
+				name: "cohesion", // steer to move towards the average position (center of mass) of local flockmates
 				controlspec: ControlSpec(1, 10, default: 1),
 			)
 		);
@@ -387,15 +388,15 @@ start_script.value(nil) {
 		case
 		{n == 1} {
 			~params.delta_('coh', delta);
-			~redraw.value();
+			postln(~params.string_('coh'));
 		}
 		{n == 2} {
 			~params.delta_('sep', delta);
-			~redraw.value();
+			postln(~params.string_('sep'));
 		}
 		{ n == 3 } {
 			~params.delta_('ali', delta);
-			~redraw.value();
+			postln(~params.string_('ali'));
 		};
 	};
 
