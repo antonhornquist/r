@@ -69,17 +69,17 @@ start_script.value(nil) {
 		var dx = vector1.x_ - vector2.x_;
 		var dy = vector1.y_ - vector2.y_;
 		var dz = vector1.z_ - vector2.z_;
-		sqrt(dx*dx + dy*dy + dz*dz);
+		sqrt((dx*dx) + (dy*dy) + (dz*dz));
 	};
 
 	var boid_new = { |l, ms, mf|
 		var boid = ();
-		var velx;
-		var vely;
+		var vel_x_;
+		var vel_y_;
 		boid.acc_ = vector3d_new.value(0, 0);
-		velx = (1.0.rand * 2) - 1;
-		vely = (1.0.rand * 2) - 1;
-		boid.vel_ = vector3d_new.value(velx, vely);
+		vel_x_ = (1.0.rand * 2) - 1;
+		vel_y_ = (1.0.rand * 2) - 1;
+		boid.vel_ = vector3d_new.value(vel_x_, vel_y_);
 		boid.loc_ = l.copy();
 		boid.r_ = 2.0;
 		boid.maxspeed_ = ms; // Maximum speed
@@ -101,9 +101,6 @@ start_script.value(nil) {
 			var coh = self.cohesion_(boids);
 
 			// Arbitrarily weight these forces
-			//sep:mult(2)
-			//ali:mult(1)
-			//coh:mult(1)
 			sep.mult_(~params.get_('sep'));
 			ali.mult_(~params.get_('ali'));
 			coh.mult_(~params.get_('coh'));
@@ -151,7 +148,7 @@ start_script.value(nil) {
 				};
 
 				// Steering = Desired minus Velocity
-				steer = vector3d_sub.value(desired, self.vel);
+				steer = vector3d_sub.value(desired, self.vel_);
 				steer.limit_(self.maxforce_) // Limit to maximum steering force
 			} {
 				steer = vector3d_new.value(0, 0);
@@ -186,7 +183,7 @@ start_script.value(nil) {
 		// Method checks for nearby boids and steers away
 		boid.separate_ = { |self, boids|
 			var func_name = 'boid.separate_';
-			var desiredseparation  = 25.0;
+			var desiredseparation = 25.0;
 			var sum = vector3d_new.value(0, 0, 0);
 			var count = 0;
 
@@ -245,7 +242,6 @@ start_script.value(nil) {
 			var neighbordist = 50.0;
 			var sum = vector3d_new.value(0, 0, 0); // Start with empty vector to accumulate all locations
 			var count = 0;
-
 			boids.do { |boid|
 				var other = boid;
 				var dist = vector3d_distance.value(self.loc_, other.loc_);
@@ -288,7 +284,8 @@ start_script.value(nil) {
 		~flock = flock;
 
 		~params.get_('boids').do {
-			var boid = boid_new.value(vector3d_new.value(width/2, height/2), 1.0, 0.05);
+			//var boid = boid_new.value(vector3d_new.value(width/2, height/2), 1.0, 0.05);
+			var boid = boid_new.value(vector3d_new.value(width.rand, height.rand), 1.0, 0.05);
 /*
 			boid.left_edge = function(b)
 				engine.hz(to_hz(notes[rand]))
@@ -319,7 +316,7 @@ start_script.value(nil) {
 				type: 'control',
 				id: 'boids',
 				name: "boids",
-				controlspec: ControlSpec(5, 25, default: 15),
+				controlspec: ControlSpec(5, 25, default: 7),
 			)
 		);
 
@@ -389,7 +386,7 @@ start_script.value(nil) {
 		//["enc" + n + delta].debug;
 		case
 		{n == 1} {
-			~mix.delta_('output', delta);
+			~params.delta_('coh', delta);
 			~redraw.value();
 		}
 		{n == 2} {
@@ -423,11 +420,9 @@ start_script.value(nil) {
 			var rel_y_ = round(boid.vel_.y_*1.25);
 			~screen.rect_(x_, y_, 1, 1);
 			~screen.fill_();
-/*
 			~screen.move_(x_, y_);
-			~screen.line_rel_(rel_x_, rel_y_);
-			~screen.stroke();
-*/
+			~screen.line_rel_(rel_x_, rel_y_); // TODO: looks funny when pixels are large, fix by offsetting
+			~screen.stroke_();
 		};
 
 		~screen.update_();

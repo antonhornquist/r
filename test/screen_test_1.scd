@@ -1,8 +1,20 @@
 (
-var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "util" +/+ "nel" +/+ "screen.scd";
-var screen = this.executeFile(screen_path);
+var include = { |relative_path|
+	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
+	this.executeFile(path);
+};
 
-var scale = 4;
+var init_screen = {
+	var libraries;
+	var screen;
+	var init_screen;
+	~include_nel_libraries = true;
+	libraries = include.value("../util/nel.scd");
+	screen = libraries[\screen];
+	screen[\init_screen];
+}.value;
+
+var scale = 2;
 var screen_width = 128 * scale;
 var screen_height = 64 * scale;
 
@@ -34,33 +46,24 @@ var window = Window.new(
 	))
 	.background_(colors[0]);
 
-~screen_init = screen[\screen_init];
-~screen_rect = screen[\screen_rect];
-~screen_move = screen[\screen_move];
-~screen_line = screen[\screen_line];
-~screen_stroke = screen[\screen_stroke];
-~screen_fill = screen[\screen_fill];
-~screen_level = screen[\screen_level];
-~screen_text = screen[\screen_text];
-~screen_text_extents = screen[\screen_text_extents];
-~screen_font_size = screen[\screen_font_size];
-~screen_clear = screen[\screen_clear];
-~screen_update = screen[\screen_update];
+var screen = init_screen.value(window, margin_x, margin_y, scale);
+var screen_api = screen[\singleton];
+var screen_view = screen[\view];
 
-~screen_instance = ~screen_init.value(window, margin_x, margin_y, scale, colors);
+~screen = screen_api;
 
 window.view
 	.onResize_({ |windowView|
 		var bounds = windowView.bounds;
-		~screen_instance[\view].moveTo(
-			(bounds.width/2)-(~screen_instance[\view].bounds.width/2),
-			(bounds.height/2)-(~screen_instance[\view].bounds.height/2)
+		screen_view.moveTo(
+			(bounds.width/2)-(screen_view.bounds.width/2),
+			(bounds.height/2)-(screen_view.bounds.height/2)
 		);
 	});
 
 window.front;
 )
-
+/*
 (
 ~screen_move.(~screen_instance, 1, 8);
 ~screen_level.(~screen_instance, 15);
@@ -91,3 +94,4 @@ window.front;
 };
 ~screen_update.(~screen_instance);
 )
+*/
