@@ -195,41 +195,43 @@ namespaces.metro = {
 			var event = config !? _.event;
 			var time = (config !? _.time) ? 1;
 			var count = (config !? _.count) ? inf;
+			var new_metro;
 
-			metro = ();
-			metro[\event] = event;
-			metro[\time] = time;
-			metro[\count] = count;
-			metro[\id] = metros.size;
-			metro[\is_running] = false;
-			metro.start_ = { |self, time, count|
+			new_metro = ();
+			new_metro[\event] = event;
+			new_metro[\time] = time;
+			new_metro[\count] = count;
+			new_metro[\id] = metros.size;
+			new_metro[\is_running] = false;
+			new_metro.start_ = { |self, time, count|
 				if (time.notNil) {
 					self[\time] = time;
 				};
 				if (count.notNil) {
 					self[\count] = count;
 				};
-				metro[\routine] = fork {
+				self[\routine] = fork {
 					self[\count].do {
 						self[\event].value;
 						self[\time].wait;
 					}
 				}
 			};
-			metro.stop_ = { |self|
-				metro[\routine].stop;
+			new_metro.stop_ = { |self|
+				self[\routine].stop;
 			};
-			metro.free_ = { |self|
+			new_metro.free_ = { |self|
+				self.stop_();
 				metros.remove(self);
 			};
 
-			metros = metros.add(metro);
+			metros = metros.add(new_metro);
 
-			metro;
+			new_metro;
 		};
 
-		metro.free_all = { |self|
-			metros.do { |metro|
+		metro.free_all_ = { |self|
+			metros.copy.do { |metro|
 				metro.free_();
 			};
 		};
@@ -671,7 +673,7 @@ namespaces.r_engine = {
 	var load_engine = r_engine[\load_engine];
 	var free_engine = r_engine[\free_engine];
 
-	var scale = 7;
+	var scale = 3;
 	var screen_width = 128 * scale;
 	var screen_height = 64 * scale;
 
@@ -710,6 +712,10 @@ namespaces.r_engine = {
 					(bounds.width/2)-(screen_view.bounds.width/2),
 					(bounds.height/2)-(screen_view.bounds.height/2)
 				);
+			})
+			.onClose_({ |windowView|
+				// TODO: stop running routines
+				~metro.free_all_();
 			});
 
 		~engine = engine;
@@ -845,7 +851,7 @@ namespaces.r_engine = {
 			~arc = init_arc.value;
 			~grid = init_grid.value;
 
-			~mix.add_(
+			~mix.add_( // TODO: remove
 				(
 					type: 'control',
 					id: 'output',
@@ -867,6 +873,10 @@ namespaces.r_engine = {
 		};
 
 		~window = window;
+
+		CmdPeriod.add {
+			window.close;
+		};
 	};
 
 	var start_r_engine_script = { |script_func|
