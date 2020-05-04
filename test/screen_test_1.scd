@@ -1,5 +1,5 @@
 (
-var include = { |relative_path|
+var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	this.executeFile(path);
 };
@@ -9,7 +9,7 @@ var init_screen = {
 	var screen;
 	var init_screen;
 	~include_nel_libraries = true;
-	libraries = include.value("../util/nel.scd");
+	libraries = include_relative.value("../util/nel.scd");
 	screen = libraries[\screen];
 	screen[\init_screen];
 }.value;

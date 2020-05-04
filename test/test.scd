@@ -1,8 +1,8 @@
 (
-var include = { |relative_path|
+var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	this.executeFile(path);
 };
 
-include.value("flocking.scd");
+include_relative.value("flocking.scd");
 )

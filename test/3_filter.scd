@@ -1,17 +1,17 @@
 (
-var include = { |relative_path|
+var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	this.executeFile(path);
 };
 
-var nel = include.value("../util/nel.scd");
+var nel = include_relative.value("../util/nel.scd");
 var start_r_engine_script = nel['start_r_engine_script'];
 
 start_r_engine_script.value { |engine|
 	// scriptname: 3_filter
 	// v1.1.0 @jah
-	var formatters = include.value("formatters.scd");
-	var r_specs = include.value("r_specs.scd");
+	var formatters = include_relative.value("formatters.scd");
+	var r_specs = include_relative.value("r_specs.scd");
 
 	~init = {
 		var lfo_frequency_spec;
