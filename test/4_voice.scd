@@ -10,8 +10,8 @@ var start_r_engine_script = nel['start_r_engine_script'];
 start_r_engine_script.value { |engine|
 	// scriptname: 4_voice
 	// v1.1.0 @jah
-	var formatters = include_relative.value("formatters.scd");
-	var r_specs = include_relative.value("r_specs.scd");
+	var formatters = include_relative.value("lib/formatters.scd");
+	var r_specs = include_relative.value("lib/r_specs.scd");
 
 	~init = {
 		var lfo_frequency_spec;
