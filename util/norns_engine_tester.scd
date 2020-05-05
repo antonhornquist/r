@@ -1117,7 +1117,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 					script_func.value; // TODO: error handling, cleanup
 
-postcs(~engine);
 					{
 						var completeFunc = {
 							~init.value;
