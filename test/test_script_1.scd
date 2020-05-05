@@ -1,8 +1,8 @@
 (
-var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/nel.scd").standardizePath;
-var nel = this.executeFile(nel_path);
+var nel_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ "../util/norns_engine_tester.scd").standardizePath;
+var norns_engine_tester = this.executeFile(nel_path);
 
-var start_script = nel['start_script'];
+var start_script = norns_engine_tester['start_script'];
 
 start_script.value(nil) {
 	~init = {

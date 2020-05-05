@@ -9,7 +9,7 @@ var init_screen = {
 	var screen;
 	var init_screen;
 	~include_nel_libraries = true;
-	libraries = include_relative.value("../util/nel.scd");
+	libraries = include_relative.value("../util/norns_engine_tester.scd");
 	screen = libraries[\screen];
 	screen[\init_screen];
 }.value;

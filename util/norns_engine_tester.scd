@@ -39,6 +39,9 @@ namespaces.arc = {
 		arc
 	};
 
+	var free_arc = {
+		// TODO: free EncDeltaFunc
+	};
 
 	var module = IdentityDictionary[
 		\init_arc -> init_arc
@@ -126,6 +129,9 @@ namespaces.midi = {
 		midi
 	};
 
+	var free_midi = {
+		// TODO: free MIDIFuncs above
+	};
 
 	var module = IdentityDictionary[
 		\init_midi -> init_midi
@@ -176,6 +182,10 @@ namespaces.grid = {
 			grid_connect.value;
 		};
 		grid;
+	};
+
+	var free_grid = {
+		// TODO: free GridKeyFunc above
 	};
 
 	var module = IdentityDictionary[
@@ -237,6 +247,10 @@ namespaces.metro = {
 		};
 
 		metro;
+	};
+
+	var free_metro = {
+		// TODO: possibly replace free_all with this
 	};
 
 	var module = IdentityDictionary[
@@ -659,7 +673,7 @@ namespaces.r_engine = {
 	module
 }.value;
 
-if (~include_nel_libraries.asBoolean) {
+if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using globals here
 	namespaces;
 } {
 	{
@@ -681,9 +695,12 @@ if (~include_nel_libraries.asBoolean) {
 		var grid = namespaces[\grid];
 		var init_grid = grid[\init_grid];
 
+/*
+	TODO
 		var r_engine = namespaces[\r_engine];
 		var load_engine = r_engine[\load_engine];
 		var free_engine = r_engine[\free_engine];
+*/
 
 		var scale = 2;
 		var screen_width = 128 * scale;
@@ -695,7 +712,7 @@ if (~include_nel_libraries.asBoolean) {
 		var window_width = screen_width + (margin_x*2);
 		var window_height = screen_height + (margin_y*2);
 
-		var start_script = { |engine, script_func|
+		var old_start_script = { |engine, script_func|
 			var window = Window.new(
 				"[Script Name]",
 				Rect(
@@ -730,8 +747,6 @@ if (~include_nel_libraries.asBoolean) {
 					~metro.free_all_();
 				});
 
-			~engine = engine;
-
 			SerialOSCClient.init {
 				var setup_window_mouse_and_key_hooks = {
 					var enc_area_pressed = false ! 3;
@@ -754,6 +769,212 @@ if (~include_nel_libraries.asBoolean) {
 									{ enc_area_pressed[2] }
 									{
 										~enc.value(3, delta);
+									}
+									;
+								enc_area_prev_pos = x@y;
+							};
+						};
+					};
+
+					var mouse_down_action = { |view, x, y|
+						case
+							{ in_enc_1_area.value(x, y) }
+							{
+								enc_area_pressed[0] = true; // 
+							}
+							{ in_enc_2_area.value(x, y) }
+							{
+								enc_area_pressed[1] = true;
+							}
+							{ in_enc_3_area.value(x, y) }
+							{
+								enc_area_pressed[2] = true;
+							};
+						enc_area_prev_pos = x@y;
+					};
+
+					var mouse_up_action = { |view, x, y|
+						enc_area_pressed[0] = false;
+						enc_area_pressed[1] = false;
+						enc_area_pressed[2] = false;
+					};
+
+					var in_enc_1_area = { |x, y|
+						(x < (window_width/2)) and: (y < (window_height/2)); // TODO: does not work well when resized!
+					};
+
+					var in_enc_2_area = { |x, y|
+						(x < (window_width/2)) and: (y >= (window_height/2)); // TODO: does not work well when resized!
+					};
+
+					var in_enc_3_area = { |x, y|
+						(x >= (window_width/2)) and: (y >= (window_height/2)); // TODO: does not work well when resized!
+					};
+
+					window.view
+						.mouseMoveAction_(mouse_move_action)
+						.acceptsMouseOver_(true)
+						.mouseOverAction_(mouse_move_action)
+						.mouseDownAction_(mouse_down_action)
+						.mouseUpAction_(mouse_up_action)
+						.keyModifiersChangedAction_({ |view, modifiers|
+							var shift_pressed;
+							var ctrl_pressed;
+							var alt_pressed;
+
+							shift_pressed = modifiers & 131072 == 131072;
+
+							ctrl_pressed = modifiers & 262144 == 262144;
+
+							alt_pressed = modifiers & 524288 == 524288;
+
+							case
+								{ key_state[0].not and: shift_pressed }
+								{
+									key_state[0] = true;
+									~key.value(1, 1);
+								}
+								{ key_state[0] and: shift_pressed.not }
+								{
+									key_state[0] = false;
+									~key.value(1, 0);
+								}
+							;
+
+							case
+								{ key_state[1].not and: ctrl_pressed }
+								{
+									key_state[1] = true;
+									~key.value(2, 1);
+								}
+								{ key_state[1] and: ctrl_pressed.not }
+								{
+									key_state[1] = false;
+									~key.value(2, 0);
+								}
+							;
+
+							case
+								{ key_state[2].not and: alt_pressed }
+								{
+									key_state[2] = true;
+									~key.value(3, 1);
+								}
+								{ key_state[2] and: alt_pressed.not }
+								{
+									key_state[2] = false;
+									~key.value(3, 0);
+								}
+							;
+						});
+				};
+
+				~engine = engine;
+
+				~screen = screen_api;
+
+				~metro = init_metro.value;
+				~params = init_paramset.value;
+				~mix = init_paramset.value;
+				~midi = init_midi.value;
+				~arc = init_arc.value;
+				~grid = init_grid.value;
+
+				~mix.add_( // TODO: remove
+					(
+						type: 'control',
+						id: 'output',
+						name: "output",
+						controlspec: \db.asSpec
+					)
+				);
+				~mix.set_('output', 0);
+
+				defer {
+					setup_window_mouse_and_key_hooks.value;
+				};
+
+				script_func.value(engine);
+
+				~init.value;
+				window.front;
+				~redraw.value;
+			};
+
+			~window = window;
+
+			CmdPeriod.add {
+				window.close;
+			};
+		};
+
+		var start_script = { |script_func|
+			var script_env;
+
+			var window = Window.new(
+				"[Script Name]",
+				Rect(
+					Window.screenBounds.width - window_width - 25,
+					Window.screenBounds.height - window_height - 50,
+					window_width,
+					window_height
+				))
+				.background_(Color.black);
+
+			var screen = init_screen.value(window, margin_x, margin_y, scale);
+			var screen_api = screen[\singleton];
+			var screen_view = screen[\view];
+
+			screen_view
+				.mouseMoveAction_({false}) // false means: not handled in this view
+				.mouseOverAction_({false})
+				.mouseDownAction_({false})
+				.mouseUpAction_({false})
+				;
+
+			window.view
+				.onResize_({ |windowView|
+					var bounds = windowView.bounds;
+					screen_view.moveTo(
+						(bounds.width/2)-(screen_view.bounds.width/2),
+						(bounds.height/2)-(screen_view.bounds.height/2)
+					);
+				})
+				.onClose_({ |windowView|
+					// TODO: stop running routines
+					script_env.use {
+						~metro.free_all_();
+					};
+				});
+
+			SerialOSCClient.init {
+				var setup_window_mouse_and_key_hooks = {
+					var enc_area_pressed = false ! 3;
+					var enc_area_prev_pos;
+					var key_state = false ! 3;
+
+					var mouse_move_action = { |view, x, y|
+						if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
+							var delta = enc_area_prev_pos.y - y;
+							if (delta != 0) {
+								case
+									{ enc_area_pressed[0] }
+									{
+										script_env.use {
+											~enc.value(1, delta);
+										};
+									}
+									{ enc_area_pressed[1] }
+									{
+										script_env.use {
+											~enc.value(2, delta);
+										};
+									}
+									{ enc_area_pressed[2] }
+									{
+										script_env.use {
+											~enc.value(3, delta);
+										};
 									}
 									;
 								enc_area_prev_pos = x@y;
@@ -817,12 +1038,16 @@ if (~include_nel_libraries.asBoolean) {
 								{ key_state[0].not and: shift_pressed }
 								{
 									key_state[0] = true;
-									~key.value(1, 1);
+									script_env.use {
+										~key.value(1, 1);
+									};
 								}
 								{ key_state[0] and: shift_pressed.not }
 								{
 									key_state[0] = false;
-									~key.value(1, 0);
+									script_env.use {
+										~key.value(1, 0);
+									};
 								}
 							;
 
@@ -830,12 +1055,16 @@ if (~include_nel_libraries.asBoolean) {
 								{ key_state[1].not and: ctrl_pressed }
 								{
 									key_state[1] = true;
-									~key.value(2, 1);
+									script_env.use {
+										~key.value(2, 1);
+									};
 								}
 								{ key_state[1] and: ctrl_pressed.not }
 								{
 									key_state[1] = false;
-									~key.value(2, 0);
+									script_env.use {
+										~key.value(2, 0);
+									};
 								}
 							;
 
@@ -843,60 +1072,89 @@ if (~include_nel_libraries.asBoolean) {
 								{ key_state[2].not and: alt_pressed }
 								{
 									key_state[2] = true;
-									~key.value(3, 1);
+									script_env.use {
+										~key.value(3, 1);
+									};
 								}
 								{ key_state[2] and: alt_pressed.not }
 								{
 									key_state[2] = false;
-									~key.value(3, 0);
+									script_env.use {
+										~key.value(3, 0);
+									};
 								}
 							;
 						});
 				};
 
-				~screen = screen_api;
+				script_env = Environment.make {
+					// ~engine = engine;
 
-				~metro = init_metro.value;
-				~params = init_paramset.value;
-				~mix = init_paramset.value;
-				~midi = init_midi.value;
-				~arc = init_arc.value;
-				~grid = init_grid.value;
+					~screen = screen_api;
 
-				~mix.add_( // TODO: remove
-					(
-						type: 'control',
-						id: 'output',
-						name: "output",
-						controlspec: \db.asSpec
-					)
-				);
-				~mix.set_('output', 0);
+					~metro = init_metro.value;
+					~params = init_paramset.value;
+					~mix = init_paramset.value;
+					~midi = init_midi.value;
+					~arc = init_arc.value;
+					~grid = init_grid.value;
 
-				defer {
-					setup_window_mouse_and_key_hooks.value;
+					~mix.add_( // TODO: remove
+						(
+							type: 'control',
+							id: 'output',
+							name: "output",
+							controlspec: \db.asSpec
+						)
+					);
+					~mix.set_('output', 0);
+
+					defer {
+						setup_window_mouse_and_key_hooks.value;
+					};
+
+					~engine = ();
+
+					script_func.value; // TODO: error handling, cleanup
+
+postcs(~engine);
+					{
+						var completeFunc = {
+							~init.value;
+							window.front;
+							~redraw.value;
+						};
+	
+						case
+						{~engine[\name] == 'R' } {
+							s.waitForBoot {
+								var r_engine_namespace = namespaces[\r_engine];
+								var load_engine = r_engine_namespace[\load_engine];
+								var free_engine = r_engine_namespace[\free_engine];
+
+								var r_engine = load_engine.value;
+								var engine = r_engine[\engine];
+								~engine = engine;
+								"R engine loaded".debug;
+								completeFunc.value;
+							};
+						}
+						{~engine[\name] == 'Ack' } {
+							Error("Ack engine not yet supported").throw;
+						}
+						{ true } {
+							"no engine set!".debug;
+							completeFunc.value;
+						};
+					}.value;
 				};
 
-				script_func.value(engine);
-
-				~init.value;
-				window.front;
-				~redraw.value;
+				~scripts = ~scripts.add(script_env); // this goes to the currentEnvironment
 			};
 
-			~window = window;
 
 			CmdPeriod.add {
 				window.close;
-			};
-		};
-
-		var start_r_engine_script = { |script_func|
-			s.waitForBoot {
-				var r_engine = load_engine.value;
-				var engine = r_engine[\engine];
-				~r = r_engine[\library];
-				start_script.value(engine, script_func)
 			};
 		};
 
@@ -907,8 +1165,8 @@ if (~include_nel_libraries.asBoolean) {
 		};
 
 		var module = IdentityDictionary[
+			\old_start_script -> old_start_script,
 			\start_script -> start_script,
-			\start_r_engine_script -> start_r_engine_script,
 			\stop_script -> stop_script
 		];
 

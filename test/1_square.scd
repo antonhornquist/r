@@ -4,21 +4,23 @@ var include_relative = { |relative_path|
 	this.executeFile(path);
 };
 
-var nel = include_relative.value("../util/nel.scd");
-var start_r_engine_script = nel['start_r_engine_script'];
+var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+var start_script = norns_engine_tester['start_script'];
 
-start_r_engine_script.value { |engine|
+start_script.value {
 	// scriptname: 1_square
 	// v1.1.0 @jah
 	var formatters = include_relative.value("lib/formatters.scd");
 	var r_specs = include_relative.value("lib/r_specs.scd");
 
-	~init = {
-		engine.new_("Osc", "PulseOsc");
-		engine.new_("SoundOut", "SoundOut");
+	~engine.name = 'R';
 
-		engine.connect_("Osc/Out", "SoundOut*Left");
-		engine.connect_("Osc/Out", "SoundOut*Right");
+	~init = {
+		~engine.new_("Osc", "PulseOsc");
+		~engine.new_("SoundOut", "SoundOut");
+
+		~engine.connect_("Osc/Out", "SoundOut*Left");
+		~engine.connect_("Osc/Out", "SoundOut*Right");
 
 		~params.add_(
 			(
@@ -26,7 +28,7 @@ start_r_engine_script.value { |engine|
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| engine.set_("Osc.Range", value) }
+				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -36,7 +38,7 @@ start_r_engine_script.value { |engine|
 				id: "osc_tune",
 				name: "Osc.Tune",
 				controlspec: r_specs['PulseOsc']['Tune'],
-				action: { |value| engine.set_("Osc.Tune", value) }
+				action: { |value| ~engine.set_("Osc.Tune", value) }
 			)
 		);
 
@@ -47,7 +49,7 @@ start_r_engine_script.value { |engine|
 				name: "Osc.PulseWidth",
 				controlspec: r_specs['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("Osc.PulseWidth", value) }
+				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 

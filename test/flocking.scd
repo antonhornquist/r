@@ -4,10 +4,10 @@ var include_relative = { |relative_path|
 	this.executeFile(path);
 };
 
-var nel = include_relative.value("../util/nel.scd");
-var start_script = nel['start_script'];
+var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+var start_script = norns_engine_tester['start_script'];
 
-start_script.value(nil) {
+start_script.value {
 	var boids = include_relative.value("lib/boids.scd");
 	var flock_new = boids[\flock_new];
 	var boid_new = boids[\boid_new];

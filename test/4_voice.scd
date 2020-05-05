@@ -4,14 +4,16 @@ var include_relative = { |relative_path|
 	this.executeFile(path);
 };
 
-var nel = include_relative.value("../util/nel.scd");
-var start_r_engine_script = nel['start_r_engine_script'];
+var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+var start_script = norns_engine_tester['start_script'];
 
-start_r_engine_script.value { |engine|
+start_script.value {
 	// scriptname: 4_voice
 	// v1.1.0 @jah
 	var formatters = include_relative.value("lib/formatters.scd");
 	var r_specs = include_relative.value("lib/r_specs.scd");
+
+	~engine.name = 'R';
 
 	~init = {
 		var lfo_frequency_spec;
@@ -24,29 +26,29 @@ start_r_engine_script.value { |engine|
 		var lfo_to_filter_fm_spec;
 		var env_to_filter_fm_spec;
 
-		engine.new_("FreqGate", "FreqGate");
-		engine.new_("LFO", "MultiLFO");
-		engine.new_("Env", "ADSREnv");
-		engine.new_("FilterMod", "LinMixer");
-		engine.new_("Osc", "PulseOsc");
-		engine.new_("Filter", "MMFilter");
-		engine.new_("Amp", "Amp");
-		engine.new_("SoundOut", "SoundOut");
+		~engine.new_("FreqGate", "FreqGate");
+		~engine.new_("LFO", "MultiLFO");
+		~engine.new_("Env", "ADSREnv");
+		~engine.new_("FilterMod", "LinMixer");
+		~engine.new_("Osc", "PulseOsc");
+		~engine.new_("Filter", "MMFilter");
+		~engine.new_("Amp", "Amp");
+		~engine.new_("SoundOut", "SoundOut");
 
-		engine.set_("Osc.FM", 1);
+		~engine.set_("Osc.FM", 1);
 
-		engine.connect_("FreqGate/Frequency", "Osc*FM");
-		engine.connect_("FreqGate/Gate", "Env*Gate");
-		engine.connect_("LFO/Sine", "Osc*PWM");
-		engine.connect_("LFO/Sine", "FilterMod*In1");
-		engine.connect_("Env/Out", "FilterMod*In2");
-		engine.connect_("Env/Out", "Amp*Lin");
-		engine.connect_("FilterMod/Out", "Filter*FM");
+		~engine.connect_("FreqGate/Frequency", "Osc*FM");
+		~engine.connect_("FreqGate/Gate", "Env*Gate");
+		~engine.connect_("LFO/Sine", "Osc*PWM");
+		~engine.connect_("LFO/Sine", "FilterMod*In1");
+		~engine.connect_("Env/Out", "FilterMod*In2");
+		~engine.connect_("Env/Out", "Amp*Lin");
+		~engine.connect_("FilterMod/Out", "Filter*FM");
 
-		engine.connect_("Osc/Out", "Filter*In");
-		engine.connect_("Filter/Lowpass", "Amp*In");
-		engine.connect_("Amp/Out", "SoundOut*Left");
-		engine.connect_("Amp/Out", "SoundOut*Right");
+		~engine.connect_("Osc/Out", "Filter*In");
+		~engine.connect_("Filter/Lowpass", "Amp*In");
+		~engine.connect_("Amp/Out", "SoundOut*Left");
+		~engine.connect_("Amp/Out", "SoundOut*Right");
 
 		~params.add_(
 			(
@@ -54,7 +56,7 @@ start_r_engine_script.value { |engine|
 				id: "gate",
 				name: "Gate",
 				controlspec: r_specs['FreqGate']['Gate'],
-				action: { |value| engine.set_("FreqGate.Gate", value) }
+				action: { |value| ~engine.set_("FreqGate.Gate", value) }
 			)
 		);
 
@@ -64,7 +66,7 @@ start_r_engine_script.value { |engine|
 				id: "note",
 				name: "Note",
 				controlspec: \midinote.asSpec,
-				action: { |value| engine.set_("FreqGate.Frequency", value.midicps) }
+				action: { |value| ~engine.set_("FreqGate.Frequency", value.midicps) }
 			)
 		);
 
@@ -74,7 +76,7 @@ start_r_engine_script.value { |engine|
 				id: "osc_range",
 				name: "Osc.Range",
 				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| engine.set_("Osc.Range", value) }
+				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
 
@@ -88,7 +90,7 @@ start_r_engine_script.value { |engine|
 				name: "LFO.Frequency",
 				controlspec: lfo_frequency_spec,
 				formatter: formatters.round_(0.001),
-				action: { |value| engine.set_("LFO.Frequency", value) }
+				action: { |value| ~engine.set_("LFO.Frequency", value) }
 			)
 		);
 
@@ -99,7 +101,7 @@ start_r_engine_script.value { |engine|
 				name: "Osc.PulseWidth",
 				controlspec: r_specs['PulseOsc']['PulseWidth'],
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("Osc.PulseWidth", value) }
+				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
 			)
 		);
 
@@ -113,7 +115,7 @@ start_r_engine_script.value { |engine|
 				name: "LFO > Osc.PWM",
 				controlspec: lfo_to_osc_pwm_spec,
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("Osc.PWM", value) }
+				action: { |value| ~engine.set_("Osc.PWM", value) }
 			)
 		);
 
@@ -126,7 +128,7 @@ start_r_engine_script.value { |engine|
 				id: "env_attack",
 				name: "Env.Attack",
 				controlspec: env_attack_spec,
-				action: { |value| engine.set_("Env.Attack", value) }
+				action: { |value| ~engine.set_("Env.Attack", value) }
 			)
 		);
 
@@ -139,7 +141,7 @@ start_r_engine_script.value { |engine|
 				id: "env_decay",
 				name: "Env.Decay",
 				controlspec: env_decay_spec,
-				action: { |value| engine.set_("Env.Decay", value) }
+				action: { |value| ~engine.set_("Env.Decay", value) }
 			)
 		);
 
@@ -150,7 +152,7 @@ start_r_engine_script.value { |engine|
 				name: "Env.Sustain",
 				controlspec: r_specs['ADSREnv']['Sustain'],
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("Env.Sustain", value) }
+				action: { |value| ~engine.set_("Env.Sustain", value) }
 			)
 		);
 
@@ -163,7 +165,7 @@ start_r_engine_script.value { |engine|
 				id: "env_release",
 				name: "Env.Release",
 				controlspec: env_release_spec,
-				action: { |value| engine.set_("Env.Release", value) }
+				action: { |value| ~engine.set_("Env.Release", value) }
 			)
 		);
 
@@ -176,7 +178,7 @@ start_r_engine_script.value { |engine|
 				id: "filter_frequency",
 				name: "Filter.Frequency",
 				controlspec: filter_frequency_spec,
-				action: { |value| engine.set_("Filter.Frequency", value) }
+				action: { |value| ~engine.set_("Filter.Frequency", value) }
 			)
 		);
 
@@ -190,7 +192,7 @@ start_r_engine_script.value { |engine|
 				name: "Filter.Resonance",
 				controlspec: filter_resonance_spec,
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("Filter.Resonance", value) }
+				action: { |value| ~engine.set_("Filter.Resonance", value) }
 			)
 		);
 
@@ -204,7 +206,7 @@ start_r_engine_script.value { |engine|
 				name: "LFO > Filter.FM",
 				controlspec: lfo_to_filter_fm_spec,
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("FilterMod.In1", value) }
+				action: { |value| ~engine.set_("FilterMod.In1", value) }
 			)
 		);
 
@@ -218,12 +220,12 @@ start_r_engine_script.value { |engine|
 				name: "Env > Filter.FM",
 				controlspec: env_to_filter_fm_spec,
 				formatter: formatters['percentage'],
-				action: { |value| engine.set_("FilterMod.In2", value) }
+				action: { |value| ~engine.set_("FilterMod.In2", value) }
 			)
 		);
 
-		engine.set_("FilterMod.Out", 1);
-		engine.set_("Filter.FM", 1);
+		~engine.set_("FilterMod.Out", 1);
+		~engine.set_("Filter.FM", 1);
 
 		~params.bang_();
 
