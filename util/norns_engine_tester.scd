@@ -505,7 +505,9 @@ namespaces.paramset = {
 	var init_paramset = {
 		var params = [];
 
-		var paramset = ();
+		var paramset = (
+			name: "unnamed"
+		);
 
 		paramset.add_ = { |self, arg_param|
 			var type = arg_param[\type].asSymbol;
@@ -582,6 +584,12 @@ namespaces.paramset = {
 			} {
 				var a = round(paramset.get_(param[\id]), 0.01);
 				a.asString + param[\controlspec].units;
+			};
+		};
+		paramset.list_ = { |self|
+			postln("parmset [" ++ self.name ++ "]");
+			params.do { |param|
+				postln(param[\id]);
 			};
 		};
 
@@ -702,7 +710,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var free_engine = r_engine[\free_engine];
 */
 
-		var scale = 2;
+		var scale = 6;
 		var screen_width = 128 * scale;
 		var screen_height = 64 * scale;
 
@@ -711,202 +719,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 		var window_width = screen_width + (margin_x*2);
 		var window_height = screen_height + (margin_y*2);
-
-		var old_start_script = { |engine, script_func|
-			var window = Window.new(
-				"[Script Name]",
-				Rect(
-					Window.screenBounds.width - window_width - 25,
-					Window.screenBounds.height - window_height - 50,
-					window_width,
-					window_height
-				))
-				.background_(Color.black);
-
-			var screen = init_screen.value(window, margin_x, margin_y, scale);
-			var screen_api = screen[\singleton];
-			var screen_view = screen[\view];
-
-			screen_view
-				.mouseMoveAction_({false}) // false means: not handled in this view
-				.mouseOverAction_({false})
-				.mouseDownAction_({false})
-				.mouseUpAction_({false})
-				;
-
-			window.view
-				.onResize_({ |windowView|
-					var bounds = windowView.bounds;
-					screen_view.moveTo(
-						(bounds.width/2)-(screen_view.bounds.width/2),
-						(bounds.height/2)-(screen_view.bounds.height/2)
-					);
-				})
-				.onClose_({ |windowView|
-					// TODO: stop running routines
-					~metro.free_all_();
-				});
-
-			SerialOSCClient.init {
-				var setup_window_mouse_and_key_hooks = {
-					var enc_area_pressed = false ! 3;
-					var enc_area_prev_pos;
-					var key_state = false ! 3;
-
-					var mouse_move_action = { |view, x, y|
-						if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
-							var delta = enc_area_prev_pos.y - y;
-							if (delta != 0) {
-								case
-									{ enc_area_pressed[0] }
-									{
-										~enc.value(1, delta);
-									}
-									{ enc_area_pressed[1] }
-									{
-										~enc.value(2, delta);
-									}
-									{ enc_area_pressed[2] }
-									{
-										~enc.value(3, delta);
-									}
-									;
-								enc_area_prev_pos = x@y;
-							};
-						};
-					};
-
-					var mouse_down_action = { |view, x, y|
-						case
-							{ in_enc_1_area.value(x, y) }
-							{
-								enc_area_pressed[0] = true; // 
-							}
-							{ in_enc_2_area.value(x, y) }
-							{
-								enc_area_pressed[1] = true;
-							}
-							{ in_enc_3_area.value(x, y) }
-							{
-								enc_area_pressed[2] = true;
-							};
-						enc_area_prev_pos = x@y;
-					};
-
-					var mouse_up_action = { |view, x, y|
-						enc_area_pressed[0] = false;
-						enc_area_pressed[1] = false;
-						enc_area_pressed[2] = false;
-					};
-
-					var in_enc_1_area = { |x, y|
-						(x < (window_width/2)) and: (y < (window_height/2)); // TODO: does not work well when resized!
-					};
-
-					var in_enc_2_area = { |x, y|
-						(x < (window_width/2)) and: (y >= (window_height/2)); // TODO: does not work well when resized!
-					};
-
-					var in_enc_3_area = { |x, y|
-						(x >= (window_width/2)) and: (y >= (window_height/2)); // TODO: does not work well when resized!
-					};
-
-					window.view
-						.mouseMoveAction_(mouse_move_action)
-						.acceptsMouseOver_(true)
-						.mouseOverAction_(mouse_move_action)
-						.mouseDownAction_(mouse_down_action)
-						.mouseUpAction_(mouse_up_action)
-						.keyModifiersChangedAction_({ |view, modifiers|
-							var shift_pressed;
-							var ctrl_pressed;
-							var alt_pressed;
-
-							shift_pressed = modifiers & 131072 == 131072;
-
-							ctrl_pressed = modifiers & 262144 == 262144;
-
-							alt_pressed = modifiers & 524288 == 524288;
-
-							case
-								{ key_state[0].not and: shift_pressed }
-								{
-									key_state[0] = true;
-									~key.value(1, 1);
-								}
-								{ key_state[0] and: shift_pressed.not }
-								{
-									key_state[0] = false;
-									~key.value(1, 0);
-								}
-							;
-
-							case
-								{ key_state[1].not and: ctrl_pressed }
-								{
-									key_state[1] = true;
-									~key.value(2, 1);
-								}
-								{ key_state[1] and: ctrl_pressed.not }
-								{
-									key_state[1] = false;
-									~key.value(2, 0);
-								}
-							;
-
-							case
-								{ key_state[2].not and: alt_pressed }
-								{
-									key_state[2] = true;
-									~key.value(3, 1);
-								}
-								{ key_state[2] and: alt_pressed.not }
-								{
-									key_state[2] = false;
-									~key.value(3, 0);
-								}
-							;
-						});
-				};
-
-				~engine = engine;
-
-				~screen = screen_api;
-
-				~metro = init_metro.value;
-				~params = init_paramset.value;
-				~mix = init_paramset.value;
-				~midi = init_midi.value;
-				~arc = init_arc.value;
-				~grid = init_grid.value;
-
-				~mix.add_( // TODO: remove
-					(
-						type: 'control',
-						id: 'output',
-						name: "output",
-						controlspec: \db.asSpec
-					)
-				);
-				~mix.set_('output', 0);
-
-				defer {
-					setup_window_mouse_and_key_hooks.value;
-				};
-
-				script_func.value(engine);
-
-				~init.value;
-				window.front;
-				~redraw.value;
-			};
-
-			~window = window;
-
-			CmdPeriod.add {
-				window.close;
-			};
-		};
 
 		var start_script = { |script_func|
 			var script_env;
@@ -1164,7 +976,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		};
 
 		var module = IdentityDictionary[
-			\old_start_script -> old_start_script,
 			\start_script -> start_script,
 			\stop_script -> stop_script
 		];
