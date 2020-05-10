@@ -5,17 +5,87 @@ var include_relative = { |relative_path|
 };
 
 var r_specs = include_relative.value("r_specs.scd");
+var r_util = (
+	// utility function to expand a moduleparam ref to #polyphony ones suffixed with 1..polyphony
+	poly_expand_: { |self, moduleparam, polyphony|
+		var module, param;
+		# module, param = r_util.split_ref_(moduleparam);
+
+		polyphony.collect { |i|
+			var voicenum = i + 1;
+    		r_util.param_voice_ref_(module, param, voicenum);
+		}.join(" ");
+	},
+	param_voice_ref_: { |self, module, param, voicenum|
+		module ++ voicenum ++ "." ++ param
+	},
+	split_ref_: { |self, ref|
+		ref = ref.asString;
+
+		case
+		{ref.includes($/)} {
+			ref.split($/);
+		}
+		{ref.includes($*)} {
+			ref.split($*);
+		}
+		{ref.includes($.)} {
+			ref.split($.);
+		}
+	}
+);
+var r_engine = (
+	// utility function to create multiple modules suffixed 1..polyphony
+	poly_new_: { |self, name, kind, polyphony|
+		kind = kind.asSymbol;
+		if (r_specs[kind].notNil) {
+			polyphony.do { |i|
+				var voicenum = i + 1;
+				~engine.new_(name++voicenum, kind);
+			};
+		} {
+			Error(kind.asString ++ " not a valid module type").throw;
+		};
+	},
+	// utility function to set param of multiple modules suffixed 1..polyphony
+	poly_set_: { |self, ref, value, polyphony|
+		var module, param;
+		# module, param = r_util.split_ref_(ref);
+		polyphony.do { |i|
+			var voicenum = i + 1;
+			~engine.set_(r_util.param_voice_ref_(module, param, voicenum), value);
+		};
+	},
+	// utility function to connect modules suffixed with 1..polyphony
+	poly_connect_: { |self, output, input, polyphony|
+		var sourcemodule, outputref;
+		var destmodule, inputref;
+		# sourcemodule, outputref = r_util.split_ref_(output);
+		# destmodule, inputref = r_util.split_ref_(input);
+		polyphony.do { |i|
+			var voicenum = i + 1;
+			~engine.connect_(sourcemodule++voicenum++"/"++outputref, destmodule++voicenum++"*"++inputref);
+		};
+	},
+);
+
 var formatters = include_relative.value("formatters.scd");
 var capped_list = include_relative.value("capped_list.scd");
 var capped_list_create = capped_list[\create];
 var capped_list_push = capped_list[\push];
+var voice = include_relative.value("voice.scd");
+var voice_new = voice[\voice_new];
 
 var polyphony = 5;
+var note_downs = [];
+var note_slots = [];
+var voice_allocator;
 
 var visual_values;
 
 var init = { |visual_buf_size|
 	var r_params;
+	voice_allocator = voice_new.value(polyphony);
 	init_r_modules.value();
 	r_params = init_r_params.value();
 
@@ -30,8 +100,6 @@ var init_r_modules = {
 };
 
 var create_modules = {
-/*
-	TODO
 	r_engine.poly_new_("FreqGate", "FreqGate", polyphony);
 	r_engine.poly_new_("LFO", "SineLFO", polyphony);
 	r_engine.poly_new_("Env", "ADSREnv", polyphony);
@@ -39,23 +107,17 @@ var create_modules = {
 	r_engine.poly_new_("OscB", "PulseOsc", polyphony);
 	r_engine.poly_new_("Filter", "LPFilter", polyphony);
 	r_engine.poly_new_("Amp", "Amp", polyphony);
-*/
 
 	~engine.new_("SoundOut", "SoundOut")
 };
 
 var set_static_module_params = {
-/*
-	TODO
 	r_engine.poly_set_("OscA.FM", 1, polyphony);
 	r_engine.poly_set_("OscB.FM", 1, polyphony);
 	r_engine.poly_set_("Filter.AudioLevel", 1, polyphony);
-*/
 };
 
 var connect_modules = {
-/*
-	TODO
 	r_engine.poly_connect_("FreqGate/Frequency", "OscA*FM", polyphony);
 	r_engine.poly_connect_("FreqGate/Frequency", "OscB*FM", polyphony);
 	r_engine.poly_connect_("FreqGate/Gate", "Env*Gate", polyphony);
@@ -66,7 +128,6 @@ var connect_modules = {
 	r_engine.poly_connect_("OscA/Out", "Filter*In", polyphony);
 	r_engine.poly_connect_("OscB/Out", "Filter*In", polyphony);
 	r_engine.poly_connect_("Filter/Out", "Amp*In", polyphony);
-*/
 	
 	polyphony.do { |i|
 		var voicenum = i + 1;
@@ -76,8 +137,6 @@ var connect_modules = {
 };
 
 var create_macros = {
-/*
-	TODO
 	~engine.newmacro_("osc_a_range", r_util.poly_expand_("OscA.Range", polyphony));
 	~engine.newmacro_("osc_a_pulsewidth", r_util.poly_expand_("OscA.PulseWidth", polyphony));
 	~engine.newmacro_("osc_b_range", r_util.poly_expand_("OscB.Range", polyphony));
@@ -94,12 +153,24 @@ var create_macros = {
 	~engine.newmacro_("env_decay", r_util.poly_expand_("Env.Decay", polyphony));
 	~engine.newmacro_("env_sustain", r_util.poly_expand_("Env.Sustain", polyphony));
 	~engine.newmacro_("env_release", r_util.poly_expand_("Env.Release", polyphony));
-*/
 };
 
 var init_r_params = {
 	var r_params = [
 		init_filter_frequency_param.value,
+		init_filter_resonance_param.value,
+		init_osc_a_range_param.value,
+		init_osc_b_range_param.value,
+		init_osc_a_pulsewidth_param.value,
+		init_osc_b_pulsewidth_param.value,
+		init_osc_detune_param.value,
+		init_lfo_frequency_param.value,
+		init_lfo_to_osc_pwm_param.value,
+		init_env_to_filter_fm_param.value,
+		init_env_attack_param.value,
+		init_env_decay_param.value,
+		init_env_sustain_param.value,
+		init_env_release_param.value
 	];
 
 	r_params;
@@ -323,39 +394,35 @@ var init_env_release_param = {
 };
 
 var note_on = { |note, velocity|
-/*
-	TODO
 	if (note_slots[note].isNil) {
 		var slot = voice_allocator.get_();
-		var voicenum = slot[\id];
+		var voicenum = slot[\id_];
 		trig_voice.value(voicenum, note);
-		slot[\on_release] = {
+		slot[\on_release_] = {
 			release_voice.value(voicenum);
 			note_slots[note] = nil;
 		};
 		note_slots[note] = slot;
 		note_downs[voicenum] = note;
 	};
-*/
 };
 
 var trig_voice = { |voicenum, note|
-	~engine.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps);
+	//~engine.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps);
+	postln("FreqGate"++(voicenum+1)++".Gate 1 FreqGate"++(voicenum+1)++".Frequency "++note.midicps);
 };
 
 var release_voice = { |voicenum|
-	~engine.bulkset_("FreqGate"++voicenum++".Gate 0");
+	//~engine.bulkset_("FreqGate"++voicenum++".Gate 0");
+	postln("FreqGate"++(voicenum+1)++".Gate 0");
 };
 
 var note_off = { |note|
-/*
-	TODO
 	var slot = note_slots[note];
 	if (slot.notNil) {
 		voice_allocator.release_(slot);
 		note_downs[slot[\id]] = nil;
 	};
-*/
 };
 
 var module = IdentityDictionary[

@@ -17,12 +17,9 @@ start_script.value {
 		var r_polls, visual_values, r_params;
 		# r_polls, visual_values, r_params = r_moln_init.value(5);
 
-/*
-	TODO
 		r_params.do { |r_param|
 			~params.add_(r_param);
 		};
-*/
 
 		~params.bang_();
 	};

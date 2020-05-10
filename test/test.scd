@@ -4,5 +4,5 @@ var include_relative = { |relative_path|
 	this.executeFile(path);
 };
 
-include_relative.value("skev_minimal.scd");
+include_relative.value("moln_minimal.scd");
 )
