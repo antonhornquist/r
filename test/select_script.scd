@@ -4,5 +4,6 @@ var include_relative = { |relative_path|
 	this.executeFile(path);
 };
 
-include_relative.value("moln_minimal.scd");
+var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+~select_script_environment = norns_engine_tester[\select_script_environment];
 )

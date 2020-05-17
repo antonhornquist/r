@@ -960,12 +960,35 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					}.value;
 				};
 
-				~scripts = ~scripts.add(script_env); // this goes to the currentEnvironment
+				~scripts = ~scripts.add(script_env); // TODO: this goes to the currentEnvironment - check for topEnvironment?
+				// TODO 2: call this script_envs since they're environments?
 			};
 
 
 			CmdPeriod.add {
 				window.close;
+			};
+		};
+
+		var select_script_environment = { |script_index|
+			// TODO: assumes scripts array resides in topEnvironment
+			var scripts = topEnvironment[\scripts];
+			if (scripts.notNil) {
+				var currentScriptEnvIndex = scripts.detectIndex { |script_environment| script_environment == currentEnvironment };
+				var script = scripts[script_index];
+
+				if (script.notNil) {
+					if (currentScriptEnvIndex.notNil) {
+						"script #%'s environment popped".format(currentScriptEnvIndex).inform;
+						Environment.pop;
+					};
+					script.push;
+					"script #%'s environment pushed".format(script_index).inform;
+				} {
+					Error("no script with index % in scripts array!".format(script_index)).throw;
+				};
+			} {
+				Error("no scripts array in topEnvironment!").throw;
 			};
 		};
 
@@ -977,6 +1000,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 		var module = IdentityDictionary[
 			\start_script -> start_script,
+			\select_script_environment -> select_script_environment,
 			\stop_script -> stop_script
 		];
 
