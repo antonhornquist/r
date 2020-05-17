@@ -77,8 +77,8 @@ var voice = include_relative.value("voice.scd");
 var voice_new = voice[\voice_new];
 
 var polyphony = 5;
-var note_downs = [];
-var note_slots = [];
+var note_downs = ();
+var note_slots = ();
 var voice_allocator;
 
 var visual_values;
@@ -396,11 +396,15 @@ var init_env_release_param = {
 var note_on = { |note, velocity|
 	if (note_slots[note].isNil) {
 		var slot = voice_allocator.get_();
-		var voicenum = slot[\id_];
+		var voicenum = slot[\id_]; // TODO: + 1
+		[voicenum, note].debug(\trig_voice);
 		trig_voice.value(voicenum, note);
 		slot[\on_release_] = {
+\slot_on_release_.debug;
 			release_voice.value(voicenum);
+1.debug;
 			note_slots[note] = nil;
+2.debug;
 		};
 		note_slots[note] = slot;
 		note_downs[voicenum] = note;
@@ -408,12 +412,12 @@ var note_on = { |note, velocity|
 };
 
 var trig_voice = { |voicenum, note|
-	//~engine.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps);
+	~engine.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps);
 	postln("FreqGate"++(voicenum+1)++".Gate 1 FreqGate"++(voicenum+1)++".Frequency "++note.midicps);
 };
 
 var release_voice = { |voicenum|
-	//~engine.bulkset_("FreqGate"++voicenum++".Gate 0");
+	~engine.bulkset_("FreqGate"++voicenum++".Gate 0");
 	postln("FreqGate"++(voicenum+1)++".Gate 0");
 };
 

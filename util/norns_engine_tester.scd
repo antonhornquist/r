@@ -1,195 +1,208 @@
 (
 var namespaces = ();
 
-namespaces.arc = {
+namespaces.arc_device_manager = {
 	// utility library to use a SerialOSCEnc to mock a norns enc, implementing a subset of functions.
 
-	var arc_connect = { |n|
-		var arc;
+	var init_arc_device_manager = { |script_env|
+		var arc_device_manager = ();
 
-		n = n ? 1; 
+		arc_device_manager['__enc_delta_funcs__'] = [];
 
-		if (n != 1) {
-			Error("multiple arcs not supported").throw
+		arc_device_manager.connect_ = { |self, n|
+			var arc_device;
+
+			n = n ? 1; 
+
+			if (n != 1) {
+				Error("multiple arcs are not supported").throw
+			};
+
+			arc_device = ();
+			arc_device.led_ = { |self, ring, x, val|
+				SerialOSCEnc.ringSet(ring-1, x-1, val);
+			};
+			arc_device.all_ = { |self, ring, val|
+				SerialOSCEnc.ringAll(ring-1, val);
+			};
+
+			arc_device_manager['__enc_delta_funcs__'] = arc_device_manager['__enc_delta_funcs__'].add(
+				EncDeltaFunc(
+					{ |ring, n, delta|
+						script_env.use {
+							arc_device[\delta].value(ring+1, n+1, delta);
+						};
+					}
+				)
+			);
+
+			arc_device;
 		};
-
-		arc = ();
-		arc.led_ = { |self, ring, x, val|
-			SerialOSCEnc.ringSet(ring-1, x-1, val);
-		};
-		arc.all_ = { |self, ring, val|
-			SerialOSCEnc.ringAll(ring-1, val);
-		};
-
-		EncDeltadef( // TODO: use Func, cleanup in a nornsemu_free function
-			\nornsemu_encdelta,
-			{ |ring, n, delta|
-				arc[\delta].value(ring+1, n+1, delta);
-			}
-		);
-
-		arc;
+		arc_device_manager
 	};
 
-	var init_arc = {
-		var arc = ();
-		arc.connect_ = {
-			arc_connect.value;
-		};
-		arc
-	};
-
-	var free_arc = {
-		// TODO: free EncDeltaFunc
+	var free_arc_device_manager = { |arc_device_manager|
+		arc_device_manager['__enc_delta_funcs__'] do: _.free
 	};
 
 	var module = IdentityDictionary[
-		\init_arc -> init_arc
+		\init_arc_device_manager -> init_arc_device_manager,
+		\free_arc_device_manager -> free_arc_device_manager
 	];
 
 	module
 }.value;
 
-namespaces.midi = {
-	var midi_connect = { |n|
-		var midi;
+namespaces.midi_device_manager = {
+	var init_midi_device_manager = { |script_env|
+		var midi_device_manager = ();
+		midi_device_manager.connect_ = { |self, n|
+			var midi_device;
 
-		MIDIIn.connectAll;
+			MIDIIn.connectAll;
 
-		n = n ? 1; 
+			n = n ? 1; 
 
-		if (n != 1) {
-			Error("multiple midi devices not supported").throw
-		};
+			if (n != 1) {
+				Error("multiple midi devices are not supported").throw
+			};
 
-		midi = ();
+			midi_device = ();
+
 /*
-	TODO: midi out
-		midi.send_ = { |self, data|
-			MIDIOut....
-		};
+			TODO: midi_device out
+			midi_device.send_ = { |self, data|
+				MIDIOut....
+			};
 */
 
-		MIDIdef.cc( // TODO: use Func, cleanup in a nornsemu_free function
-			\nornsemu_midi_cc,
-			{ |val, num, chan|
-				midi[\event].value(
-					(
-						type: 'cc',
-						val: val,
-						num: num,
-						chan: chan
-					)
-				);
-			}
-		);
+			midi_device_manager['__midi_funcs__'] = midi_device_manager['__midi_funcs__'].add(
+				MIDIFunc.cc(
+					{ |val, num, chan|
+						script_env.use {
+							midi_device[\event].value(
+								(
+									type: 'cc',
+									val: val,
+									num: num,
+									chan: chan
+								)
+							);
+						};
+					}
+				)
+			);
 
-		MIDIdef.noteOn( // TODO: use Func, cleanup in a nornsemu_free function
-			\nornsemu_midi_noteon,
-			{ |vel, note, chan|
-				midi[\event].value(
-					(
-						type: 'note_on',
-						vel: vel,
-						note: note,
-						chan: chan
-					)
-				);
-			}
-		);
+			midi_device_manager['__midi_funcs__'] = midi_device_manager['__midi_funcs__'].add(
+				MIDIFunc.noteOn(
+					{ |vel, note, chan|
+						script_env.use {
+							midi_device[\event].value(
+								(
+									type: 'note_on',
+									vel: vel,
+									note: note,
+									chan: chan
+								)
+							);
+						};
+					}
+				)
+			);
 
-		MIDIdef.noteOff( // TODO: use Func, cleanup in a nornsemu_free function
-			\nornsemu_midi_noteoff,
-			{ |vel, note, chan|
-				midi[\event].value(
-					(
-						type: 'note_off',
-						vel: vel,
-						note: note,
-						chan: chan
-					)
-				);
-			}
-		);
+			midi_device_manager['__midi_funcs__'] = midi_device_manager['__midi_funcs__'].add(
+				MIDIFunc.noteOff(
+					{ |vel, note, chan|
+						script_env.use {
+							midi_device[\event].value(
+								(
+									type: 'note_off',
+									vel: vel,
+									note: note,
+									chan: chan
+								)
+							);
+						};
+					}
+				)
+			);
 
-		midi;
-	};
-
-	var init_midi = {
-		var midi = ();
-		midi.connect_ = {
-			midi_connect.value;
+			midi_device;
 		};
-		midi.to_data_ = { |msg|
+		midi_device_manager.to_data_ = { |self, msg|
 			msg // TODO
 		};
-		midi.to_msg_ = { |data|
+		midi_device_manager.to_msg_ = { |self, data|
 			data
 		};
-		midi
+		midi_device_manager
 	};
 
-	var free_midi = {
-		// TODO: free MIDIFuncs above
+	var free_midi_device_manager = { |midi_device_manager|
+		midi_device_manager['__midi_funcs__'] do: _.free;
 	};
 
 	var module = IdentityDictionary[
-		\init_midi -> init_midi
+		\init_midi_device_manager -> init_midi_device_manager,
+		\free_midi_device_manager -> free_midi_device_manager
 	];
 
 	module
 }.value;
 
-namespaces.grid = {
+namespaces.grid_device_manager = {
 	// utility library to use a SerialOSCGrid to mock a norns grid, implementing a subset of functions.
 
-	var grid_connect = { |n|
-		var grid;
+	var init_grid_device_manager = { |script_env|
+		var grid_device_manager = ();
 
-		n = n ? 1; 
+		grid_device_manager['__grid_key_funcs__'] = [];
 
-		if (n != 1) {
-			Error("multiple grids not supported").throw
-		};
+		grid_device_manager.connect_ = {
+			var grid_device;
 
-		grid = ();
-		grid.led_ = { |self, x, y, val|
-			SerialOSCGrid.ledLevelSet(x-1, y-1, val);
-		};
-		grid.all_ = { |self, val|
-			SerialOSCGrid.ledLevelAll(val);
-		};
-		grid.cols_ = { |self|
-			SerialOSCGrid.numCols;
-		};
-		grid.rows_ = { |self|
-			SerialOSCGrid.numRows;
-		};
+			n = n ? 1; 
 
-		GridKeydef( // TODO: use Func, cleanup in a nornsemu_free function
-			\nornsemu_gridkey,
-			{ |x, y, state|
-				grid[\key].value(x+1, y+1, state);
-			}
-		);
+			if (n != 1) {
+				Error("multiple grids are not supported").throw
+			};
 
-		grid;
+			grid_device = ();
+			grid_device.led_ = { |self, x, y, val|
+				SerialOSCGrid.ledLevelSet(x-1, y-1, val);
+			};
+			grid_device.all_ = { |self, val|
+				SerialOSCGrid.ledLevelAll(val);
+			};
+			grid_device.cols_ = { |self|
+				SerialOSCGrid.numCols;
+			};
+			grid_device.rows_ = { |self|
+				SerialOSCGrid.numRows;
+			};
+
+			grid_device_manager['__grid_key_funcs__'] = grid_device_manager['__grid_key_funcs__'].add(
+				GridKeyFunc(
+					{ |x, y, state|
+						script_env.use {
+							grid_device[\key].value(x+1, y+1, state);
+						};
+					}
+				)
+			);
+
+			grid_device;
+		};
+		grid_device_manager;
 	};
 
-	var init_grid = {
-		var grid = ();
-		grid.connect_ = {
-			grid_connect.value;
-		};
-		grid;
-	};
-
-	var free_grid = {
-		// TODO: free GridKeyFunc above
+	var free_grid_device_manager = { |grid_device_manager|
+		grid_device_manager['__grid_key_funcs__'] do: _.free;
 	};
 
 	var module = IdentityDictionary[
-		\init_grid -> init_grid
+		\init_grid_device_manager -> init_grid_device_manager,
+		\free_grid_device_manager -> free_grid_device_manager
 	];
 
 	module
@@ -694,14 +707,17 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var paramset = namespaces[\paramset];
 		var init_paramset = paramset[\init_paramset];
 
-		var arc = namespaces[\arc];
-		var init_arc = arc[\init_arc];
+		var arc_device_manager = namespaces[\arc_device_manager];
+		var init_arc_device_manager = arc_device_manager[\init_arc_device_manager];
+		var free_arc_device_manager = arc_device_manager[\free_arc_device_manager];
 
-		var midi = namespaces[\midi];
-		var init_midi = midi[\init_midi];
+		var midi_device_manager = namespaces[\midi_device_manager];
+		var init_midi_device_manager = midi_device_manager[\init_midi_device_manager];
+		var free_midi_device_manager = midi_device_manager[\free_midi_device_manager];
 
-		var grid = namespaces[\grid];
-		var init_grid = grid[\init_grid];
+		var grid_device_manager = namespaces[\grid_device_manager];
+		var init_grid_device_manager = grid_device_manager[\init_grid_device_manager];
+		var free_grid_device_manager = grid_device_manager[\free_grid_device_manager];
 
 /*
 	TODO
@@ -907,9 +923,9 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					~metro = init_metro.value;
 					~params = init_paramset.value;
 					~mix = init_paramset.value;
-					~midi = init_midi.value;
-					~arc = init_arc.value;
-					~grid = init_grid.value;
+					~midi = init_midi_device_manager.value(currentEnvironment);
+					~arc = init_arc_device_manager.value(currentEnvironment);
+					~grid = init_grid_device_manager.value(currentEnvironment);
 
 					~mix.add_( // TODO: remove
 						(
@@ -962,12 +978,25 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 				~scripts = ~scripts.add(script_env); // TODO: this goes to the currentEnvironment - check for topEnvironment?
 				// TODO 2: call this script_envs since they're environments?
-			};
 
-
-			CmdPeriod.add {
-				window.close;
+				CmdPeriod.add {
+					"script cleanup...".inform;
+					script_env.use {
+						script_env[\cleanup].value;
+					};
+					"freeing script device managers...".inform;
+					free_script.value(script_env);
+					"closing script screen window...".inform;
+					window.close;
+					"... script successfully freed.".inform;
+				};
 			};
+		};
+
+		var free_script = { |script_env|
+			free_midi_device_manager.value(script_env);
+			free_arc_device_manager.value(script_env);
+			free_grid_device_manager.value(script_env);
 		};
 
 		var select_script_environment = { |script_index|

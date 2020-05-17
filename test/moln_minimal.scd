@@ -10,15 +10,35 @@ var start_script = norns_engine_tester['start_script'];
 start_script.value {
 	var r_moln = include_relative.value('lib/r_moln.scd');
 	var r_moln_init = r_moln[\init];
+	var r_moln_note_on = r_moln[\note_on];
+	var r_moln_note_off = r_moln[\note_off];
 
 	~engine.name = 'R';
 
 	~init = {
 		var r_polls, visual_values, r_params;
+		var midi_device;
+
 		# r_polls, visual_values, r_params = r_moln_init.value(5);
 
 		r_params.do { |r_param|
 			~params.add_(r_param);
+		};
+
+		midi_device = ~midi.connect_();
+		midi_device.event = { |data|
+			var msg = ~midi.to_msg_(data);
+			msg.debug(\msg);
+			case
+			{msg['type'] == 'note_off'} {
+				[msg.note].debug('off');
+				r_moln_note_off.value(msg.note);
+			}
+			{msg['type'] == 'note_on'} {
+				[msg.note, msg.vel / 127].debug('on');
+				r_moln_note_on.value(msg.note, msg.vel / 127);
+
+			}
 		};
 
 		~params.bang_();
@@ -50,5 +70,6 @@ start_script.value {
 
 	~key = { |n, z|
 	};
+
 };
 )
