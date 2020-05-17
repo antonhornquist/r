@@ -714,7 +714,14 @@ var constructModuleParameterReference = { |moduleRef, parameterRef|
 };
 
 var parseModuleInputReference = { |reference|
-	reference.asString.split(moduleInputRefDelimiter);
+	var destModuleRef, input;
+	if (reference.asString.includes(moduleOutputRefDelimiter)) {
+		"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(moduleOutputRefDelimiter.asString.quote, moduleInputRefDelimiter.asString.quote, reference.asString.split(moduleOutputRefDelimiter).join(moduleInputRefDelimiter)).inform;
+		# destModuleRef, input = reference.asString.split(moduleOutputRefDelimiter);
+	} {
+		# destModuleRef, input = reference.asString.split(moduleInputRefDelimiter);
+	};
+	[destModuleRef, input];
 };
 
 var constructModuleInputReference = { |moduleRef, inputRef|
@@ -934,7 +941,11 @@ var isValidModuleInputName = { |ref|
 	var module, input;
 
 	ref = ref.asString;
-	if (ref.contains(moduleInputRefDelimiter)) {
+	if (
+		ref.contains(moduleInputRefDelimiter)
+		or:
+		ref.contains(moduleOutputRefDelimiter) // provide backwards copatibility
+	) {
 		# module, input = parseModuleInputReference.value(ref);
 		isValidModuleName.value(module) and: isValidInOutputName.value(input);
 	} {
