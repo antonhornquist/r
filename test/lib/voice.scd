@@ -4,14 +4,12 @@
 // (voice) Slot class
 var slot_new = { |pool, id|
 	var obj = ();
-[pool, id].debug(\slot_new);
 	obj.pool__ = pool;
 	obj.id__ = id;
 	obj.active__ = false;
 	obj.on_release__ = nil;
 	obj.on_steal__ = nil;
 	obj.release__ = { |self|
-'self'.debug(\slot_release);
 		self.pool__.release__(self);
 	};
 	obj
@@ -20,7 +18,6 @@ var slot_new = { |pool, id|
 // LRU allocation class
 var lru_new = { |polyphony, slots|
 	var obj = ();
-[polyphony, slots].debug(\lru_new);
 	obj.slots__ = slots;
 	obj.count__ = 0;
 	slots.do { |slot|
@@ -30,7 +27,6 @@ var lru_new = { |polyphony, slots|
 		var count = self.count__ + 1;
 		var next = self.slots__[0];
 		var free = nil;
-'self'.debug(\lru_next);
 
 		self.count__ = count;
 
@@ -68,7 +64,6 @@ var lru_new = { |polyphony, slots|
 var voice_new = { |polyphony, mode|
 	var obj = ();
 	var slots;
-[polyphony, mode].debug(\voice_new);
 
 	obj.polyphony__ = polyphony;
 	obj.mode__ = mode;
@@ -96,7 +91,6 @@ var voice_new = { |polyphony, mode|
 	/// get next available voice Slot from pool, stealing an active slot if needed
 	obj.get__ = { |self|
 		var slot = self.style__.next__();
-'slot'.debug(\voice_get__);
 
 		if (slot.active__) {
 			if (self[\will_steal__].notNil) {
@@ -123,7 +117,6 @@ var voice_new = { |polyphony, mode|
 	};
 	/// return voice slot to pool
 	obj.release__ = { |self, slot|
-'self, slot'.debug(\voice_release__);
 		if (slot[\pool__] === self) {
 			if (self[\will_release__].notNil) {
 				self[\will_release__].value(slot);
