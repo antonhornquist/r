@@ -4,13 +4,13 @@
 // (voice) Slot class
 var slot_new = { |pool, id|
 	var obj = ();
-	obj[\pool_] = pool;
-	obj.id_ = id;
-	obj.active_ = false;
-	obj.on_release_ = nil;
-	obj.on_steal_ = nil;
-	obj.release_ = { |self|
-		self[\pool_].release_(self);
+	obj.pool__ = pool;
+	obj.id__ = id;
+	obj.active__ = false;
+	obj.on_release__ = nil;
+	obj.on_steal__ = nil;
+	obj.release__ = { |self|
+		self[\pool__].release__(self);
 	};
 	obj
 };
@@ -23,7 +23,7 @@ var lru_new = { |polyphony, slots|
 	slots.do { |slot|
 		slot.n_ = 0;
 	};
-	obj.next_ = { |self|
+	obj.next__ = { |self|
 		var count = self.count_ + 1;
 		var next = self.slots_[0];
 		var free = nil;
@@ -31,7 +31,7 @@ var lru_new = { |polyphony, slots|
 		self.count_ = count;
 		self.slots_.do { |slot|
 			case
-			{ slot.active_.not } {
+			{ slot.active__.not } {
 				if (
 					if (free.isNil) {
 						true
@@ -63,11 +63,11 @@ var voice_new = { |polyphony, mode|
 	var obj = ();
 	var slots;
 
-	obj.polyphony_ = polyphony;
+	obj.polyphony__ = polyphony;
 	obj.mode_ = mode;
-	obj.will_steal_ = nil; // event callback
-	obj.will_release_ = nil; // event callback
-	obj.pairings_ = IdentityDictionary[];
+	obj.will_steal__ = nil; // event callback
+	obj.will_release__ = nil; // event callback
+	obj.pairings__ = IdentityDictionary[];
 
 	slots = polyphony.collect { |id|
 		slot_new.value(obj, id+1);
@@ -75,69 +75,71 @@ var voice_new = { |polyphony, mode|
 
 	case
 	{ mode == \mode_rotate } {
-		// TODO obj.style_ = rotate_new.value(polyphony, slots);
+		// TODO obj.style__ = rotate_new.value(polyphony, slots);
 		this.notYetImplemented;
 	}
 	{ mode == \mode_random } {
-		// TODO obj.style_ = random_new.value(polyphony, slots);
+		// TODO obj.style__ = random_new.value(polyphony, slots);
 		this.notYetImplemented;
 	}
 	{ true } {
-		obj.style_ = lru_new.value(polyphony, slots);
+		obj.style__ = lru_new.value(polyphony, slots);
 	};
 
 	/// get next available voice Slot from pool, stealing an active slot if needed
-	obj.get_ = { |self|
-		var slot = self.style_.next_();
+	obj.get__ = { |self|
+		var slot = self.style__.next__();
 1.debug;
-		if (slot.active_) {
+slot.debug(\voice_get__);
+		if (slot.active__) {
 			var pairing;
 2.debug;
 
-			if (self[\will_steal_].notNil) {
-				self[\will_steal_].value(slot);
+			if (self[\will_steal__].notNil) {
+				self[\will_steal__].value(slot);
 			};
 
 			// ack; nuke any existing pairings
-			self.pairings_.keys.do { |key|
-				if (self.pairings_[key] == slot) {
-					self.pairings_[key] = nil;
+			self.pairings__.keys.do { |key|
+				if (self.pairings__[key] == slot) {
+					self.pairings__[key] = nil;
 				};
 
 				case
-				{ slot[\on_steal_].notNil } {
-					slot[\on_steal_].value(slot);
+				{ slot[\on_steal__].notNil } {
+					slot[\on_steal__].value(slot);
 				}
-				{ slot[\on_release_].notNil } {
-					slot[\on_release_].value(slot);
+				{ slot[\on_release__].notNil } {
+					slot[\on_release__].value(slot);
 				}
 			};
 		};
-		slot.active_ = true;
+		slot.active__ = true;
 		slot;
 	};
 	/// return voice slot to pool
-	obj.release_ = { |self, slot|
-[self, slot].debug(\obj_release_);
+	obj.release__ = { |self, slot|
 /*
-		if (slot.pool_ == self) {
+[self, slot].debug(\obj_release_);
+*/
+'zzz'.debug;
+		if (slot.pool__ == self) {
 1.debug;
-			if (self[\will_release_].notNil) {
+			if (self[\will_release__].notNil) {
 2.debug;
-				self[\will_release_].value(slot);
+				self[\will_release__].value(slot);
 			};
-			if (self[\on_release_].notNil) {
+			if (self[\on_release__].notNil) {
 3.debug;
-				self[\on_release_].value(slot);
+				self[\on_release__].value(slot);
 			};
 4.debug;
-			slot.active_ = false;
+			slot.active__ = false;
 		} {
 5.debug;
 			postln("voice slot: " ++ slot.asString ++ " does not belong to pool: " ++ self.asString);
 6.debug;
 		}
-*/
 	};
 	obj;
 };

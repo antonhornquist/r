@@ -395,8 +395,8 @@ var init_env_release_param = {
 
 var note_on = { |note, velocity|
 	if (note_slots[note].isNil) {
-		var slot = voice_allocator.get_();
-		var voicenum = slot[\id_]; // TODO: + 1
+		var slot = voice_allocator.get__();
+		var voicenum = slot[\id__]; // TODO: + 1
 		[voicenum, note].debug(\trig_voice);
 		trig_voice.value(voicenum, note);
 		slot[\on_release_] = {
@@ -423,8 +423,9 @@ var release_voice = { |voicenum|
 
 var note_off = { |note|
 	var slot = note_slots[note];
+slot.debug(\note_off);
 	if (slot.notNil) {
-		voice_allocator.release_(slot);
+		// voice_allocator.release__(slot);
 		note_downs[slot[\id]] = nil;
 	};
 };

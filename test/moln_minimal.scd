@@ -30,11 +30,11 @@ start_script.value {
 			var msg = ~midi.to_msg_(data);
 			msg.debug(\msg);
 			case
-			{msg['type'] == 'note_off'} {
+			{msg['type'] == 'note_off'} {
 				[msg.note].debug('off');
 				r_moln_note_off.value(msg.note);
 			}
-			{msg['type'] == 'note_on'} {
+			{msg['type'] == 'note_on'} {
 				[msg.note, msg.vel / 127].debug('on');
 				r_moln_note_on.value(msg.note, msg.vel / 127);
 
@@ -69,6 +69,27 @@ start_script.value {
 	};
 
 	~key = { |n, z|
+		case
+		{n == 2} {
+			var note = 60;
+			if (z == 1) {
+				note.debug('on');
+				r_moln_note_on.value(note, 1);
+			} {
+				note.debug('off');
+				r_moln_note_off.value(note);
+			};
+		}
+		{n == 3} {
+			var note = 72;
+			if (z == 1) {
+				note.debug('on');
+				r_moln_note_on.value(note, 1);
+			} {
+				note.debug('off');
+				r_moln_note_off.value(note);
+			};
+		}
 	};
 
 };
