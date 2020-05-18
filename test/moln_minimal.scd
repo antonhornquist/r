@@ -28,16 +28,32 @@ start_script.value {
 		midi_device = ~midi.connect_();
 		midi_device.event = { |data|
 			var msg = ~midi.to_msg_(data);
-			msg.debug(\msg);
 			case
 			{msg['type'] == 'note_off'} {
-				[msg.note].debug('off');
 				r_moln_note_off.value(msg.note);
 			}
 			{msg['type'] == 'note_on'} {
-				[msg.note, msg.vel / 127].debug('on');
 				r_moln_note_on.value(msg.note, msg.vel / 127);
 
+			}
+			{msg['type'] == 'cc'} {
+				var num = msg['num'];
+				var val = msg['val'];
+				var delta = if (val > 64, val-128, val);
+				case
+				{num == 1} {
+					~params.delta_( "lfo_frequency", delta);
+				}
+				{num == 2} {
+					~params.delta_( "lfo_to_osc_pwm", delta);
+					~params.delta_( "osc_detune", delta);
+				}
+				{num == 3} {
+					~params.delta_( "filter_frequency", delta);
+				}
+				{num == 4} {
+					~params.delta_( "env_release", delta);
+				}
 			}
 		};
 
@@ -73,30 +89,24 @@ start_script.value {
 		{n == 1} {
 			var note = 60;
 			if (z == 1) {
-				note.debug('on');
 				r_moln_note_on.value(note, 1);
 			} {
-				note.debug('off');
 				r_moln_note_off.value(note);
 			};
 		}
 		{n == 2} {
 			var note = 63;
 			if (z == 1) {
-				note.debug('on');
 				r_moln_note_on.value(note, 1);
 			} {
-				note.debug('off');
 				r_moln_note_off.value(note);
 			};
 		}
 		{n == 3} {
 			var note = 67;
 			if (z == 1) {
-				note.debug('on');
 				r_moln_note_on.value(note, 1);
 			} {
-				note.debug('off');
 				r_moln_note_off.value(note);
 			};
 		}

@@ -409,12 +409,12 @@ var note_on = { |note, velocity|
 
 var trig_voice = { |voicenum, note|
 	~engine.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps);
-	postln("FreqGate"++(voicenum+1)++".Gate 1 FreqGate"++(voicenum+1)++".Frequency "++note.midicps);
+	// TODO postln("FreqGate"++(voicenum+1)++".Gate 1 FreqGate"++(voicenum+1)++".Frequency "++note.midicps);
 };
 
 var release_voice = { |voicenum|
 	~engine.bulkset_("FreqGate"++voicenum++".Gate 0");
-	postln("FreqGate"++(voicenum+1)++".Gate 0");
+	// TODO postln("FreqGate"++(voicenum+1)++".Gate 0");
 };
 
 var note_off = { |note|
