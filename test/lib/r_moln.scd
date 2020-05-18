@@ -278,7 +278,7 @@ var init_osc_detune_param = {
 		\formatter -> formatters[\percentage],
 		\action -> { |value|
 			~engine.macroset_("osc_a_detune", -1 * value * 20);
-			~engine.macroset_("osc_b_detune", -1 * value * 20);
+			~engine.macroset_("osc_b_detune", value * 20);
 		}
 	];
 };
@@ -397,14 +397,10 @@ var note_on = { |note, velocity|
 	if (note_slots[note].isNil) {
 		var slot = voice_allocator.get__();
 		var voicenum = slot[\id__]; // TODO: + 1
-		[voicenum, note].debug(\trig_voice);
 		trig_voice.value(voicenum, note);
-		slot[\on_release_] = {
-\slot_on_release_.debug;
+		slot[\on_release__] = {
 			release_voice.value(voicenum);
-1.debug;
 			note_slots[note] = nil;
-2.debug;
 		};
 		note_slots[note] = slot;
 		note_downs[voicenum] = note;
@@ -423,9 +419,8 @@ var release_voice = { |voicenum|
 
 var note_off = { |note|
 	var slot = note_slots[note];
-slot.debug(\note_off);
 	if (slot.notNil) {
-		// voice_allocator.release__(slot);
+		voice_allocator.release__(slot);
 		note_downs[slot[\id]] = nil;
 	};
 };

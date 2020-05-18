@@ -979,7 +979,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 				~scripts = ~scripts.add(script_env); // TODO: this goes to the currentEnvironment - check for topEnvironment?
 				// TODO 2: call this script_envs since they're environments?
 
-				CmdPeriod.add {
+				CmdPeriod.doOnce {
 					"script cleanup...".inform;
 					script_env.use {
 						script_env[\cleanup].value;

@@ -58,19 +58,19 @@ start_script.value {
 	~enc = { |n, delta|
 		case
 		{n == 1} {
-			~params.delta_("pitch_ratio", delta);
+			~params.delta_("osc_a_range", delta);
 		}
 		{n == 2} {
-			~params.delta_("pitch_dispersion", delta);
+			~params.delta_("osc_detune", delta);
 		}
 		{n == 3} {
-			~params.delta_("time_dispersion", delta);
+			~params.delta_("filter_frequency", delta);
 		};
 	};
 
 	~key = { |n, z|
 		case
-		{n == 2} {
+		{n == 1} {
 			var note = 60;
 			if (z == 1) {
 				note.debug('on');
@@ -80,8 +80,18 @@ start_script.value {
 				r_moln_note_off.value(note);
 			};
 		}
+		{n == 2} {
+			var note = 63;
+			if (z == 1) {
+				note.debug('on');
+				r_moln_note_on.value(note, 1);
+			} {
+				note.debug('off');
+				r_moln_note_off.value(note);
+			};
+		}
 		{n == 3} {
-			var note = 72;
+			var note = 67;
 			if (z == 1) {
 				note.debug('on');
 				r_moln_note_on.value(note, 1);
