@@ -8,10 +8,12 @@ var norns_engine_tester = include_relative.value("../util/norns_engine_tester.sc
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	// scriptname: 4_voice
+	// scriptname: 5_polloutput
 	// v1.1.0 @jah
 	var formatters = include_relative.value("lib/formatters.scd");
 	var r_specs = include_relative.value("lib/r_specs.scd");
+
+	var val;
 
 	~engine.name = 'R';
 
@@ -25,6 +27,15 @@ start_script.value {
 		var filter_resonance_spec;
 		var lfo_to_filter_fm_spec;
 		var env_to_filter_fm_spec;
+
+		var screen_y_spec;
+		var lfo_sine_output_spec;
+		var poll1;
+
+/*
+		var screen_refresh_metro;
+		var screen_framerate;
+*/
 
 		~engine.new_("FreqGate", "FreqGate");
 		~engine.new_("LFO", "MultiLFO");
@@ -49,6 +60,8 @@ start_script.value {
 		~engine.connect_("Filter/Lowpass", "Amp*In");
 		~engine.connect_("Amp/Out", "SoundOut*Left");
 		~engine.connect_("Amp/Out", "SoundOut*Right");
+
+		~engine.polloutpot_(1, "LFO/Sine");
 
 		~params.add_(
 			(
@@ -229,6 +242,31 @@ start_script.value {
 
 		~params.bang_();
 
+		screen_y_spec = ControlSpec.new(60, 5, 'lin', 1);
+		lfo_sine_output_spec = ControlSpec.new(-0.25, 0.25, 'lin');
+		val = 0;
+/*
+		poll1 = ~poll.set("poll1") { |value|
+			val = screen_y_spec.map(lfo_sine_output_spec.unmap(value));
+			~redraw.value();
+		};
+
+		poll1.start_();
+*/
+
+/*
+		screen_refresh_metro = metro.init_();
+		screen_refresh_metro.event_ = {
+			if (screen_dirty) {
+				screen_dirty = false;
+				~redraw.value();
+			};
+		};
+
+		screen_framerate = 15;
+		screen_refresh_metro.start_(1 / screen_framerate);
+*/
+
 		~midi_device = ~midi.connect_();
 		~midi_device.event = { |data|
 			case
@@ -252,12 +290,25 @@ start_script.value {
 	};
 
 	~redraw = {
+		var x;
 		~screen.clear_();
+		case
+		{x.isNil} {
+			x = 0;
+		}
+		{x > 128} {
+			x = 0;
+		}
+		{true} {
+			x = x + 1;
+		};
+		~screen.rect_(x, val, 2, 2);
+		~screen.fill_();
 		~screen.level_(15);
 		~screen.move_(1, 10);
-		~screen.text_("VOICE");
+		~screen.text_("POLLOUTPUT");
 		~screen.move_(1, 30);
-		~screen.text_("See params in menu");
+		// ~screen.text_("See params in menu");
 		~screen.update_();
 	};
 

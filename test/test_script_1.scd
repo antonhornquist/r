@@ -78,7 +78,7 @@ start_script.value(nil) {
 			grid_device.led_(grid_device.cols_().rand+1, grid_device.rows_().rand+1, 16.rand);
 		};
 
-		~midi_device = ~midi.connect_(0);
+		~midi_device = ~midi.connect_();
 		~midi_device.event = { |data|
 			case
 			{ (data.type == 'cc') and: (data.num ==1) } {

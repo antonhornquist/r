@@ -208,6 +208,37 @@ namespaces.grid_device_manager = {
 	module
 }.value;
 
+namespaces.poll_ = {
+	var init_poll = {
+		var poll = ();
+		var polls = [];
+
+		poll.set_ = { |self, name, callback|
+			var new_poll;
+
+			new_poll = ();
+			new_poll.start_ = { |self|
+			};
+			new_poll.stop_ = { |self|
+			};
+			new_poll.update_ = { |self|
+			};
+
+			polls = polls.add(new_poll);
+
+			new_poll;
+		};
+
+		poll;
+	};
+
+	var module = IdentityDictionary[
+		\init_poll -> init_poll
+	];
+
+	module;
+}.value;
+
 namespaces.metro = {
 	var init_metro = {
 		var metros = [];
@@ -704,6 +735,9 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var metro = namespaces[\metro];
 		var init_metro = metro[\init_metro];
 
+		var poll = namespaces[\poll_];
+		var init_poll = poll[\init_poll];
+
 		var paramset = namespaces[\paramset];
 		var init_paramset = paramset[\init_paramset];
 
@@ -921,6 +955,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					~screen = screen_api;
 
 					~metro = init_metro.value;
+					~poll = init_poll.value;
 					~params = init_paramset.value;
 					~mix = init_paramset.value;
 					~midi = init_midi_device_manager.value(currentEnvironment);
