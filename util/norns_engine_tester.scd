@@ -208,44 +208,82 @@ namespaces.grid_device_manager = {
 	module
 }.value;
 
-namespaces.poll_ = {
-	var init_poll = {
-		var poll = ();
-		var polls = [];
+namespaces.poll_manager = {
+	var init_poll_manager = { |engine_polls|
+		var poll_manager = ();
 
-		poll.set_ = { |self, name, callback|
-			var new_poll;
-
-			new_poll = ();
-			new_poll.start_ = { |self|
-			};
-			new_poll.stop_ = { |self|
-			};
-			new_poll.update_ = { |self|
+		poll_manager['__polls__'] = [];
+		poll_manager.set_ = { |self, name, callback|
+			var engine_poll = engine_polls.detect { |engine_poll|
+				engine_poll.key == name.asSymbol
 			};
 
-			polls = polls.add(new_poll);
+			if (engine_poll.notNil) {
+				var engine_poll_content = engine_poll.value;
+				var engine_poll_func = engine_poll_content[\func];
+				var engine_poll_time = engine_poll_content[\time];
+				var new_poll;
 
-			new_poll;
+				new_poll = ();
+				new_poll.is_running_ = false;
+				new_poll.time_ = engine_poll_time ? 0.25;
+				new_poll.action_ = callback;
+
+				new_poll.start_ = { |self|
+					if (self.is_running_.not) {
+						self.task_ = Task {
+							inf.do {
+								self[\action_].value(engine_poll_func.value);
+								self.time_.wait;
+							}
+						}.play;
+						"poll started".inform;
+					} {
+						"poll already started".inform;
+					};
+				};
+				new_poll.stop_ = { |self|
+					if (self.is_running_) {
+						self.task_.stop;
+					} {
+						"poll already stopped".inform;
+					};
+				};
+				new_poll.update_ = { |self|
+					{
+						self[\action_].value(engine_poll_func.value);
+					}.fork;
+				};
+
+				self['__polls__'] = self['__polls__'].add(new_poll);
+
+				new_poll;
+			} {
+				Error("no poll called %".format(name)).throw;
+			};
 		};
 
-		poll;
+		poll_manager;
+	};
+
+	var free_poll_manager = { |poll_manager|
+		// TODO: stop tasks, etc
 	};
 
 	var module = IdentityDictionary[
-		\init_poll -> init_poll
+		\init_poll_manager -> init_poll_manager,
+		\free_poll_manager -> free_poll_manager
 	];
 
 	module;
 }.value;
 
-namespaces.metro = {
-	var init_metro = {
-		var metros = [];
+namespaces.metro_manager = {
+	var init_metro_manager = {
+		var metro_manager = ();
 
-		var metro = ();
-
-		metro.init_ = { |self, config|
+		metro_manager['__metros__'] = [];
+		metro_manager.init_ = { |self, config|
 			var event = config !? _.event;
 			var time = (config !? _.time) ? 1;
 			var count = (config !? _.count) ? inf;
@@ -255,7 +293,7 @@ namespaces.metro = {
 			new_metro[\event] = event;
 			new_metro[\time] = time;
 			new_metro[\count] = count;
-			new_metro[\id] = metros.size;
+			new_metro[\id] = self['__metros__'].size;
 			new_metro[\is_running] = false;
 			new_metro.start_ = { |self, time, count|
 				if (time.notNil) {
@@ -276,35 +314,36 @@ namespaces.metro = {
 			};
 			new_metro.free_ = { |self|
 				self.stop_();
-				metros.remove(self);
+				self['__metros__'].remove(self);
 			};
 
-			metros = metros.add(new_metro);
+			self['__metros__'] = self['__metros__'].add(new_metro);
 
 			new_metro;
 		};
 
-		metro.free_all_ = { |self|
-			metros.copy.do { |metro|
+		metro_manager.free_all_ = { |self|
+			self['__metros__'].copy.do { |metro|
 				metro.free_();
 			};
 		};
 
-		metro;
+		metro_manager;
 	};
 
-	var free_metro = {
-		// TODO: possibly replace free_all with this
+	var free_metro_manager = { |metro_manager|
+		// TODO: stop metros, etc -- free all will do?
 	};
 
 	var module = IdentityDictionary[
-		\init_metro -> init_metro
+		\init_metro_manager -> init_metro_manager,
+		\free_metro_manager -> free_metro_manager
 	];
 
 	module;
 }.value;
 
-namespaces.screen = {
+namespaces.screen = { // TODO: call this mock_screen?
 	// utility library to mock a UserView as a norns screen, drawable with a limited subset of norns screen functions. uses 1 based coordinates. uses global ~screen global for storage of relevant objects (not functions). relies on global ~redraw function wherein screen_* commands are performed.
 
 	var screen_width = 128;
@@ -649,71 +688,154 @@ namespaces.paramset = {
 
 namespaces.r_engine = {
 	var r_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
-	var r_api = this.executeFile(r_path);
+	var rrrr = this.executeFile(r_path);
 
-	var init = r_api[\init];
-	var free = r_api[\free];
-	var newCommand = r_api[\newCommand];
-	var connectCommand = r_api[\connectCommand];
-	var disconnectCommand = r_api[\disconnectCommand];
-	var deleteCommand = r_api[\deleteCommand];
-	var setCommand = r_api[\setCommand];
-	var bulksetCommand = r_api[\bulksetCommand];
-	var newmacroCommand = r_api[\newmacroCommand];
-	var deletemacroCommand = r_api[\deletemacroCommand];
-	var macrosetCommand = r_api[\macrosetCommand];
-	var readsampleCommand = r_api[\readsampleCommand];
-	var tapoutputCommand = r_api[\tapoutputCommand];
-	var tapclearCommand = r_api[\tapclearCommand];
+	var init = rrrr[\init];
+	var free = rrrr[\free];
+	var newCommand = rrrr[\newCommand];
+	var connectCommand = rrrr[\connectCommand];
+	var disconnectCommand = rrrr[\disconnectCommand];
+	var deleteCommand = rrrr[\deleteCommand];
+	var setCommand = rrrr[\setCommand];
+	var bulksetCommand = rrrr[\bulksetCommand];
+	var newmacroCommand = rrrr[\newmacroCommand];
+	var deletemacroCommand = rrrr[\deletemacroCommand];
+	var macrosetCommand = rrrr[\macrosetCommand];
+	var readsampleCommand = rrrr[\readsampleCommand];
+	var tapoutputCommand = rrrr[\tapoutputCommand];
+	var tapclearCommand = rrrr[\tapclearCommand];
+	var getTapBus = rrrr[\getTapBus];
+	var getVisualBus = rrrr[\getVisualBus];
 
 	// server booted assumed
 	var load_engine = {
-		var r_instance;
-		var engine;
+		var numPolls = 10;
+		var default_poll_rate = 10; // poll updates per second
 
-		r_instance = init.value(
+		var postPollIndexNotWithinBoundsError = { |pollIndex|
+			"poll index not within bounds: pollIndex % referred, only % polls available".format(pollIndex, numPolls).error;
+		};
+
+		var ifPollIndexWithinBoundsDo = { |oneBasedIndex, func|
+			if ((1 <= oneBasedIndex) and: (oneBasedIndex <= numPolls)) {
+				func.value;
+			} {
+				postPollIndexNotWithinBoundsError.value(oneBasedIndex);
+			};
+		};
+
+		var polloutputCommand = { |instance, oneBasedIndex, outputRef|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
+				var pollConfig = pollConfigs[zeroBasedIndex];
+				if (pollConfig[\type].notNil) {
+					pollclearCommand.value(oneBasedIndex);
+				};
+				tapoutputCommand.value(instance, zeroBasedIndex, outputRef);
+				pollConfig[\type] = \out;
+				pollConfig[\outputRef] = outputRef;
+				pollConfig[\bus] = getTapBus.value(instance, zeroBasedIndex);
+			};
+		};
+
+		var pollvisualCommand = { |instance, oneBasedIndex, visual|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
+				var pollConfig = pollConfigs[zeroBasedIndex];
+				if (pollConfig[\type].notNil) {
+					pollclearCommand.value(oneBasedIndex);
+				};
+				pollConfig[\type] = \visual;
+				pollConfig[\visual] = visual;
+				pollConfig[\bus] = getVisualBus.value(instance, visual);
+			};
+		};
+
+		var pollclearCommand = { |instance, oneBasedIndex|
+			ifPollIndexWithinBoundsDo.value(oneBasedIndex) {
+				var zeroBasedIndex = oneBasedIndex - 1; // lua based indexing is used in engine interface
+				var pollConfig = pollConfigs[zeroBasedIndex];
+				if (pollConfig[\type] == \out) {
+					tapclearCommand.value(instance, zeroBasedIndex);
+				};
+				pollConfig[\type] = nil;
+				pollConfig[\outputRef] = nil;
+				pollConfig[\visual] = nil;
+				pollConfig[\bus] = nil;
+			};
+		};
+
+		var pollConfigs = () ! numPolls;
+
+		var r_instance = init.value(
 			(
 				autostartServer: false,
 				trace: false
 			)
 		);
 
-		engine = ();
-		engine.new_ = { |self, name, kind|
-			newCommand.value(r_instance, name, kind);
-		};
-		engine.connect_ = { |self, moduleOutputRef, moduleInputRef|
-			connectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
-		};
-		engine.disconnect_ = { |self, moduleOutputRef, moduleInputRef|
-			disconnectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
-		};
-		engine.delete_ = { |self, moduleRef|
-			deleteCommand.value(r_instance, moduleRef);
-		};
-		engine.set_ = { |self, moduleParameterRef, value|
-			setCommand.value(r_instance, moduleParameterRef, value);
-		};
-		engine.bulkset_ = { |self, bundle|
-			bulksetCommand.value(r_instance, bundle);
-		};
-		engine.newmacro_ = { |self, name, bundle|
-			newmacroCommand.value(r_instance, name, bundle);
-		};
-		engine.deletemacro_ = { |self, name|
-			deletemacroCommand.value(r_instance, name);
-		};
-		engine.macroset_ = { |self, name, value|
-			macrosetCommand.value(r_instance, name, value);
-		};
-
 		(
 			instance: r_instance,
-			engine: engine
+			commands: [
+				\new -> { |self, name, kind|
+					newCommand.value(r_instance, name, kind);
+				},
+				\connect -> { |self, moduleOutputRef, moduleInputRef|
+					connectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
+				},
+				\disconnect -> { |self, moduleOutputRef, moduleInputRef|
+					disconnectCommand.value(r_instance, moduleOutputRef, moduleInputRef);
+				},
+				\delete -> { |self, moduleRef|
+					deleteCommand.value(r_instance, moduleRef);
+				},
+				\set -> { |self, moduleParameterRef, value|
+					setCommand.value(r_instance, moduleParameterRef, value);
+				},
+				\bulkset -> { |self, bundle|
+					bulksetCommand.value(r_instance, bundle);
+				},
+				\newmacro -> { |self, name, bundle|
+					newmacroCommand.value(r_instance, name, bundle);
+				},
+				\deletemacro -> { |self, name|
+					deletemacroCommand.value(r_instance, name);
+				},
+				\macroset -> { |self, name, value|
+					macrosetCommand.value(r_instance, name, value);
+				},
+				\polloutput -> { |self, oneBasedIndex, outputRef|
+					polloutputCommand.value(r_instance, oneBasedIndex, outputRef);
+				},
+				\pollvisual -> { |self, oneBasedIndex, visual|
+					pollvisualCommand.value(r_instance, oneBasedIndex, visual);
+				},
+				\pollclear -> { |self, oneBasedIndex|
+					pollclearCommand.value(r_instance, oneBasedIndex);
+				}
+			],
+			polls: numPolls.collect { |pollIndex|
+				("poll" ++ (pollIndex+1)).asSymbol -> (
+					func: {
+						var pollConfig = pollConfigs[pollIndex];
+						var bus, value;
+
+						// TODO: if pollConfig type not out nor visual, just skip?
+
+						bus = pollConfig[\bus];
+						if (bus.notNil) {
+							value = bus.getSynchronous; // note: getSynchronous does not work with remote servers
+						};
+
+						value;
+					},
+					time: (1/default_poll_rate)
+				)
+			}
 		)
 	};
 
-	var free_engine = { |instance|
+	var free_engine = { |instance| // TODO: not triggered yet, right?
 		free.value(instance[\r_instance]);
 	};
 
@@ -732,11 +854,11 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var screen = namespaces[\screen];
 		var init_screen = screen[\init_screen];
 
-		var metro = namespaces[\metro];
-		var init_metro = metro[\init_metro];
+		var metro_manager = namespaces[\metro_manager];
+		var init_metro_manager = metro_manager[\init_metro_manager];
 
-		var poll = namespaces[\poll_];
-		var init_poll = poll[\init_poll];
+		var poll_manager = namespaces[\poll_manager];
+		var init_poll_manager = poll_manager[\init_poll_manager];
 
 		var paramset = namespaces[\paramset];
 		var init_paramset = paramset[\init_paramset];
@@ -753,13 +875,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var init_grid_device_manager = grid_device_manager[\init_grid_device_manager];
 		var free_grid_device_manager = grid_device_manager[\free_grid_device_manager];
 
-/*
-	TODO
-		var r_engine = namespaces[\r_engine];
-		var load_engine = r_engine[\load_engine];
-		var free_engine = r_engine[\free_engine];
-*/
-
 		var scale = 6;
 		var screen_width = 128 * scale;
 		var screen_height = 64 * scale;
@@ -769,6 +884,15 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 		var window_width = screen_width + (margin_x*2);
 		var window_height = screen_height + (margin_y*2);
+
+		var setup_engine_globals = { |commands, polls|
+			var engine;
+			engine = ();
+			commands.do { |command|
+				engine[(command.key.asString++"_").asSymbol] = command.value;
+			};
+			[engine, init_poll_manager.value(polls)];
+		};
 
 		var start_script = { |script_func|
 			var script_env;
@@ -954,8 +1078,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 					~screen = screen_api;
 
-					~metro = init_metro.value;
-					~poll = init_poll.value;
+					~metro = init_metro_manager.value;
 					~params = init_paramset.value;
 					~mix = init_paramset.value;
 					~midi = init_midi_device_manager.value(currentEnvironment);
@@ -990,13 +1113,15 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 						case
 						{~engine[\name] == 'R' } {
 							s.waitForBoot {
-								var r_engine_namespace = namespaces[\r_engine];
-								var load_engine = r_engine_namespace[\load_engine];
-								var free_engine = r_engine_namespace[\free_engine];
+								var r_engine = namespaces[\r_engine];
+								var load_engine = r_engine[\load_engine];
+								var free_engine = r_engine[\free_engine];
 
-								var r_engine = load_engine.value;
-								var engine = r_engine[\engine];
+								var engine_instance = load_engine.value;
+								var engine, polls;
+								# engine, poll_manager = setup_engine_globals.value(engine_instance[\commands], engine_instance[\polls]);
 								~engine = engine;
+								~poll = poll_manager;
 								"R engine loaded".debug;
 								completeFunc.value;
 							};

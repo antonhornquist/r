@@ -14,6 +14,7 @@ start_script.value {
 	var r_specs = include_relative.value("lib/r_specs.scd");
 
 	var val;
+	var x;
 
 	~engine.name = 'R';
 
@@ -35,6 +36,7 @@ start_script.value {
 /*
 		var screen_refresh_metro;
 		var screen_framerate;
+		var screen_dirty = false;
 */
 
 		~engine.new_("FreqGate", "FreqGate");
@@ -245,18 +247,17 @@ start_script.value {
 		screen_y_spec = ControlSpec.new(60, 5, 'lin', 1);
 		frequency_visual_spec = r_specs['MMFilter']['Frequency'];
 		val = 0;
-/*
-		poll1 = ~poll.set("poll1") { |value|
+		poll1 = ~poll.set_("poll1") { |value|
 			val = screen_y_spec.map(frequency_visual_spec.unmap(value));
 			~redraw.value();
 		};
-
+		poll1.time_ = 1/25;
 		poll1.start_();
-*/
 
 /*
-		screen_refresh_metro = metro.init_();
-		screen_refresh_metro.event_ = {
+	TODO: not used atm
+		screen_refresh_metro = ~metro.init_();
+		screen_refresh_metro.event = {
 			if (screen_dirty) {
 				screen_dirty = false;
 				~redraw.value();
@@ -290,14 +291,13 @@ start_script.value {
 	};
 
 	~redraw = {
-		var x;
 		~screen.clear_();
 		case
 		{x.isNil} {
-			x = 0;
+			x = 1;
 		}
 		{x > 128} {
-			x = 0;
+			x = 1;
 		}
 		{true} {
 			x = x + 1;
