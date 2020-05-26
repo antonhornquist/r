@@ -4,5 +4,5 @@ var include_relative = { |relative_path|
 	this.executeFile(path);
 };
 
-include_relative.value("6_visual.scd");
+include_relative.value("test_ui.scd");
 )
