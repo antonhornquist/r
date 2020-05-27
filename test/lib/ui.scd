@@ -50,6 +50,7 @@ var refresh = {
 		check_arc_connected.value();
 
 		if (arc_dirty) {
+// 1.debug;
 			if (arc_refresh_callback.notNil) {
 				arc_refresh_callback.value(arc_device);
 			};
@@ -63,6 +64,7 @@ var refresh = {
 		update_grid_width.value();
 
 		if (grid_dirty) {
+// 2.debug;
 			if (grid_refresh_callback.notNil) {
 				grid_refresh_callback.value(grid_device);
 			};
@@ -76,10 +78,11 @@ var refresh = {
 	};
 
 	if (screen_dirty) {
+// 3.debug;
 		if (screen_refresh_callback.notNil) {
 			screen_refresh_callback.value();
 		};
-		~screen.update_(); // norns global
+		// ~screen.update_(); // norns global
 		screen_dirty = false;
 	};
 };
@@ -115,6 +118,10 @@ var update_event_indicator = {
 	};
 };
 
+var event_indicator_shown = {
+	show_event_indicator 
+};
+
 // arc
 
 var init_arc = { |config|
@@ -124,17 +131,17 @@ var init_arc = { |config|
 
 	arc_device = config.device;
 
-	arc_delta_callback = config.on_delta;
-	arc_device.delta = { |n, delta|
+	arc_delta_callback = config[\on_delta];
+	arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
 		flash_event.value();
 		arc_delta_callback.value(n, delta);
 	};
-	arc_refresh_callback = config.on_refresh;
+	arc_refresh_callback = config[\on_refresh];
 	arc_is_inited = true;
 };
 
 var check_arc_connected = {
-	var arc_check = arc_device.device != nil;
+	var arc_check = arc_device.device_ != nil;
 	if (arc_connected != arc_check) {
 		arc_connected = arc_check;
 		arc_dirty = true;
@@ -150,19 +157,19 @@ var init_grid = { |config|
 
 	grid_device = config.device;
 
-	grid_key_callback = config.on_key;
-	grid_device.key = { |x, y, s|
+	grid_key_callback = config[\on_key];
+	grid_device[\key] = { |x, y, s| // not .key notation to suppress self argument?
 		flash_event.value();
 		grid_key_callback.value(x, y, s);
 	};
-	grid_refresh_callback = config.on_refresh;
+	grid_refresh_callback = config[\on_refresh];
 	grid_is_inited = true;
 };
 
 var update_grid_width = {
-	if (grid_device.device) {
-		if (grid_width != grid_device.cols) {
-			grid_width = grid_device.cols;
+	if (grid_device.device_.notNil) {
+		if (grid_width != grid_device.cols_) {
+			grid_width = grid_device.cols_;
 		};
 	};
 };
@@ -184,10 +191,10 @@ var init_midi = { |config|
 
 	midi_device = config.device;
 
-	midi_event_callback = config.on_event;
-	midi_device.event = { |data|
+	midi_event_callback = config[\on_event];
+	midi_device[\event] = { |data| // not .event notation to suppress self argument?
 		flash_event.value();
-		midi_event_callback(data);
+		midi_event_callback.value(data);
 	};
 	midi_is_inited = true;
 };
@@ -206,17 +213,18 @@ var check_midi_connected = {
 // screen
 
 var init_screen = { |config|
-	screen_refresh_callback = config.on_refresh;
+	screen_refresh_callback = config[\on_refresh];
 };
 
 var module = IdentityDictionary[
-	\init_arc -> \init_arc,
-	\init_screen -> \init_screen,
-	\init_grid -> \init_grid,
-	\init_midi -> \init_midi,
-	\grid_width -> \grid_width,
-	\refresh -> \refresh,
-	\set_dirty -> \set_dirty,
+	\init_arc -> init_arc,
+	\init_screen -> init_screen,
+	\init_grid -> init_grid,
+	\init_midi -> init_midi,
+	\grid_width -> grid_width,
+	\refresh -> refresh,
+	\set_dirty -> set_dirty,
+	\event_indicator_shown -> event_indicator_shown
 ];
 
 module

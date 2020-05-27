@@ -30,7 +30,7 @@ namespaces.arc_device_manager = {
 				EncDeltaFunc(
 					{ |ring, n, delta|
 						script_env.use {
-							arc_device[\delta].value(ring+1, n+1, delta);
+							arc_device[\delta].value(ring+1, n+1, delta); // TODO: change to delta_, if possible without introducing self arg
 						};
 					}
 				)
@@ -80,7 +80,7 @@ namespaces.midi_device_manager = {
 				MIDIFunc.cc(
 					{ |val, num, chan|
 						script_env.use {
-							midi_device[\event].value(
+							midi_device[\event].value( // TODO: change to event_, if possible without introducing self arg
 								(
 									type: 'cc',
 									val: val,
@@ -180,12 +180,15 @@ namespaces.grid_device_manager = {
 			grid_device.rows_ = { |self|
 				SerialOSCGrid.numRows;
 			};
+			grid_device.device_ = { |self|
+				SerialOSCGrid.default;
+			};
 
 			grid_device_manager['__grid_key_funcs__'] = grid_device_manager['__grid_key_funcs__'].add(
 				GridKeyFunc(
 					{ |x, y, state|
 						script_env.use {
-							grid_device[\key].value(x+1, y+1, state);
+							grid_device[\key].value(x+1, y+1, state); // TODO: change to key_, if possible without introducing self arg
 						};
 					}
 				)
@@ -233,7 +236,7 @@ namespaces.poll_manager = {
 					if (self.is_running_.not) {
 						self.task_ = Task {
 							inf.do {
-								self[\action_].value(engine_poll_func.value);
+								self[\action_].value(engine_poll_func.value); // TODO: wrap in Environment.use
 								self.time_.wait;
 							}
 						}.play;

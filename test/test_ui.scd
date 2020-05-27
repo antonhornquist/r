@@ -16,18 +16,25 @@ start_script.value {
 	var ui_grid_width = ui[\grid_width];
 	var ui_refresh = ui[\refresh];
 	var ui_set_dirty = ui[\set_dirty];
+	var ui_event_indicator_shown = ui[\event_indicator_shown];
 
 	var r_specs = include_relative.value("lib/r_specs.scd");
 
 	var ppqn = 24;
-	var playpos=0;
+	var count;
 	var playing=false;
 	var tempo_spec = ControlSpec.new(20, 300, 'lin', 0, 120, "BPM");
 	var sequencer_metro;
 
+	var recent_midi_cc_events = [];
+
+	var reset_counter = {
+		count = 0;
+	};
+
 	var tick = {
-		playpos = playpos + 1;
-		postln(playpos);
+		count = count + 1;
+		ui_set_dirty.value();
 	};
 
 	var update_sequencer_metro_time = {
@@ -40,6 +47,16 @@ start_script.value {
 		sequencer_metro.event = tick;
 	};
 
+	var start_sequencer = {
+		playing = true;
+		sequencer_metro.start_();
+	};
+
+	var stop_sequencer = {
+		playing = false;
+		sequencer_metro.stop_();
+	};
+
 	var init_params = {
 		~params.add_( 
 			(
@@ -49,7 +66,7 @@ start_script.value {
 				controlspec: tempo_spec,
 				action: { |val|
 					update_sequencer_metro_time.value(val);
-					ui_set_dirty.value;
+					ui_set_dirty.value();
 				}
 			)
 		);
@@ -57,7 +74,7 @@ start_script.value {
 
 	var init_60_fps_ui_refresh_metro = {
 		var ui_refresh_metro = ~metro.init_();
-		ui_refresh_metro.event = ui_refresh;
+		ui_refresh_metro[\event] = ui_refresh;
 		ui_refresh_metro.time = 1/60;
 		ui_refresh_metro.start_();
 	};
@@ -66,15 +83,19 @@ start_script.value {
 		ui_init_arc.value(
 			(
 				device: ~arc.connect_(),
-				delta_callback: { |n, delta|
+				on_delta: { |n, delta|
+					// [n, delta].debug(\arc_on_delta);
 					case {n == 1} {
 						var val = ~params.get_raw_("tempo");
 						~params.set_raw_("tempo", val+delta/500)
 					;}
 				},
-				refresh_callback: { |my_arc|
+				on_refresh: { |my_arc|
+					// my_arc.debug(\arc_on_refresh);
+/*
 					my_arc.all_(0);
 					my_arc.led_(1, round(~params.get_raw_("tempo")*64).round, 15);
+*/
 				}
 			)
 		);
@@ -82,19 +103,43 @@ start_script.value {
 		ui_init_grid.value(
 			(
 				device: ~grid.connect_(),
-				key_callback: { |x, y, state|
-					[x, y, state].debug;
+				on_key: { |x, y, state|
+					// [x, y, state].debug(\grid_on_key);
 					ui_set_dirty.value()
 				},
-				refresh_callback: { |my_grid|
-					"grid_refresh".debug;
+				on_refresh: { |my_grid|
+					// my_grid.debug(\grid_on_refresh);
+					// "grid_refresh".debug;
+				},
+			)
+		);
+
+		ui_init_midi.value(
+			(
+				device: ~midi.connect_(),
+				on_event: { |data|
+					data.debug(\midi_on_event);
+					if (data[\type] == 'cc') {
+						var val = data[\val];
+						var delta = if (val > 64, val - 128, val);
+						recent_midi_cc_events = recent_midi_cc_events.addFirst("cc"++data[\num]++": "++delta);
+						if (recent_midi_cc_events.size > 5) {
+							recent_midi_cc_events.removeAt(5);
+						};
+						case
+						{data[\num] == 1} {
+							~params.delta_("tempo", delta);
+						};
+						ui_set_dirty.value()
+					};
 				},
 			)
 		);
 
 		ui_init_screen.value(
 			(
-				refresh_callback: {
+				on_refresh: {
+					// TODO my_screen.debug(\screen_on_refresh);
 					~redraw.value();
 				}
 			)
@@ -109,8 +154,8 @@ start_script.value {
 		init_params.value();
 		init_sequencer_metro.value();
 		init_ui.value();
-		playing = true;
-		sequencer_metro.start_();
+		reset_counter.value();
+		start_sequencer.value();
 
 		~params.bang_();
 	};
@@ -120,8 +165,30 @@ start_script.value {
 		~screen.font_size_(8);
 
 		~screen.level_(15);
+
 		~screen.move_(1, 10);
 		~screen.text_("TEST_UI");
+
+		if (ui_event_indicator_shown.value) {
+			~screen.move_(50, 10);
+			~screen.text_("EXT");
+		};
+
+		{
+			var y = 18;
+			recent_midi_cc_events.do { |ev, idx|
+				~screen.move_(1, y + (idx*8));
+				~screen.level_(15 - ((15 / 5)*idx));
+				~screen.text_(ev);
+			}
+		}.value;
+
+		~screen.level_(15);
+		~screen.move_(32, 30);
+		~screen.text_((count div: (ppqn*4)).asString ++ "." ++ ((count div: ppqn) mod: 4).asString ++ "." ++ (count mod: ppqn).asString);
+
+		~screen.move_(1, 64);
+		~screen.text_("TEMPO" + ~params.string_("tempo"));
 
 		~screen.update_();
 	};
@@ -137,15 +204,15 @@ start_script.value {
 		case
 		{(n == 2) and: (s == 1)} {
 			if (playing == false) {
-				playpos = -1;
+				reset_counter.value();
 			} {
-				playing = false;
-				sequencer_metro.stop_();
+				stop_sequencer.value();
 			};
 		}
-		{(n == 2) and: (s == 1)} {
-			playing = true;
-			sequencer_metro.start_();
+		{(n == 3) and: (s == 1)} {
+			if (playing == false) {
+				start_sequencer.value();
+			};
 		};
 		ui_set_dirty.value();
 	};
