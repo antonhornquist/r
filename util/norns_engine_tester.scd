@@ -1,6 +1,10 @@
 (
 var namespaces = ();
 
+var load_class_dynamically = { |classname|
+	thisProcess.interpreter.interpret(classname.asString);
+};
+
 namespaces.arc_device_manager = {
 	// utility library to use a SerialOSCEnc to mock a norns enc, implementing a subset of functions.
 
@@ -11,6 +15,8 @@ namespaces.arc_device_manager = {
 
 		arc_device_manager.connect_ = { |self, n|
 			var arc_device;
+			var serialOSCEncClass = load_class_dynamically.value("SerialOSCEnc");
+			var encDeltaFuncClass = load_class_dynamically.value("EncDeltaFunc");
 
 			n = n ? 1; 
 
@@ -20,14 +26,14 @@ namespaces.arc_device_manager = {
 
 			arc_device = ();
 			arc_device.led_ = { |self, ring, x, val|
-				SerialOSCEnc.ringSet(ring-1, x-1, val);
+				serialOSCEncClass.ringSet(ring-1, x-1, val);
 			};
 			arc_device.all_ = { |self, ring, val|
-				SerialOSCEnc.ringAll(ring-1, val);
+				serialOSCEncClass.ringAll(ring-1, val);
 			};
 
 			arc_device_manager['__enc_delta_funcs__'] = arc_device_manager['__enc_delta_funcs__'].add(
-				EncDeltaFunc(
+				encDeltaFuncClass.new(
 					{ |ring, n, delta|
 						script_env.use {
 							arc_device[\delta].value(ring+1, n+1, delta); // TODO: change to delta_, if possible without introducing self arg
@@ -160,6 +166,8 @@ namespaces.grid_device_manager = {
 
 		grid_device_manager.connect_ = {
 			var grid_device;
+			var serialOSCGridClass = load_class_dynamically.value("SerialOSCGrid");
+			var gridKeyFuncClass = load_class_dynamically.value("GridKeyFunc");
 
 			n = n ? 1; 
 
@@ -169,23 +177,23 @@ namespaces.grid_device_manager = {
 
 			grid_device = ();
 			grid_device.led_ = { |self, x, y, val|
-				SerialOSCGrid.ledLevelSet(x-1, y-1, val);
+				serialOSCGridClass.ledLevelSet(x-1, y-1, val);
 			};
 			grid_device.all_ = { |self, val|
-				SerialOSCGrid.ledLevelAll(val);
+				serialOSCGridClass.ledLevelAll(val);
 			};
 			grid_device.cols_ = { |self|
-				SerialOSCGrid.numCols;
+				serialOSCGridClass.numCols;
 			};
 			grid_device.rows_ = { |self|
-				SerialOSCGrid.numRows;
+				serialOSCGridClass.numRows;
 			};
 			grid_device.device_ = { |self|
-				SerialOSCGrid.default;
+				serialOSCGridClass.default;
 			};
 
 			grid_device_manager['__grid_key_funcs__'] = grid_device_manager['__grid_key_funcs__'].add(
-				GridKeyFunc(
+				gridKeyFuncClass.new(
 					{ |x, y, state|
 						script_env.use {
 							grid_device[\key].value(x+1, y+1, state); // TODO: change to key_, if possible without introducing self arg
@@ -914,29 +922,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 			var screen_api = screen[\singleton];
 			var screen_view = screen[\view];
 
-			screen_view
-				.mouseMoveAction_({false}) // false means: not handled in this view
-				.mouseOverAction_({false})
-				.mouseDownAction_({false})
-				.mouseUpAction_({false})
-				;
-
-			window.view
-				.onResize_({ |windowView|
-					var bounds = windowView.bounds;
-					screen_view.moveTo(
-						(bounds.width/2)-(screen_view.bounds.width/2),
-						(bounds.height/2)-(screen_view.bounds.height/2)
-					);
-				})
-				.onClose_({ |windowView|
-					// TODO: stop running routines
-					script_env.use {
-						~metro.free_all_();
-					};
-				});
-
-			SerialOSCClient.init {
+			var spawn_script_func = {
 				var setup_window_mouse_and_key_hooks = {
 					var enc_area_pressed = false ! 3;
 					var enc_area_prev_pos;
@@ -1154,6 +1140,35 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					"... script successfully freed.".inform;
 				};
 			};
+
+			screen_view
+				.mouseMoveAction_({false}) // false means: not handled in this view
+				.mouseOverAction_({false})
+				.mouseDownAction_({false})
+				.mouseUpAction_({false})
+				;
+
+			window.view
+				.onResize_({ |windowView|
+					var bounds = windowView.bounds;
+					screen_view.moveTo(
+						(bounds.width/2)-(screen_view.bounds.width/2),
+						(bounds.height/2)-(screen_view.bounds.height/2)
+					);
+				})
+				.onClose_({ |windowView|
+					// TODO: stop running routines
+					script_env.use {
+						~metro.free_all_();
+					};
+				});
+
+			if (class_exists.value('SerialOSCClient')) {
+				var serialOSCClientClass = load_class_dynamically.value("SerialOSCClient");
+				serialOSCClientClass.init(spawn_script_func);
+			} {
+				spawn_script_func.value;
+			};
 		};
 
 		var free_script = { |script_env|
@@ -1188,6 +1203,10 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 			// this should probably be triggered by CmdPeriod
 			// call ~cleanup
 			// call free_engine
+		};
+
+		var class_exists = { |classname|
+			Class.allClasses.collect { |class| class.asSymbol }.includes(classname.asSymbol);
 		};
 
 		var module = IdentityDictionary[
