@@ -1,7 +1,11 @@
 (
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
-	this.executeFile(path);
+	if (File.exists(path)) {
+		this.executeFile(path);
+	} {
+		Error("include_relative: file % does not exist".format(path.quote)).throw;
+	};
 };
 
 var r = include_relative.value("../r.scd");

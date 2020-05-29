@@ -5,7 +5,11 @@
 
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
-	this.executeFile(path);
+	if (File.exists(path)) {
+		this.executeFile(path);
+	} {
+		Error("include_relative: file % does not exist".format(path.quote)).throw;
+	};
 };
 
 var ui = include_relative.value("ui.scd");
@@ -32,13 +36,11 @@ var current_page;
 
 var script_polls;
 
+var target_page;
+var page_trans_div;
+var page_trans_frames;
+
 var pages;
-
-/*
-var update_ui
-
-var start_ui
-*/
 
 var init = { |r_polls, r_params, ui, settings_file, arg_fps|
 	fps = arg_fps;
@@ -53,9 +55,9 @@ var init = { |r_polls, r_params, ui, settings_file, arg_fps|
 
 var init_script_polls = { |r_polls|
 	script_polls = r_polls.collect { |r_poll, i|
-		var script_poll = ~poll.set_("poll" ++ (i+1)) {
+		var script_poll = ~poll.set_("poll" ++ (i+1)) { |value|
 			r_poll.handler_(value);
-			set_ui_dirty.value();
+			ui_set_dirty.value();
 		};
 		script_poll.time_ = 1/fps;
 		script_poll
@@ -72,7 +74,7 @@ var init_params = { |r_params|
 				controlspec: r_param.controlspec_,
 				action: { |value|
 					r_param.action_(value);
-					set_ui_dirty.value();
+					ui_set_dirty.value();
 				}
 			)
 		);
@@ -126,7 +128,7 @@ var calculate_ui_label_widths = { |pages|
 };
 
 var start_ui = {
-	var update_ui_metro = metro.init_();
+	var update_ui_metro = ~metro.init_();
 	update_ui_metro.event = update_ui;
 	update_ui_metro.time = 1/fps;
 	update_ui_metro.start_();
@@ -134,6 +136,13 @@ var start_ui = {
 
 var get_grid_width = {
 	ui_grid_width.value();
+};
+
+var update_ui = {
+	if (target_page.notNil) {
+		update_page_transition.value();
+	};
+	ui_refresh.value();
 };
 
 var update_page_transition = {
@@ -151,6 +160,7 @@ var default_screen_refresh_handler = {
 };
 
 var redraw = {
+	// TODO
 };
 
 var enc = { |n, delta|
@@ -162,7 +172,7 @@ var enc = { |n, delta|
 	};
 	if (n == 1) {
 		~mix.delta_("output", d);
-		UI.screen_dirty = true;
+		ui_set_dirty.value();
 	} {
 		~params.delta_(get_param_id_for_current_page(n-1), d);
 	};
@@ -212,11 +222,90 @@ var key = { |n, z|
 	fine = (prev_held and: next_held);
 };
 
-var update_ui = {
-	if (target_page.notNil) {
-		update_page_transition.value();
+var default_arc_delta_handler = { |n, delta|
+	var d;
+	var id;
+	var val;
+	if (fine) {
+		d = delta/5;
+	} {
+		d = delta;
 	};
-	ui_refresh.value();
+	id = get_param_id_for_current_page.value(n);
+	val = ~params.get_raw_(id);
+	~params.set_raw_(id, val+d/500);
+};
+
+var draw_arc = { |my_arc, value1, visual_values1, value2, visual_values2|
+	var draw_ring = { |ring, value, visual_values|
+		var led_levels = render_ring.value(value, visual_values);
+		led_levels.do { |led_level, i|
+			my_arc.led_(ring, i, led_level);
+		};
+	};
+	my_arc.all_(0);
+	draw_ring.value(1, value1, visual_values1);
+	draw_ring.value(2, value2, visual_values2);
+};
+
+var set_page = { |page|
+	current_page = page;
+};
+
+var get_active_page = {
+	round(current_page);
+};
+
+var get_param_id_for_current_page = { |n|
+	var page = get_active_page.value();
+	pages[page][n].id;
+};
+
+var transition_to_page = { |page|
+	target_page = page;
+	page_trans_frames = fps/5;
+	page_trans_div = (target_page - current_page) / page_trans_frames;
+};
+
+var load_settings = {
+	// TODO
+	\load_settings.debug;
+};
+
+var save_settings = {
+	// TODO
+	\save_settings.debug;
+};
+
+var default_arc_refresh_handler = { |my_arc|
+	render_active_page_on_arc.value(my_arc);
+};
+
+var render_active_page_on_arc = { |my_arc|
+	var page = pages[get_active_page.value()];
+
+	var visual_values1, visual_values2;
+
+	if (page[1].visual_values.notNil) {
+		visual_values1 = page[1].visual_values["content"]
+	};
+
+	if (page[2].visual_values) {
+		visual_values2 = page[2].visual_values["content"]
+	};
+
+	draw_arc.value(
+		my_arc,
+		~params.get_raw_(get_param_id_for_current_page.value(1)), // TODO: 0 ?
+		visual_values1,
+		~params.get_raw_(get_param_id_for_current_page.value(2)), // TODO: 1 ?
+		visual_values2
+	);
+};
+
+var cleanup = { |settings_file|
+	save_settings.value(settings_file);
+	~params.write_();
 };
 
 var load_settings_and_params = { |settings_file|
