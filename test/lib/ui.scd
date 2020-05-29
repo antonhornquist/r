@@ -85,7 +85,7 @@ var refresh = {
 };
 
 var set_dirty = {
-\set_dirty.debug;
+	\set_dirty.debug;
 	arc_dirty = true;
 	grid_dirty = true;
 	screen_dirty = true;
@@ -116,7 +116,7 @@ var update_event_indicator = {
 	};
 };
 
-var event_indicator_shown = {
+var event_indicator_is_shown = {
 	show_event_indicator 
 };
 
@@ -219,7 +219,7 @@ var module = IdentityDictionary[
 	\grid_width -> grid_width,
 	\refresh -> refresh,
 	\set_dirty -> set_dirty,
-	\event_indicator_shown -> event_indicator_shown
+	\event_indicator_is_shown -> event_indicator_is_shown
 ];
 
 module

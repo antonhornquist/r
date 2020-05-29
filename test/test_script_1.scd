@@ -4,7 +4,7 @@ var norns_engine_tester = this.executeFile(nel_path);
 
 var start_script = norns_engine_tester['start_script'];
 
-start_script.value(nil) {
+start_script.value {
 	~init = {
 		var arc_device = ~arc.connect_();
 		var grid_device = ~grid.connect_();
