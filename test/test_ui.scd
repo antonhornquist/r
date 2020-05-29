@@ -84,14 +84,14 @@ start_script.value {
 			(
 				device: ~arc.connect_(),
 				on_delta: { |n, delta|
-					// [n, delta].debug(\arc_on_delta);
+					[n, delta].debug(\arc_on_delta);
 					case {n == 1} {
 						var val = ~params.get_raw_("tempo");
-						~params.set_raw_("tempo", val+delta/500)
+						~params.set_raw_("tempo", val+(delta/500))
 					;}
 				},
 				on_refresh: { |my_arc|
-					// my_arc.debug(\arc_on_refresh);
+					"arc_refresh".debug;
 /*
 					my_arc.all_(0);
 					my_arc.led_(1, round(~params.get_raw_("tempo")*64).round, 15);
@@ -108,8 +108,8 @@ start_script.value {
 					ui_set_dirty.value()
 				},
 				on_refresh: { |my_grid|
-					// my_grid.debug(\grid_on_refresh);
-					// "grid_refresh".debug;
+					"grid_refresh".debug;
+					my_grid.led_(8.rand+1, 8.rand+1, 15);
 				},
 			)
 		);
@@ -139,6 +139,7 @@ start_script.value {
 		ui_init_screen.value(
 			(
 				on_refresh: {
+					"screen_refresh".debug;
 					// TODO my_screen.debug(\screen_on_refresh);
 					~redraw.value();
 				}
@@ -155,7 +156,7 @@ start_script.value {
 		init_sequencer_metro.value();
 		init_ui.value();
 		reset_counter.value();
-		start_sequencer.value();
+		// start_sequencer.value();
 
 		~params.bang_();
 	};

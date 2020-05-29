@@ -50,7 +50,6 @@ var refresh = {
 		check_arc_connected.value();
 
 		if (arc_dirty) {
-// 1.debug;
 			if (arc_refresh_callback.notNil) {
 				arc_refresh_callback.value(arc_device);
 			};
@@ -64,7 +63,6 @@ var refresh = {
 		update_grid_width.value();
 
 		if (grid_dirty) {
-// 2.debug;
 			if (grid_refresh_callback.notNil) {
 				grid_refresh_callback.value(grid_device);
 			};
@@ -78,7 +76,6 @@ var refresh = {
 	};
 
 	if (screen_dirty) {
-// 3.debug;
 		if (screen_refresh_callback.notNil) {
 			screen_refresh_callback.value();
 		};
@@ -88,6 +85,7 @@ var refresh = {
 };
 
 var set_dirty = {
+\set_dirty.debug;
 	arc_dirty = true;
 	grid_dirty = true;
 	screen_dirty = true;
@@ -95,7 +93,7 @@ var set_dirty = {
 
 // event flash
 
-var event_flash_frames = 5;
+var event_flash_frames = 5; // TODO: this ought to be initialized since it's refresh FPS rate affects time
 var event_flash_frame_counter = nil;
 
 var flash_event = {
@@ -201,13 +199,10 @@ var init_midi = { |config|
 
 // TODO
 var check_midi_connected = {
-/*
-	var midi_device_check = midi_device.device != nil;
+	var midi_device_check = midi_device.device_ != nil;
 	if (midi_device_connected != midi_device_check) {
 		midi_device_connected = midi_device_check;
 	};
-*/
-	midi_device_connected = true;
 };
 
 // screen

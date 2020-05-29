@@ -26,10 +26,14 @@ namespaces.arc_device_manager = {
 
 			arc_device = ();
 			arc_device.led_ = { |self, ring, x, val|
-				serialOSCEncClass.ringSet(ring-1, x-1, val);
+				serialOSCEncClass.default !? {
+					serialOSCEncClass.ringSet(ring-1, x-1, val);
+				};
 			};
 			arc_device.all_ = { |self, ring, val|
-				serialOSCEncClass.ringAll(ring-1, val);
+				serialOSCEncClass.default !? {
+					serialOSCEncClass.ringAll(ring-1, val);
+				};
 			};
 
 			arc_device_manager['__enc_delta_funcs__'] = arc_device_manager['__enc_delta_funcs__'].add(
@@ -75,6 +79,11 @@ namespaces.midi_device_manager = {
 
 			midi_device = ();
 
+			midi_device.device_ = { |self|
+				if (MIDIClient.sources.notEmpty or: MIDIClient.destinations.notEmpty) {
+					MIDIClient
+				}
+			};
 /*
 			TODO: midi_device out
 			midi_device.send_ = { |self, data|
@@ -177,10 +186,14 @@ namespaces.grid_device_manager = {
 
 			grid_device = ();
 			grid_device.led_ = { |self, x, y, val|
-				serialOSCGridClass.ledLevelSet(x-1, y-1, val);
+				serialOSCGridClass.default !? {
+					serialOSCGridClass.ledLevelSet(x-1, y-1, val);
+				};
 			};
 			grid_device.all_ = { |self, val|
-				serialOSCGridClass.ledLevelAll(val);
+				serialOSCGridClass.default !? {
+					serialOSCGridClass.ledLevelAll(val);
+				};
 			};
 			grid_device.cols_ = { |self|
 				serialOSCGridClass.numCols;
