@@ -5,6 +5,7 @@ Engine_R : CroneEngine {
 	var numPolls = 10;
 
 	var <pollConfigs;
+	var defaultPollRate = 10; // poll updates per second
 
 	var init, free, newCommand, connectCommand, disconnectCommand, deleteCommand, setCommand, bulksetCommand, newmacroCommand, deletemacroCommand, macrosetCommand, readsampleCommand, tapoutputCommand, tapclearCommand, getTapBus, getVisualBus;
 
@@ -416,6 +417,8 @@ Engine_R : CroneEngine {
 
 				value;
 			});
+			poll.setTime(1/defaultPollRate);
+			pollConfigs[pollIndex][\poll] = poll;
 		};
 	}
 
