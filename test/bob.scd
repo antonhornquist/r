@@ -22,69 +22,71 @@ start_script.value {
 	var common_enc = common[\enc];
 	var common_key = common[\key];
 
-	~settings_file = "bob.data";
-	~fps = 35;
+	var settings_file = "bob.data";
+	var fps = 35;
 
 	~engine.name = 'R';
 
 	~init = {
 		var r_polls, visual_values, r_params;
+		var ui;
+
 		# r_polls, visual_values, r_params = r_bob_init.value(round(~fps/20));
 
-		var ui = IdentityDictionary[
-			\arc -> IdentityDictionary[ \device -> arc.connect() ],
-			\pages -> [
+		ui = (
+			arc: ( device: ~arc.connect_() ),
+			pages: [
 				[
-					IdentityDictionary[
-						\label -> "CUTOFF",
-						\id -> "cutoff",
-						\formatter -> formatters[\adaptive_freq],
-						\visual_values -> visual_values[\cutoff]
-					],
-					IdentityDictionary[
-						\label -> "RES",
-						\id -> "resonance",
-						\formatter -> formatters[\percentage]
-					],
+					(
+						label: "CUTOFF",
+						id: "cutoff",
+						formatter: formatters[\adaptive_freq],
+						visual_values: visual_values[\cutoff]
+					),
+					(
+						label: "RES",
+						id: "resonance",
+						formatter: formatters[\percentage]
+					),
 				],
 				[
-					IdentityDictionary[
-						\label -> "LFO",
-						\id -> "lfo_rate",
-						\formatter -> formatters[\adaptive_freq],
-					],
-					IdentityDictionary[
-						\label -> "L>FRQ",
-						\id -> "lfo_to_cutoff",
-						\formatter -> formatters[\percentage]
-					],
+					(
+						label: "LFO",
+						id: "lfo_rate",
+						formatter: formatters[\adaptive_freq],
+					),
+					(
+						label: "L>FRQ",
+						id: "lfo_to_cutoff",
+						formatter: formatters[\percentage]
+					),
 				],
 				[
-					IdentityDictionary[
-						\label -> "E.ATK",
-						\id -> "envf_attack",
-						\formatter -> formatters[\adaptive_time],
-					],
-					IdentityDictionary[
-						\label -> "E.DEC",
-						\id -> "envf_decay",
-						\formatter -> formatters[\adaptive_time],
-					],
+					(
+						label: "E.ATK",
+						id: "envf_attack",
+						formatter: formatters[\adaptive_time],
+					),
+					(
+						label: "E.DEC",
+						id: "envf_decay",
+						formatter: formatters[\adaptive_time],
+					),
 				],
 				[
-					IdentityDictionary[
-						\label -> "E.SNS",
-						\id -> "envf_sensivity",
-						\formatter -> formatters[\percentage],
-					],
-					IdentityDictionary[
-						\label -> "E>FRQ",
-						\id -> "env_to_cutoff",
-						\formatter -> formatters[\percentage],
-					],
+					(
+						label: "E.SNS",
+						id: "envf_sensivity",
+						formatter: formatters[\percentage],
+					),
+					(
+						label: "E>FRQ",
+						id: "env_to_cutoff",
+						formatter: formatters[\percentage],
+					),
 				],
 			]
-		];
+		);
 
 		common_init.value(r_polls, r_params, ui, settings_file, fps);
 	};

@@ -32,7 +32,8 @@ var current_page;
 
 var script_polls;
 
-var pages
+var pages;
+
 /*
 var update_ui
 
@@ -59,7 +60,7 @@ var init_script_polls = { |r_polls|
 		script_poll.time_ = 1/fps;
 		script_poll
 	};
-}
+};
 
 var init_params = { |r_params|
 	r_params.do { |r_param|
@@ -78,7 +79,7 @@ var init_params = { |r_params|
 	};
 };
 
-var init_ui { |conf|
+var init_ui = { |conf|
 	var screen_conf;
 
 	if (conf.arc.notNil) {
