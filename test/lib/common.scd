@@ -32,7 +32,7 @@ var fine = false;
 var prev_held = false;
 var next_held = false;
 var fps;
-var current_page;
+var current_page = 0;
 
 var script_polls;
 
@@ -56,7 +56,7 @@ var init = { |r_polls, r_params, ui, settings_file, arg_fps|
 var init_script_polls = { |r_polls|
 	script_polls = r_polls.collect { |r_poll, i|
 		var script_poll = ~poll.set_("poll" ++ (i+1)) { |value|
-			r_poll.handler_(value);
+			r_poll[\handler].value(value);
 			ui_set_dirty.value();
 		};
 		script_poll.time_ = 1/fps;
@@ -68,12 +68,12 @@ var init_params = { |r_params|
 	r_params.do { |r_param|
 		~params.add_(
 			(
-				type: r_param.type_,
-				id: r_param.id_,
-				name: r_param.name_,
-				controlspec: r_param.controlspec_,
+				type: r_param[\type],
+				id: r_param[\id],
+				name: r_param[\name],
+				controlspec: r_param[\controlspec],
 				action: { |value|
-					r_param.action_(value);
+					r_param[\action].value(value);
 					ui_set_dirty.value();
 				}
 			)
@@ -286,31 +286,33 @@ var render_active_page_on_arc = { |my_arc|
 
 	var visual_values1, visual_values2;
 
-	if (page[1].visual_values.notNil) {
-		visual_values1 = page[1].visual_values["content"]
+	// TODO: zero-based indexing
+	if (page[0][\visual_values].notNil) { // TODO: refactor to first_page
+		visual_values1 = page[0][\visual_values][\content]
 	};
 
-	if (page[2].visual_values) {
-		visual_values2 = page[2].visual_values["content"]
+	// TODO: zero-based indexing
+	if (page[1][\visual_values].notNil) { // TODO: refactor to second_page
+		visual_values2 = page[1][\visual_values][\content]
 	};
 
 	draw_arc.value(
 		my_arc,
-		~params.get_raw_(get_param_id_for_current_page.value(1)), // TODO: 0 ?
+		~params.get_raw_(get_param_id_for_current_page.value(0)), // TODO: zero-based indexing
 		visual_values1,
-		~params.get_raw_(get_param_id_for_current_page.value(2)), // TODO: 1 ?
+		~params.get_raw_(get_param_id_for_current_page.value(1)), // TODO: zero-based indexing
 		visual_values2
 	);
 };
 
 var cleanup = { |settings_file|
 	save_settings.value(settings_file);
-	~params.write_();
+	// ~params.write_();
 };
 
 var load_settings_and_params = { |settings_file|
 	load_settings.value(settings_file);
-	~params.read_(); // TODO
+	// ~params.read_(); // TODO
 	~params.bang_();
 };
 

@@ -66,14 +66,14 @@ var init_r_polls = {
 			\id -> "freq_shift",
 			\handler -> { |value|
 				var visual_value = r_specs[\FShift][\Frequency].unmap(value);
-				capped_list_push.value(visual_values.freq_shift, visual_value);
+				capped_list_push.value(visual_values[\freq_shift], visual_value);
 			}
 		],
 		IdentityDictionary[
 			\id -> "pitch_ratio",
 			\handler -> { |value|
 				var visual_value = r_specs[\PShift][\PitchRatio].unmap(value);
-				capped_list_push.value(visual_values.pitch_ratio, visual_value);
+				capped_list_push.value(visual_values[\pitch_ratio], visual_value);
 			}
 		]
 	]

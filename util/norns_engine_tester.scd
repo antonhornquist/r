@@ -678,7 +678,7 @@ namespaces.paramset = {
 				param[\action].value(value);
 			};
 		};
-		paramset.write = { |self|
+		paramset.write_ = { |self|
 			Error("not implemented yet").throw;
 		};
 		paramset.read_ = { |self|

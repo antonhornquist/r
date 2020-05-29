@@ -84,14 +84,14 @@ var init_r_polls = {
 			\id -> "delay_time_left",
 			\handler -> { |value|
 				var visual_value = delay_time_left_spec.unmap(value);
-				capped_list_push.value(visual_values.delay_time_left, visual_value);
+				capped_list_push.value(visual_values[\delay_time_left], visual_value);
 			}
 		],
 		IdentityDictionary[
 			\id -> "delay_time_right",
 			\handler -> { |value|
 				var visual_value = delay_time_right_spec.unmap(value);
-				capped_list_push.value(visual_values.delay_time_right, visual_value);
+				capped_list_push.value(visual_values[\delay_time_right], visual_value);
 			}
 		]
 	]

@@ -75,7 +75,7 @@ var init_r_polls = {
 			\id -> "cutoff",
 			\handler -> { |value|
 				var visual_value = cutoff_spec.unmap(value);
-				capped_list_push.value(visual_values.cutoff, visual_value);
+				capped_list_push.value(visual_values[\cutoff], visual_value);
 			}
 		]
 	]

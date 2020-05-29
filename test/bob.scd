@@ -35,7 +35,7 @@ start_script.value {
 		var r_polls, visual_values, r_params;
 		var ui;
 
-		# r_polls, visual_values, r_params = r_bob_init.value(round(~fps/20));
+		# r_polls, visual_values, r_params = r_bob_init.value(round(fps/20));
 
 		ui = (
 			arc: ( device: ~arc.connect_() ),
