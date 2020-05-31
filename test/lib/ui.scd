@@ -79,13 +79,13 @@ var refresh = {
 		if (screen_refresh_callback.notNil) {
 			screen_refresh_callback.value();
 		};
-		// ~screen.update_(); // norns global
+		~screen.update_(); // norns global
 		screen_dirty = false;
 	};
 };
 
 var set_dirty = {
-	\set_dirty.debug;
+	// \set_dirty.debug;
 	arc_dirty = true;
 	grid_dirty = true;
 	screen_dirty = true;

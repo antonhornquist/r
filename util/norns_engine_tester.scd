@@ -409,6 +409,13 @@ namespaces.screen = { // TODO: call this mock_screen?
 	var screen_rect = { |instance, x_pos, y_pos, width, height|
 		var scale = instance[\scale];
 
+		// start
+		x_pos = round(x_pos);
+		y_pos = round(y_pos);
+		width = round(width);
+		height = round(height);
+		// fin
+
 		x_pos = x_pos - 1;
 		y_pos = y_pos - 1;
 
@@ -421,6 +428,12 @@ namespaces.screen = { // TODO: call this mock_screen?
 
 	var screen_move = { |instance, x_pos, y_pos|
 		var scale = instance[\scale];
+
+		// start
+		x_pos = round(x_pos);
+		y_pos = round(y_pos);
+		// fin
+
 		instance[\position] = x_pos@y_pos;
 		x_pos = x_pos - 1;
 		y_pos = y_pos - 1;
@@ -438,6 +451,12 @@ namespaces.screen = { // TODO: call this mock_screen?
 		var offset = scale/2;
 		var from_x = round(scale * (position.x - 1))+offset;
 		var from_y = round(scale * (position.y - 1))+offset;
+
+		// start
+		to_x = round(to_x);
+		to_y = round(to_y);
+		// fin
+
 		to_x = round(scale * (to_x - 1))+offset;
 		to_y = round(scale * (to_y - 1))+offset;
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
@@ -456,8 +475,17 @@ namespaces.screen = { // TODO: call this mock_screen?
 		var offset = scale/2;
 		var from_x = round(scale * (position.x - 1))+offset;
 		var from_y = round(scale * (position.y - 1))+offset;
-		var to_x = round(scale * (position.x + to_x_rel - 1))+offset;
-		var to_y = round(scale * (position.y + to_y_rel - 1))+offset;
+		var to_x;
+		var to_y;
+
+		// start
+		to_x_rel = round(to_x_rel);
+		to_y_rel = round(to_y_rel);
+		// fin
+
+		to_x = round(scale * (position.x + to_x_rel - 1))+offset;
+		to_y = round(scale * (position.y + to_y_rel - 1))+offset;
+
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
 				Pen.moveTo(from_x@from_y);

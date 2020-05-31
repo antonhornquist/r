@@ -220,10 +220,10 @@ var redraw = {
 	};
 
 	var draw_visual_values = { |ind_x, ind_y, width, visual_values|
-		var max_level = 2;
+		var max_level = 5; // 2; TODO: 2 in lua
 		var num_visual_values = visual_values[\content].size;
 		if (num_visual_values > 1) {
-			var prev_visual_value = visual_values[\content][1];
+			var prev_visual_value = visual_values[\content][0]; // TODO: zero based indexing
 			(num_visual_values-1).do { |visual_value_idx|
 				var idx = visual_value_idx + 1;
 				var visual_value = visual_values[\content][idx];
@@ -301,7 +301,7 @@ var redraw = {
 	var draw_page_indicator = {
 		var div = 128/pages.size;
 
-		var x = round((current_page-1)*div);
+		var x = round(current_page*div); // TODO: zero based indexing
 		var y = page_indicator_y;
 		var width = round(div);
 		var height = 2;
@@ -340,13 +340,16 @@ var redraw = {
 	~screen.font_size(16);
 	~screen.clear_(); // TODO: do this in redraw() ?
 
+/*
 	draw_enc1_widget.value();
 
 	if (ui_event_indicator_is_shown.value()) {
 		draw_event_flash_widget.value();
 	};
+*/
 
 	draw_enc2_widget.value();
+/*
 	draw_enc3_widget.value();
 
 	draw_page_indicator.value();
@@ -357,8 +360,9 @@ var redraw = {
 
 	draw_key2_widget.value();
 	draw_key3_widget.value();
+*/
 
-	~screen.update_();
+	// ~screen.update_();
 };
 
 var enc = { |n, delta|
@@ -379,7 +383,7 @@ var enc = { |n, delta|
 var key = { |n, z|
 	var page;
 
-	if (target_page) {
+	if (target_page.notNil) {
 		page = target_page;
 	} {
 		page = get_active_page.value();
@@ -389,8 +393,8 @@ var key = { |n, z|
 	{n == 2} {
 		if (z == 1) {
 			page = page - 1;
-			if (page < 1) {
-				page = pages.size;
+			if (page < 0) { // TODO: zero based indexing
+				page = pages.size-1; // TODO: zero based indexing
 			};
 
 			transition_to_page.value(page);
@@ -404,8 +408,8 @@ var key = { |n, z|
 	{n == 3} {
 		if (z == 1) {
 			page = page + 1;
-			if (page > pages.size) {
-				page = 1;
+			if (page > (pages.size-1)) { // TODO: zero based indexing
+				page = 0; // TODO: zero based indexing
 			};
 
 			transition_to_page.value(page);
@@ -522,6 +526,10 @@ var start_script_polls = {
 	};
 };
 
+var set_ui_dirty = {
+  ui_set_dirty.value();
+};
+
 var module = IdentityDictionary[
 	\init -> init,
 	\redraw -> redraw,
@@ -529,7 +537,8 @@ var module = IdentityDictionary[
 	\key -> key,
 	\cleanup -> cleanup,
 	\get_grid_width -> get_grid_width,
-	\get_active_page -> get_active_page
+	\get_active_page -> get_active_page,
+	\set_ui_dirty -> set_ui_dirty,
 ];
 
 module

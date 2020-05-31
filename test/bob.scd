@@ -80,7 +80,7 @@ start_script.value {
 				[
 					(
 						label: "E.SNS",
-						id: "envf_sensivity",
+						id: "envf_sensitivity",
 						formatter: formatters[\percentage],
 					),
 					(
