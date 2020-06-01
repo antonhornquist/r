@@ -57,8 +57,6 @@ window.view
 window.front;
 
 {
-	fork {
-inf.do { |fdsa|
 	var enc1_x = 1;
 	var enc1_y = 12;
 
@@ -90,11 +88,9 @@ inf.do { |fdsa|
 	screen.move_((enc1_x + screen.text_extents_("LEVEL") + 3), enc1_y);
 	screen.text_(57);
 
-4.do {
 	screen.level_(lo_level);
 	screen.rect_(122, enc1_y-7, 5, 5);
 	screen.fill_();
-};
 
 	// param 1
 	screen.level_(lo_level);
@@ -148,10 +144,5 @@ inf.do { |fdsa|
 	screen.text_("NEXT");
 
 	screen.update_();
-
-fdsa.debug;
-(1/35).wait;
-};
-	};
 }.value;
 )
