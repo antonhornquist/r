@@ -85,27 +85,36 @@ var adaptive_freq = { |param|
 	adaptive_freq_raw.value(param.get_());
 };
 
+var adaptive_db_raw = { |db|
+	case
+	{ db < -10 } {
+		round(db, 1).asString++"dB";
+	}
+	{ db < 0 } {
+		round(db, 0.1).asString++"dB";
+	}
+	{ db < 1 } {
+		var str = round(db, 0.001).asString;
+		str[2..str.size-1]++"dB";
+	}
+	{ db < 10 } {
+		round(db, 0.01).asString++"dB";
+	}
+	{ db < 100 } {
+		round(db, 0.1).asString++"dB";
+	}
+	{ true } {
+		round(db/1000, 1).asString ++ "dB";
+	};
+};
+
+var adaptive_db = { |param|
+	adaptive_db_raw.value(param.get_());
+};
+
 var format = { |param, value, units|
 	value.asString ++ " " ++ (units ? param[\controlspec].units ? "")
 };
-
-/*
-var format_freq_raw = { |freq|
-	case
-	{ freq < 0.1 } {
-		round(freq, 0.001) ++ " Hz"
-	}
-	{ freq < 100 } {
-		round(freq, 0.01) ++ " Hz"
-	}
-	{ round(freq, 1) < 1000 } {
-		round(freq, 1) ++ " Hz"
-	}
-	{ true } {
-		round(freq / 1000, 0.01) ++ " kHz"
-	}
-};
-*/
 
 var round = { |precision|
 	{ |param|
@@ -113,17 +122,12 @@ var round = { |precision|
 	}
 };
 
-/*
-var format_freq = { |param|
-	format_freq_raw.value(param.get_);
-};
-*/
-
 var module = (
 	percentage: percentage,
 	adaptive_time: adaptive_time,
 	range: range,
 	adaptive_freq: adaptive_freq,
+	adaptive_db: adaptive_db,
 	round_: { |self, precision|
 		round.value(precision);
 	}

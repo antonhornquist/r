@@ -676,6 +676,9 @@ namespaces.paramset = {
 			param.get_ = { |self| // TODO
 				self[\controlspec].map(self[\raw])
 			};
+			param.get_raw_ = { |self|
+				self[\raw];
+			};
 
 			params = params.add(param);
 		};

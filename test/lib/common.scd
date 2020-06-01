@@ -240,6 +240,7 @@ var redraw = {
 		}
 	};
 
+	// TODO: blit this
 	var draw_ui_param = { |page, param_index, x, y|
 		var format_param = { |ui_param|
 			var param = ~params.lookup_param_(ui_param.id);
