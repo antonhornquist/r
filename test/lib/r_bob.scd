@@ -143,7 +143,7 @@ var init_r_params = {
 	);
 
 	lfo_to_cutoff_spec = r_specs[\LinMixer][\In1];
-	lfo_to_cutoff_spec.default = 0.5; // 0.1; TODO 0.1 in lua
+	lfo_to_cutoff_spec.default = 0.1;
 
 	r_params = r_params.add(
 		IdentityDictionary[
