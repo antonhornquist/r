@@ -1,6 +1,14 @@
 (
-var screen_path = PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "util" +/+ "nel" +/+ "screen.scd";
-var screen = this.executeFile(screen_path);
+var include_relative = { |relative_path|
+	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
+	if (File.exists(path)) {
+		this.executeFile(path);
+	} {
+		Error("include_relative: file % does not exist".format(path.quote)).throw;
+	};
+};
+
+var screen = include_relative.value(".." +/+ "util" +/+ "nel" +/+ "screen.scd");
 var screen_init = screen[\screen_init];
 var screen_rect = screen[\screen_rect];
 var screen_move = screen[\screen_move];

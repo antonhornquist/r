@@ -1,6 +1,14 @@
 (
-var inject_r_globals_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "util" +/+ "inject_r_globals.scd").standardizePath;
-this.executeFile(inject_r_globals_path);
+var include_relative = { |relative_path|
+	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
+	if (File.exists(path)) {
+		this.executeFile(path);
+	} {
+		Error("include_relative: file % does not exist".format(path.quote)).throw;
+	};
+};
+
+include_relative.value(".." +/+ "util" +/+ "inject_r_globals.scd");
 
 r = ~init.value();
 
