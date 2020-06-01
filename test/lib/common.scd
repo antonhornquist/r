@@ -213,7 +213,7 @@ var redraw = {
 	var strokedraw_value = { |ind_x, ind_y, min_value, max_value, level, width|
 		var min_ind_x_delta = translate.value(min_value, width);
 		var max_ind_x_delta = translate.value(max_value, width);
-		(max_ind_x_delta-min_ind_x_delta).do { |idx|
+		((max_ind_x_delta-min_ind_x_delta) max: 1).do { |idx| // TODO: can be 0 if not max: 1 is here (check lua)
 			var ind_x_delta = idx + min_ind_x_delta;
 			draw_value.value(ind_x, ind_y, ind_x_delta, level);
 		};
