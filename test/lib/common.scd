@@ -220,7 +220,7 @@ var redraw = {
 	};
 
 	var draw_visual_values = { |ind_x, ind_y, width, visual_values|
-		var max_level = 5; // 2; TODO: 2 in lua
+		var max_level = 7; // 2; TODO: 2 in lua
 		var num_visual_values = visual_values[\content].size;
 		if (num_visual_values > 1) {
 			var prev_visual_value = visual_values[\content][0]; // TODO: zero based indexing
@@ -340,16 +340,13 @@ var redraw = {
 	~screen.font_size(16);
 	~screen.clear_(); // TODO: do this in redraw() ?
 
-/*
 	draw_enc1_widget.value();
 
 	if (ui_event_indicator_is_shown.value()) {
 		draw_event_flash_widget.value();
 	};
-*/
 
 	draw_enc2_widget.value();
-/*
 	draw_enc3_widget.value();
 
 	draw_page_indicator.value();
@@ -360,9 +357,8 @@ var redraw = {
 
 	draw_key2_widget.value();
 	draw_key3_widget.value();
-*/
 
-	// ~screen.update_();
+	~screen.update_();
 };
 
 var enc = { |n, delta|
