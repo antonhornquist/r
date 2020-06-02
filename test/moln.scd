@@ -63,21 +63,53 @@ start_script.value {
 						{msg['type'] == 'cc'} {
 							var num = msg['num'];
 							var val = msg['val'];
-							var delta = if (val > 64, val-128, val);
+							var rel_cc_delta = if (val > 64, val-128, val);
+							[num, val].debug;
 							case
 							{num == 1} {
-								~params.delta_( "lfo_frequency", delta);
+								// ~params.delta_( "lfo_frequency", rel_cc_delta);
+								common_enc.value(2, rel_cc_delta);
 							}
 							{num == 2} {
-								~params.delta_( "lfo_to_osc_pwm", delta);
-								~params.delta_( "osc_detune", delta);
+								//~params.delta_( "lfo_to_osc_pwm", rel_cc_delta);
+								//~params.delta_( "osc_detune", rel_cc_delta);
+								common_enc.value(3, rel_cc_delta);
 							}
 							{num == 3} {
-								~params.delta_( "filter_frequency", delta);
+								// ~params.delta_( "filter_frequency", rel_cc_delta);
 							}
 							{num == 4} {
-								~params.delta_( "env_release", delta);
-							};
+								//~params.delta_( "env_release", rel_cc_delta);
+								common_enc.value(1, rel_cc_delta);
+							}
+							{num == 11} {
+								case
+								{val == 127} {
+									common_key.value(2, 1);
+								}
+								{val == 0} {
+									common_key.value(2, 0);
+								};
+							}
+							{num == 12} {
+								case
+								{val == 127} {
+									common_key.value(3, 1);
+								}
+								{val == 0} {
+									common_key.value(3, 0);
+								};
+							}
+							{num == 14} {
+								case
+								{val == 127} {
+									common_key.value(1, 1);
+								}
+								{val == 0} {
+									common_key.value(1, 0);
+								};
+							}
+							;
 							common_set_ui_dirty.value();
 						};
 					}
