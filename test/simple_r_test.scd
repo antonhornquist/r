@@ -10,9 +10,9 @@ var include_relative = { |relative_path|
 
 include_relative.value(".." +/+ "util" +/+ "inject_r_globals.scd");
 
-r = ~init.value();
-
 s.waitForBoot {
+	r = ~init.value();
+
 	~new.value(r, "Sound", "TestGen");
 	~new.value(r, "Out", "SoundOut");
 	~connect.value(r, "Sound/Out", "Out*Left");

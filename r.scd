@@ -3,6 +3,7 @@ var version = "2.0";
 var defaultNumTaps = 10;
 
 var moduleInputRefDelimiter = $*;
+var obsoleteModuleInputRefDelimiter = $/;
 var moduleOutputRefDelimiter = $/;
 var moduleParameterRefDelimiter = $.;
 var moduleVisualRefDelimiter = $=;
@@ -715,9 +716,9 @@ var constructModuleParameterReference = { |moduleRef, parameterRef|
 
 var parseModuleInputReference = { |reference|
 	var destModuleRef, input;
-	if (reference.asString.includes(moduleOutputRefDelimiter)) {
-		"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(moduleOutputRefDelimiter.asString.quote, moduleInputRefDelimiter.asString.quote, reference.asString.split(moduleOutputRefDelimiter).join(moduleInputRefDelimiter)).inform;
-		# destModuleRef, input = reference.asString.split(moduleOutputRefDelimiter);
+	if (reference.asString.includes(obsoleteModuleInputRefDelimiter)) {
+		"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(obsoleteModuleInputRefDelimiter.asString.quote, moduleInputRefDelimiter.asString.quote, reference.asString.split(obsoleteModuleInputRefDelimiter).join(moduleInputRefDelimiter)).inform;
+		# destModuleRef, input = reference.asString.split(obsoleteModuleInputRefDelimiter);
 	} {
 		# destModuleRef, input = reference.asString.split(moduleInputRefDelimiter);
 	};
@@ -769,8 +770,8 @@ var getSoundFileNumChannels = { |path|
 };
 
 var lookupSampleSlotBuffersByName = { |module, sampleSlotName|
-	var sampleSlotBufferDict = module[\serverContext][\sampleSlotBuffers].asDict;
-	sampleSlotBufferDict[sampleSlotName.asSymbol].asDict;
+	var sampleSlotBufferDict = localAsDict.value(module[\serverContext][\sampleSlotBuffers]);
+	localAsDict.value(sampleSlotBufferDict[sampleSlotName.asSymbol]);
 };
 
 /*
@@ -942,9 +943,9 @@ var isValidModuleInputName = { |ref|
 
 	ref = ref.asString;
 	if (
-		ref.contains(moduleInputRefDelimiter)
+		ref.includes(moduleInputRefDelimiter)
 		or:
-		ref.contains(moduleOutputRefDelimiter) // provide backwards copatibility
+		ref.includes(obsoleteModuleInputRefDelimiter) // provide backwards copatibility
 	) {
 		# module, input = parseModuleInputReference.value(ref);
 		isValidModuleName.value(module) and: isValidInOutputName.value(input);
@@ -957,7 +958,7 @@ var isValidModuleOutputName = { |ref|
 	var module, output;
 
 	ref = ref.asString;
-	if (ref.contains(moduleOutputRefDelimiter)) {
+	if (ref.includes(moduleOutputRefDelimiter)) {
 		# module, output = parseModuleOutputReference.value(ref);
 		isValidModuleName.value(module) and: isValidInOutputName.value(output);
 	} {
@@ -969,7 +970,7 @@ var isValidModuleParameterName = { |ref|
 	var module, parameter;
 
 	ref = ref.asString;
-	if (ref.contains(moduleParameterRefDelimiter)) {
+	if (ref.includes(moduleParameterRefDelimiter)) {
 		# module, parameter = parseModuleParameterReference.value(ref);
 		isValidModuleName.value(module) and: isValidParameterName.value(parameter);
 	} {
@@ -981,7 +982,7 @@ var isValidModuleVisualName = { |ref|
 	var module, visual;
 
 	ref = ref.asString;
-	if (ref.contains(moduleVisualRefDelimiter)) {
+	if (ref.includes(moduleVisualRefDelimiter)) {
 		# module, visual = parseModuleVisualReference.value(ref);
 		isValidModuleName.value(module) and: isValidVisualName.value(visual);
 	} {
@@ -993,7 +994,7 @@ var isValidModuleSampleSlotName = { |ref|
 	var module, sampleSlot;
 
 	ref = ref.asString;
-	if (ref.contains(moduleSampleSlotRefDelimiter)) {
+	if (ref.includes(moduleSampleSlotRefDelimiter)) {
 		# module, sampleSlot = parseModuleParameterReference.value(ref);
 		isValidModuleName.value(module) and: isValidSampleSlotName.value(sampleSlot);
 	} {
@@ -1361,7 +1362,7 @@ var getModuleDefSynthDefMetadata = { |moduleDef|
 };
 
 var getModuleDefSpec = { |moduleDef|
-	var sampleSlotDict = moduleDef[\sampleSlots] !? _.asDict;
+	var sampleSlotDict = moduleDef[\sampleSlots] !? { |sampleSlots| localAsDict.value(sampleSlots) };
 	(
 		inputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'in_'),
 		outputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'out_'),
@@ -6098,11 +6099,17 @@ var getCoreStdModuleSpecs = {
 	};
 
 	var moduleDefs = validateAndExpandModuleDefs.value(coreModules++stdModules);
-	moduleDefs.collect { |moduleDef|
-		var moduleRef = moduleDef[\name];
-		var spec = getModuleDefSpec.value(moduleDef);
-		moduleRef -> getModuleDefParamControlSpecs.value(moduleDef);
-	}.asEvent;
+	localAsDict.value(
+		moduleDefs.collect { |moduleDef|
+			var moduleRef = moduleDef[\name];
+			var spec = getModuleDefSpec.value(moduleDef);
+			moduleRef -> getModuleDefParamControlSpecs.value(moduleDef);
+		}
+	);
+};
+
+var localAsDict = { |arrayOfAssociations|
+	IdentityDictionary.newFrom( arrayOfAssociations.collect { |assoc| [ assoc.key, assoc.value ] }.flatten );
 };
 
 var api = IdentityDictionary[
