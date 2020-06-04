@@ -249,15 +249,9 @@ var newCommand = { |self, name, kind|
 						visualbusses: visualbusses,
 						sampleSlotBuffers: sampleSlotBuffers
 					),
-					// TODO: refactor to local asDict that takes an array of associations, in order to support oldish SuperCollider versions
-					inputPatchCords: IdentityDictionary.newFrom(
-						spec[\inputs].collect { |input|
-							[
-								input, // key
-								() // value
-							]
-						}.flatten
-					), // TODO: better to bundle this together with inbusses (?)
+					inputPatchCords: asDict.value(
+						spec[\inputs].collect { |input| input -> () } // TODO: better to bundle this together with inbusses (?)
+					),
 				);
 
 				/* var */ finalizeFunc = {
@@ -770,8 +764,8 @@ var getSoundFileNumChannels = { |path|
 };
 
 var lookupSampleSlotBuffersByName = { |module, sampleSlotName|
-	var sampleSlotBufferDict = localAsDict.value(module[\serverContext][\sampleSlotBuffers]);
-	localAsDict.value(sampleSlotBufferDict[sampleSlotName.asSymbol]);
+	var sampleSlotBufferDict = asDict.value(module[\serverContext][\sampleSlotBuffers]);
+	asDict.value(sampleSlotBufferDict[sampleSlotName.asSymbol]);
 };
 
 /*
@@ -1362,7 +1356,7 @@ var getModuleDefSynthDefMetadata = { |moduleDef|
 };
 
 var getModuleDefSpec = { |moduleDef|
-	var sampleSlotDict = moduleDef[\sampleSlots] !? { |sampleSlots| localAsDict.value(sampleSlots) };
+	var sampleSlotDict = moduleDef[\sampleSlots] !? { |sampleSlots| asDict.value(sampleSlots) };
 	(
 		inputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'in_'),
 		outputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'out_'),
@@ -1430,20 +1424,11 @@ var getModuleDefDefaultSynthArgs = { |moduleDef, inbusses, outbusses, visualbuss
 var getModuleDefParamLagTimes = { |moduleDef|
 	var params = getModuleDefParams.value(moduleDef);
 	if (params.notNil) {
-		// TODO: refactor to local asDict that takes an array of associations
-		IdentityDictionary.newFrom(
+		asDict.value(
 			params.collect { |assoc|
 				var assocValue = assoc.value;
-				[
-					("param_"++assoc.key).asSymbol, // key
-					// value ...
-					if (assocValue.class == Event) {
-						assocValue[\LagTime]
-					} {
-						nil
-					}
-				];
-			}.flatten;
+				("param_"++assoc.key).asSymbol -> if (assocValue.class == Event) { assocValue[\LagTime] } { nil }
+			}
 		)
 	}
 };
@@ -1451,21 +1436,16 @@ var getModuleDefParamLagTimes = { |moduleDef|
 var getModuleDefParamControlSpecs = { |moduleDef|
 	var params = getModuleDefParams.value(moduleDef);
 	if (params.notNil) {
-		// TODO: refactor to local asDict that takes an array of associations
-		IdentityDictionary.newFrom(
+		asDict.value(
 			params.collect { |assoc|
 				var assocValue = assoc.value;
-				[
-					("param_"++assoc.key).asSymbol, // key
-					// value ...
-					if (assocValue.class == ControlSpec) { // TODO: DRY this up
-						assocValue
-					} {
-						// TODO: Event assumed
-						assocValue[\Spec]
-					}
-				]
-			}.flatten
+				("param_"++assoc.key).asSymbol -> if (assocValue.class == ControlSpec) { // TODO: DRY this up
+					assocValue
+				} {
+					// TODO: Event assumed
+					assocValue[\Spec]
+				}
+			}
 		)
 	}
 };
@@ -1833,12 +1813,10 @@ var coreModules = [
 			|
 				in_Left,
 				in_Right,
-				// TODO param_Gain,
 				internal_Out
 			|
 
-			var amp = 1; // TODO param_Gain.dbamp;
-			Out.ar(internal_Out, [In.ar(in_Left) * amp, In.ar(in_Right) * amp]); // TODO: remove DC to not mess up monitors
+			Out.ar(internal_Out, [In.ar(in_Left), In.ar(in_Right)]); // TODO: remove DC to not mess up monitors
 		},
 		examples: [
 			[
@@ -6099,7 +6077,7 @@ var getCoreStdModuleSpecs = {
 	};
 
 	var moduleDefs = validateAndExpandModuleDefs.value(coreModules++stdModules);
-	localAsDict.value(
+	asDict.value(
 		moduleDefs.collect { |moduleDef|
 			var moduleRef = moduleDef[\name];
 			var spec = getModuleDefSpec.value(moduleDef);
@@ -6108,11 +6086,11 @@ var getCoreStdModuleSpecs = {
 	);
 };
 
-var localAsDict = { |arrayOfAssociations|
+var asDict = { |arrayOfAssociations|
 	IdentityDictionary.newFrom( arrayOfAssociations.collect { |assoc| [ assoc.key, assoc.value ] }.flatten );
 };
 
-var api = IdentityDictionary[
+var module = IdentityDictionary[
 	\init -> init,
 	\free -> free,
 	\newCommand -> newCommand,
@@ -6133,5 +6111,5 @@ var api = IdentityDictionary[
 	\getCoreStdModuleSpecs -> getCoreStdModuleSpecs
 ];
 
-api
+module
 )
