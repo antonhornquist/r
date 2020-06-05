@@ -43,6 +43,7 @@ var create_modules = {
 	~engine.new_("Filter1", "MMFilter");
 	~engine.new_("Filter2", "MMFilter");
 	~engine.new_("Feedback", "SGain");
+	~engine.new_("Amplifier", "SGain");
 	~engine.new_("SoundOut", "SoundOut");
 };
 
@@ -64,8 +65,10 @@ var connect_modules = {
 	~engine.connect_("Filter2/Lowpass", "Feedback*Right");
 	~engine.connect_("Feedback/Left", "Delay2*In");
 	~engine.connect_("Feedback/Right", "Delay1*In");
-	~engine.connect_("Filter1/Lowpass", "SoundOut*Left");
-	~engine.connect_("Filter2/Lowpass", "SoundOut*Right");
+	~engine.connect_("Filter1/Lowpass", "Amplifier*Left");
+	~engine.connect_("Filter2/Lowpass", "Amplifier*Right");
+	~engine.connect_("Amplifier/Left", "SoundOut*Left");
+	~engine.connect_("Amplifier/Right", "SoundOut*Right");
 };
 
 var init_visual_values_bufs = { |visual_buf_size|
@@ -223,7 +226,23 @@ var init_r_params = {
 		]
 	);
 
+	r_params = r_params.add(add_output_level_param.value);
+
 	r_params;
+};
+
+var add_output_level_param = {
+	var spec = r_specs['MGain']['Gain'].copy;
+	spec.default = -10;
+
+	IdentityDictionary[
+		\id -> "output_level",
+		\type -> "control",
+		\name -> "Amplifier.Gain",
+		\controlspec -> spec,
+		\formatter -> formatters.round_(0.1),
+		\action -> { |value| ~engine.set_("Amplifier.Gain", value) }
+	];
 };
 
 var module = IdentityDictionary[

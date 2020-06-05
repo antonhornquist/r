@@ -40,6 +40,7 @@ var create_modules = {
 	~engine.new_("ModMix", "LinMixer");
 	~engine.new_("FilterL", "LPLadder");
 	~engine.new_("FilterR", "LPLadder");
+	~engine.new_("Amplifier", "SGain");
 	~engine.new_("SoundOut", "SoundOut");
 };
 
@@ -57,8 +58,10 @@ var connect_modules = {
 	~engine.connect_("EnvF/Env", "ModMix*In2");
 	~engine.connect_("ModMix/Out", "FilterL*FM");
 	~engine.connect_("ModMix/Out", "FilterR*FM");
-	~engine.connect_("FilterL/Out", "SoundOut*Left");
-	~engine.connect_("FilterR/Out", "SoundOut*Right");
+	~engine.connect_("FilterL/Out", "Amplifier*Left");
+	~engine.connect_("FilterR/Out", "Amplifier*Right");
+	~engine.connect_("Amplifier/Left", "SoundOut*Left");
+	~engine.connect_("Amplifier/Right", "SoundOut*Right");
 };
 
 var init_visual_values_bufs = { |visual_buf_size|
@@ -217,7 +220,23 @@ var init_r_params = {
 		]
 	);
 
+	r_params = r_params.add(add_output_level_param.value);
+
 	r_params;
+};
+
+var add_output_level_param = {
+	var spec = r_specs['MGain']['Gain'].copy;
+	spec.default = -10;
+
+	IdentityDictionary[
+		\id -> "output_level",
+		\type -> "control",
+		\name -> "Amplifier.Gain",
+		\controlspec -> spec,
+		\formatter -> formatters.round_(0.1),
+		\action -> { |value| ~engine.set_("Amplifier.Gain", value) }
+	];
 };
 
 var module = IdentityDictionary[

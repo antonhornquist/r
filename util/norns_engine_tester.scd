@@ -1124,20 +1124,9 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 					~metro = init_metro_manager.value;
 					~params = init_paramset.value;
-					~mix = init_paramset.value;
 					~midi = init_midi_device_manager.value(currentEnvironment);
 					~arc = init_arc_device_manager.value(currentEnvironment);
 					~grid = init_grid_device_manager.value(currentEnvironment);
-
-					~mix.add_( // TODO: remove
-						(
-							type: 'control',
-							id: 'output',
-							name: "output",
-							controlspec: \db.asSpec
-						)
-					);
-					~mix.set_('output', 0);
 
 					defer {
 						setup_window_mouse_and_key_hooks.value;

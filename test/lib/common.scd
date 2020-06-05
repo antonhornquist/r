@@ -1,7 +1,7 @@
 (
 // shared logic for paged user interface
 
-// uses screen, metro, params, mix, poll globals
+// uses screen, metro, params, poll globals
 
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
@@ -186,7 +186,7 @@ var redraw = {
 		~screen.text_("LEVEL");
 		~screen.move_(enc1_x+45, enc1_y);
 		~screen.level_(hi_level);
-		~screen.text_(round(~mix.get_raw_("output")*100, 1));
+		~screen.text_(round(~params.get_raw_("output_level")*100, 1));
 	};
 
 	var draw_event_flash_widget = {
@@ -370,7 +370,7 @@ var enc = { |n, delta|
 		d = delta
 	};
 	if (n == 1) {
-		~mix.delta_("output", d);
+		~params.delta_("output_level", d);
 		ui_set_dirty.value();
 	} {
 		~params.delta_(get_param_id_for_current_page.value(n-2), d); // TODO: zero based

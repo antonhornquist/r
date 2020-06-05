@@ -112,6 +112,7 @@ var create_modules = {
 	r_engine.poly_new_("Filter", "LPFilter", polyphony);
 	r_engine.poly_new_("Amp", "Amp", polyphony);
 
+	~engine.new_("Amplifier", "SGain");
 	~engine.new_("SoundOut", "SoundOut")
 };
 
@@ -135,9 +136,11 @@ var connect_modules = {
 	
 	polyphony.do { |i|
 		var voicenum = i + 1;
-		~engine.connect_("Amp"++voicenum++"/Out", "SoundOut*Left");
-		~engine.connect_("Amp"++voicenum++"/Out", "SoundOut*Right");
+		~engine.connect_("Amp"++voicenum++"/Out", "Amplifier*Left");
+		~engine.connect_("Amp"++voicenum++"/Out", "Amplifier*Right");
 	};
+	~engine.connect_("Amplifier/Left", "SoundOut*Left");
+	~engine.connect_("Amplifier/Right", "SoundOut*Right");
 };
 
 var create_macros = {
@@ -174,7 +177,8 @@ var init_r_params = {
 		init_env_attack_param.value,
 		init_env_decay_param.value,
 		init_env_sustain_param.value,
-		init_env_release_param.value
+		init_env_release_param.value,
+		add_output_level_param.value
 	];
 
 	r_params;
@@ -394,6 +398,20 @@ var init_env_release_param = {
 		\action -> { |value|
 			~engine.macroset_("env_release", value);
 		}
+	];
+};
+
+var add_output_level_param = {
+	var spec = r_specs['MGain']['Gain'].copy;
+	spec.default = -10;
+
+	IdentityDictionary[
+		\id -> "output_level",
+		\type -> "control",
+		\name -> "Amplifier.Gain",
+		\controlspec -> spec,
+		\formatter -> formatters.round_(0.1),
+		\action -> { |value| ~engine.set_("Amplifier.Gain", value) }
 	];
 };
 

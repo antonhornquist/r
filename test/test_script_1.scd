@@ -99,6 +99,18 @@ start_script.value {
 		~params.add_(
 			(
 				type: 'control',
+				id: 'output_level',
+				name: "OUTPUT",
+				controlspec: \unipolar.asSpec,
+				action: { |value|
+					~redraw.value;
+				},
+			)
+		);
+
+		~params.add_(
+			(
+				type: 'control',
 				id: 'cutoff',
 				name: "CUTOFF",
 				controlspec: \freq.asSpec,
@@ -122,6 +134,7 @@ start_script.value {
 			)
 		);
 
+		~params.set_('output_level', 1);
 		~params.set_('cutoff', 449);
 		~params.set_('res', 0.25);
 
@@ -132,7 +145,7 @@ start_script.value {
 		//["enc" + n + delta].debug;
 		case
 		{n == 1} {
-			~mix.delta_('output', delta);
+			~params.delta_('output_level', delta);
 			~redraw.value;
 		}
 		{n == 2} {
@@ -177,7 +190,7 @@ start_script.value {
 
 		~screen.level_(hi_level);
 		~screen.move_((enc1_x + ~screen.text_extents_("LEVEL") + 3), enc1_y);
-		~screen.text_(round(~mix.get_raw_('output')*100));
+		~screen.text_(round(~params.get_raw_('output_level')*100));
 
 		~screen.level_(lo_level);
 		~screen.rect_(122, enc1_y-7, 5, 5);

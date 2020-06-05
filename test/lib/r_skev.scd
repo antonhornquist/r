@@ -38,6 +38,7 @@ var create_modules = {
 	~engine.new_("SoundIn", "SoundIn");
 	~engine.new_("PitchShift", "PShift");
 	~engine.new_("FreqShift", "FShift");
+	~engine.new_("Amplifier", "SGain");
 	~engine.new_("SoundOut", "SoundOut");
 };
 
@@ -49,8 +50,10 @@ var connect_modules = {
 	~engine.connect_("SoundIn/Right", "PitchShift*Right");
 	~engine.connect_("PitchShift/Left", "FreqShift*Left");
 	~engine.connect_("PitchShift/Right", "FreqShift*Right");
-	~engine.connect_("FreqShift/Left", "SoundOut*Left");
-	~engine.connect_("FreqShift/Right", "SoundOut*Right");
+	~engine.connect_("FreqShift/Left", "Amplifier*Left");
+	~engine.connect_("FreqShift/Right", "Amplifier*Right");
+	~engine.connect_("Amplifier/Left", "SoundOut*Left");
+	~engine.connect_("Amplifier/Right", "SoundOut*Right");
 };
 
 var init_visual_values_bufs = { |visual_buf_size|
@@ -168,7 +171,23 @@ var init_r_params = {
 		]
 	);
 
+	r_params = r_params.add(add_output_level_param.value);
+
 	r_params;
+};
+
+var add_output_level_param = {
+	var spec = r_specs['MGain']['Gain'].copy;
+	spec.default = -10;
+
+	IdentityDictionary[
+		\id -> "output_level",
+		\type -> "control",
+		\name -> "Amplifier.Gain",
+		\controlspec -> spec,
+		\formatter -> formatters.round_(0.1),
+		\action -> { |value| ~engine.set_("Amplifier.Gain", value) }
+	];
 };
 
 var module = IdentityDictionary[
