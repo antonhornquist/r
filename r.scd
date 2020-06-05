@@ -6069,7 +6069,7 @@ var getCoreStdModuleMetadata = {
 	var getModuleDefParamMetadata = { |moduleDef|
 		var params = getModuleDefParams.value(moduleDef);
 		if (params.notNil) {
-			asDict.value(
+			// TODO asDict.value(
 				params.collect { |assoc|
 					var assocValue = assoc.value;
 					assoc.key -> (
@@ -6078,17 +6078,20 @@ var getCoreStdModuleMetadata = {
 						} {
 							// TODO: Event assumed
 							assocValue[\Spec]
-						};
+						},
+						Description: if (assocValue.class == Event) { // TODO: DRY this up
+							assocValue[\Description]
+						}
 					)
 				}
-			)
+			//)
 		}
 	};
 
 	var getModuleDefInputMetadata = { |moduleDef|
 		var inputs = getModuleDefInputs.value(moduleDef);
 		if (inputs.notNil) {
-			asDict.value(
+			// TODO asDict.value(
 				inputs.collect { |assoc|
 					var assocValue = assoc.value;
 					assoc.key -> (
@@ -6099,14 +6102,14 @@ var getCoreStdModuleMetadata = {
 						}
 					)
 				}
-			)
+			//)
 		}
 	};
 
 	var getModuleDefOutputMetadata = { |moduleDef|
 		var outputs = getModuleDefOutputs.value(moduleDef);
 		if (outputs.notNil) {
-			asDict.value(
+			// TODO asDict.value(
 				outputs.collect { |assoc|
 					var assocValue = assoc.value;
 					assoc.key -> (
@@ -6117,14 +6120,14 @@ var getCoreStdModuleMetadata = {
 						}
 					)
 				}
-			)
+			//)
 		}
 	};
 
 	var getModuleDefVisualMetadata = { |moduleDef|
 		var visuals = getModuleDefVisuals.value(moduleDef);
 		if (visuals.notNil) {
-			asDict.value(
+			// TODO asDict.value(
 				visuals.collect { |assoc|
 					var assocValue = assoc.value;
 					assoc.key -> (
@@ -6140,14 +6143,14 @@ var getCoreStdModuleMetadata = {
 						},
 					)
 				}
-			)
+			//)
 		}
 	};
 
 	var getModuleDefSampleSlotMetadata = { |moduleDef|
 		var sampleSlots = getModuleDefSampleSlots.value(moduleDef);
 		if (sampleSlots.notNil) {
-			asDict.value(
+			// TODO asDict.value(
 				sampleSlots.collect { |assoc|
 					var assocValue = assoc.value;
 					assoc.key -> (
@@ -6158,12 +6161,12 @@ var getCoreStdModuleMetadata = {
 						}
 					)
 				}
-			)
+			//)
 		}
 	};
 
 	var moduleDefs = validateAndExpandModuleDefs.value(coreModules++stdModules);
-	asDict.value(
+	// TODO: asDict.value(
 		moduleDefs.collect { |moduleDef|
 			var moduleRef = moduleDef[\name];
 			var spec = getModuleDefSpec.value(moduleDef);
@@ -6174,8 +6177,8 @@ var getCoreStdModuleMetadata = {
 				visuals: getModuleDefVisualMetadata.value(moduleDef),
 				sampleSlots: getModuleDefSampleSlotMetadata.value(moduleDef)
 			)
-		}
-	);
+		};
+	// );
 };
 
 var asDict = { |arrayOfAssociations|
