@@ -20,16 +20,6 @@ start_script.value {
 	~engine.name = 'R';
 
 	~init = {
-		var lfo_frequency_spec;
-		var lfo_to_osc_pwm_spec;
-		var env_attack_spec;
-		var env_decay_spec;
-		var env_release_spec;
-		var filter_frequency_spec;
-		var filter_resonance_spec;
-		var lfo_to_filter_fm_spec;
-		var env_to_filter_fm_spec;
-
 		~engine.new_("FreqGate", "FreqGate");
 		~engine.new_("LFO", "MultiLFO");
 		~engine.new_("Env", "ADSREnv");
@@ -37,6 +27,7 @@ start_script.value {
 		~engine.new_("Osc", "PulseOsc");
 		~engine.new_("Filter", "MMFilter");
 		~engine.new_("Amp", "Amp");
+		~engine.new_("Amplifier", "MGain");
 		~engine.new_("SoundOut", "SoundOut");
 
 		~engine.set_("Osc.FM", 1);
@@ -51,188 +42,33 @@ start_script.value {
 
 		~engine.connect_("Osc/Out", "Filter*In");
 		~engine.connect_("Filter/Lowpass", "Amp*In");
-		~engine.connect_("Amp/Out", "SoundOut*Left");
-		~engine.connect_("Amp/Out", "SoundOut*Right");
+		~engine.connect_("Amp/Out", "Amplifier*In");
+		~engine.connect_("Amplifier/Out", "SoundOut*Left");
+		~engine.connect_("Amplifier/Out", "SoundOut*Right");
 
-		~params.add_(
-			(
-				type: "control",
-				id: "gate",
-				name: "Gate",
-				controlspec: r_specs['FreqGate']['Gate'],
-				action: { |value| ~engine.set_("FreqGate.Gate", value) }
-			)
-		);
-
-		~params.add_(
-			(
-				type: "control",
-				id: "note",
-				name: "Note",
-				controlspec: \midinote.asSpec,
-				action: { |value| ~engine.set_("FreqGate.Frequency", value.midicps) }
-			)
-		);
-
-		~params.add_(
-			(
-				type: "control",
-				id: "osc_range",
-				name: "Osc.Range",
-				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
-			)
-		);
-
-		lfo_frequency_spec = r_specs['MultiLFO']['Frequency'].copy();
-		lfo_frequency_spec.default = 0.2;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "lfo_frequency",
-				name: "LFO.Frequency",
-				controlspec: lfo_frequency_spec,
-				formatter: formatters.round_(0.001),
-				action: { |value| ~engine.set_("LFO.Frequency", value) }
-			)
-		);
-
-		~params.add_(
-			(
-				type: "control",
-				id: "osc_pulsewidth",
-				name: "Osc.PulseWidth",
-				controlspec: r_specs['PulseOsc']['PulseWidth'],
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
-			)
-		);
-
-		lfo_to_osc_pwm_spec = r_specs['PulseOsc']['PWM'].copy();
-		lfo_to_osc_pwm_spec.default = 0.6;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "lfo_to_osc_pwm",
-				name: "LFO > Osc.PWM",
-				controlspec: lfo_to_osc_pwm_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PWM", value) }
-			)
-		);
-
-		env_attack_spec = r_specs['ADSREnv']['Attack'].copy();
-		env_attack_spec.default = 1;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_attack",
-				name: "Env.Attack",
-				controlspec: env_attack_spec,
-				action: { |value| ~engine.set_("Env.Attack", value) }
-			)
-		);
-
-		env_decay_spec = r_specs['ADSREnv']['Decay'].copy();
-		env_decay_spec.default = 800;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_decay",
-				name: "Env.Decay",
-				controlspec: env_decay_spec,
-				action: { |value| ~engine.set_("Env.Decay", value) }
-			)
-		);
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_sustain",
-				name: "Env.Sustain",
-				controlspec: r_specs['ADSREnv']['Sustain'],
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Env.Sustain", value) }
-			)
-		);
-
-		env_release_spec = r_specs['ADSREnv']['Release'].copy();
-		env_release_spec.default = 800;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_release",
-				name: "Env.Release",
-				controlspec: env_release_spec,
-				action: { |value| ~engine.set_("Env.Release", value) }
-			)
-		);
-
-		filter_frequency_spec = r_specs['MMFilter']['Frequency'].copy();
-		filter_frequency_spec.default = 2000;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "filter_frequency",
-				name: "Filter.Frequency",
-				controlspec: filter_frequency_spec,
-				action: { |value| ~engine.set_("Filter.Frequency", value) }
-			)
-		);
-
-		filter_resonance_spec = r_specs['MMFilter']['Resonance'].copy();
-		filter_resonance_spec.default = 0.4;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "filter_resonance",
-				name: "Filter.Resonance",
-				controlspec: filter_resonance_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Filter.Resonance", value) }
-			)
-		);
-
-		lfo_to_filter_fm_spec = r_specs['LinMixer']['In1'].copy();
-		lfo_to_filter_fm_spec.default = 0.4;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "lfo_to_filter_fm",
-				name: "LFO > Filter.FM",
-				controlspec: lfo_to_filter_fm_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("FilterMod.In1", value) }
-			)
-		);
-
-		env_to_filter_fm_spec = r_specs['LinMixer']['In2'].copy();
-		env_to_filter_fm_spec.default = 0.3;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_to_filter_fm",
-				name: "Env > Filter.FM",
-				controlspec: env_to_filter_fm_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("FilterMod.In2", value) }
-			)
-		);
+		~add_gate_param.value();
+		~add_note_param.value();
+		~add_osc_range_param.value();
+		~add_lfo_frequency_param.value();
+		~add_lfo_to_osc_pwm_param.value();
+		~add_filter_frequency_param.value();
+		~add_filter_resonance_param.value();
+		~add_lfo_to_filter_fm_param.value();
+		~add_osc_tune_param.value();
+		~add_osc_pulsewidth_param.value();
+		~add_env_attack_param.value();
+		~add_env_decay_param.value();
+		~add_env_sustain_param.value();
+		~add_env_release_param.value();
+		~add_env_to_filter_fm_param.value();
+		~add_output_level_param.value();
 
 		~engine.set_("FilterMod.Out", 1);
 		~engine.set_("Filter.FM", 1);
 
 		~params.bang_();
 
+		// TODO: remove (start)
 		~midi_device = ~midi.connect_();
 		~midi_device.event = { |data|
 			case
@@ -253,6 +89,249 @@ start_script.value {
 				~params.set_raw_("lfo_frequency", data.val/127);
 			};
 		};
+		// TODO: remove (finish)
+	};
+
+	~add_gate_param = {
+		~params.add_(
+			(
+				type: "control",
+				id: "gate",
+				name: "Gate",
+				controlspec: r_specs['FreqGate']['Gate'],
+				action: { |value| ~engine.set_("FreqGate.Gate", value) }
+			)
+		);
+	};
+
+	~add_note_param = {
+		~params.add_(
+			(
+				type: "control",
+				id: "note",
+				name: "Note",
+				controlspec: \midinote.asSpec,
+				action: { |value| ~engine.set_("FreqGate.Frequency", value.midicps) }
+			)
+		);
+	};
+
+	~add_osc_range_param = {
+		~params.add_(
+			(
+				type: "control",
+				id: "osc_range",
+				name: "Osc.Range",
+				controlspec: r_specs['PulseOsc']['Range'],
+				action: { |value| ~engine.set_("Osc.Range", value) }
+			)
+		);
+	};
+
+	~add_lfo_frequency_param = {
+		var spec;
+		spec = r_specs['MultiLFO']['Frequency'].copy();
+		spec.default = 0.2;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "lfo_frequency",
+				name: "LFO.Frequency",
+				controlspec: spec,
+				formatter: formatters.round_(0.001),
+				action: { |value| ~engine.set_("LFO.Frequency", value) }
+			)
+		);
+	};
+
+	~add_lfo_to_osc_pwm_param = {
+		var spec;
+		spec = r_specs['PulseOsc']['PWM'].copy();
+		spec.default = 0.6;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "lfo_to_osc_pwm",
+				name: "LFO > Osc.PWM",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Osc.PWM", value) }
+			)
+		);
+	};
+
+	~add_filter_frequency_param = {
+		var spec;
+		spec = r_specs['MMFilter']['Frequency'].copy();
+		spec.default = 2000;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "filter_frequency",
+				name: "Filter.Frequency",
+				controlspec: spec,
+				action: { |value| ~engine.set_("Filter.Frequency", value) }
+			)
+		);
+
+	};
+
+	~add_filter_resonance_param = {
+		var spec;
+		spec = r_specs['MMFilter']['Resonance'].copy();
+		spec.default = 0.4;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "filter_resonance",
+				name: "Filter.Resonance",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Filter.Resonance", value) }
+			)
+		);
+
+	};
+
+	~add_lfo_to_filter_fm_param = {
+		var spec;
+		spec = r_specs['MMFilter']['FM'].copy();
+		spec.default = 0.4;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "lfo_to_filter_fm",
+				name: "LFO > Filter.FM",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Filter.FM", value) }
+			)
+		);
+
+	};
+
+	~add_osc_tune_param = {
+		~params.add_(
+			(
+				type: "control",
+				id: "osc_tune",
+				name: "Osc.Tune",
+				controlspec: r_specs['PulseOsc']['Tune'],
+				action: { |value| ~engine.set_("Osc.Tune", value) }
+			)
+		);
+	};
+
+	~add_osc_pulsewidth_param = {
+		~params.add_(
+			(
+				type: "control",
+				id: "osc_pulsewidth",
+				name: "Osc.PulseWidth",
+				controlspec: r_specs['PulseOsc']['PulseWidth'],
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
+			)
+		);
+	};
+
+	~add_env_attack_param = {
+		var spec;
+		spec = r_specs['ADSREnv']['Attack'].copy();
+		spec.default = 1;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "env_attack",
+				name: "Env.Attack",
+				controlspec: spec,
+				action: { |value| ~engine.set_("Env.Attack", value) }
+			)
+		);
+	};
+
+	~add_env_decay_param = {
+		var spec;
+		spec = r_specs['ADSREnv']['Decay'].copy();
+		spec.default = 800;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "env_decay",
+				name: "Env.Decay",
+				controlspec: spec,
+				action: { |value| ~engine.set_("Env.Decay", value) }
+			)
+		);
+	};
+
+	~add_env_sustain_param = {
+		~params.add_(
+			(
+				type: "control",
+				id: "env_sustain",
+				name: "Env.Sustain",
+				controlspec: r_specs['ADSREnv']['Sustain'],
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Env.Sustain", value) }
+			)
+		);
+	};
+
+	~add_env_release_param = {
+		var spec;
+		spec = r_specs['ADSREnv']['Release'].copy();
+		spec.default = 800;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "env_release",
+				name: "Env.Release",
+				controlspec: spec,
+				action: { |value| ~engine.set_("Env.Release", value) }
+			)
+		);
+	};
+
+	~add_env_to_filter_fm_param = {
+		var spec;
+		spec = r_specs['LinMixer']['In2'].copy();
+		spec.default = 0.3;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "env_to_filter_fm",
+				name: "Env > Filter.FM",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("FilterMod.In2", value) }
+			)
+		);
+	};
+
+	~add_output_level_param = {
+		var spec = r_specs['MGain']['Gain'].copy;
+		spec.default = -10;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "output_level",
+				name: "Amplifier.Gain",
+				controlspec: spec,
+				formatter: formatters.round_(0.1),
+				action: { |value| ~engine.set_("Amplifier.Gain", value) }
+			)
+		);
 	};
 
 	~redraw = {
@@ -265,18 +344,10 @@ start_script.value {
 		~screen.update_();
 	};
 
-/*
-	TODO
-	~enc = { |n, delta|
-		if (n == 1) {
-			~mix.delta_("output", delta);
-		};
-	};
-*/
 	~enc = { |n, delta|
 		case
 		{n == 1} {
-			~mix.delta_("output", delta);
+			~params.delta_("output_level", delta);
 		}
 		{n == 2} {
 			~params.delta_("note", delta);

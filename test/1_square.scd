@@ -21,11 +21,22 @@ start_script.value {
 
 	~init = {
 		~engine.new_("Osc", "PulseOsc");
+		~engine.new_("Amplifier", "MGain");
 		~engine.new_("SoundOut", "SoundOut");
 
-		~engine.connect_("Osc/Out", "SoundOut*Left");
-		~engine.connect_("Osc/Out", "SoundOut*Right");
+		~engine.connect_("Osc/Out", "Amplifier*In");
+		~engine.connect_("Amplifier/Out", "SoundOut*Left");
+		~engine.connect_("Amplifier/Out", "SoundOut*Right");
 
+		~add_osc_range_param.value();
+		~add_osc_tune_param.value();
+		~add_osc_pulsewidth_param.value();
+		~add_output_level_param.value();
+
+		~params.bang_();
+	};
+
+	~add_osc_range_param = {
 		~params.add_(
 			(
 				type: "control",
@@ -35,7 +46,9 @@ start_script.value {
 				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
+	};
 
+	~add_osc_tune_param = {
 		~params.add_(
 			(
 				type: "control",
@@ -45,7 +58,9 @@ start_script.value {
 				action: { |value| ~engine.set_("Osc.Tune", value) }
 			)
 		);
+	};
 
+	~add_osc_pulsewidth_param = {
 		~params.add_(
 			(
 				type: "control",
@@ -56,8 +71,22 @@ start_script.value {
 				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
 			)
 		);
+	};
 
-		~params.bang_();
+	~add_output_level_param = {
+		var spec = r_specs['MGain']['Gain'].copy;
+		spec.default = -10;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "output_level",
+				name: "Amplifier.Gain",
+				controlspec: spec,
+				formatter: formatters.round_(0.1),
+				action: { |value| ~engine.set_("Amplifier.Gain", value) }
+			)
+		);
 	};
 
 	~redraw = {
@@ -70,18 +99,10 @@ start_script.value {
 		~screen.update_();
 	};
 
-/*
-	TODO
-	~enc = { |n, delta|
-		if (n == 1) {
-			~mix.delta_("output", delta);
-		};
-	};
-*/
 	~enc = { |n, delta|
 		case
 		{n == 1} {
-			~mix.delta_("output", delta);
+			~params.delta_("output_level", delta);
 		}
 		{n == 2} {
 			~params.delta_("osc_range", delta);

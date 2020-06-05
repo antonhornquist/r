@@ -20,15 +20,10 @@ start_script.value {
 	~engine.name = 'R';
 
 	~init = {
-		var lfo_frequency_spec;
-		var lfo_to_osc_pwm_spec;
-		var filter_frequency_spec;
-		var filter_resonance_spec;
-		var lfo_to_filter_fm_spec;
-
 		~engine.new_("LFO", "MultiLFO");
 		~engine.new_("Osc", "PulseOsc");
 		~engine.new_("Filter", "MMFilter");
+		~engine.new_("Amplifier", "MGain");
 		~engine.new_("SoundOut", "SoundOut");
 
 		~engine.connect_("LFO/Sine", "Osc*PWM");
@@ -36,9 +31,24 @@ start_script.value {
 
 		~engine.connect_("Osc/Out", "Filter*In");
 
-		~engine.connect_("Filter/Lowpass", "SoundOut*Left");
-		~engine.connect_("Filter/Lowpass", "SoundOut*Right");
+		~engine.connect_("Filter/Lowpass", "Amplifier*In");
+		~engine.connect_("Amplifier/Out", "SoundOut*Left");
+		~engine.connect_("Amplifier/Out", "SoundOut*Right");
 
+		~add_osc_range_param.value();
+		~add_lfo_frequency_param.value();
+		~add_lfo_to_osc_pwm_param.value();
+		~add_filter_frequency_param.value();
+		~add_filter_resonance_param.value();
+		~add_lfo_to_filter_fm_param.value();
+		~add_osc_tune_param.value();
+		~add_osc_pulsewidth_param.value();
+		~add_output_level_param.value();
+
+		~params.bang_();
+	};
+
+	~add_osc_range_param = {
 		~params.add_(
 			(
 				type: "control",
@@ -48,31 +58,96 @@ start_script.value {
 				action: { |value| ~engine.set_("Osc.Range", value) }
 			)
 		);
+	};
 
-		lfo_frequency_spec = r_specs['MultiLFO']['Frequency'].copy();
-		lfo_frequency_spec.default = 0.2;
+	~add_lfo_frequency_param = {
+		var spec;
+		spec = r_specs['MultiLFO']['Frequency'].copy();
+		spec.default = 0.2;
 
 		~params.add_(
 			(
 				type: "control",
 				id: "lfo_frequency",
 				name: "LFO.Frequency",
-				controlspec: lfo_frequency_spec,
+				controlspec: spec,
 				formatter: formatters.round_(0.001),
 				action: { |value| ~engine.set_("LFO.Frequency", value) }
 			)
 		);
+	};
+
+	~add_lfo_to_osc_pwm_param = {
+		var spec;
+		spec = r_specs['PulseOsc']['PWM'].copy();
+		spec.default = 0.6;
 
 		~params.add_(
 			(
 				type: "control",
-				id: "osc_range",
-				name: "Osc.Range",
-				controlspec: r_specs['PulseOsc']['Range'],
-				action: { |value| ~engine.set_("Osc.Range", value) }
+				id: "lfo_to_osc_pwm",
+				name: "LFO > Osc.PWM",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Osc.PWM", value) }
+			)
+		);
+	};
+
+	~add_filter_frequency_param = {
+		var spec;
+		spec = r_specs['MMFilter']['Frequency'].copy();
+		spec.default = 2000;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "filter_frequency",
+				name: "Filter.Frequency",
+				controlspec: spec,
+				action: { |value| ~engine.set_("Filter.Frequency", value) }
 			)
 		);
 
+	};
+
+	~add_filter_resonance_param = {
+		var spec;
+		spec = r_specs['MMFilter']['Resonance'].copy();
+		spec.default = 0.4;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "filter_resonance",
+				name: "Filter.Resonance",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Filter.Resonance", value) }
+			)
+		);
+
+	};
+
+	~add_lfo_to_filter_fm_param = {
+		var spec;
+		spec = r_specs['MMFilter']['FM'].copy();
+		spec.default = 0.4;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "lfo_to_filter_fm",
+				name: "LFO > Filter.FM",
+				controlspec: spec,
+				formatter: formatters['percentage'],
+				action: { |value| ~engine.set_("Filter.FM", value) }
+			)
+		);
+
+	};
+
+	~add_osc_tune_param = {
 		~params.add_(
 			(
 				type: "control",
@@ -82,7 +157,9 @@ start_script.value {
 				action: { |value| ~engine.set_("Osc.Tune", value) }
 			)
 		);
+	};
 
+	~add_osc_pulsewidth_param = {
 		~params.add_(
 			(
 				type: "control",
@@ -93,63 +170,22 @@ start_script.value {
 				action: { |value| ~engine.set_("Osc.PulseWidth", value) }
 			)
 		);
+	};
 
-		lfo_to_osc_pwm_spec = r_specs['PulseOsc']['PWM'].copy();
-		lfo_to_osc_pwm_spec.default = 0.6;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "lfo_to_osc_pwm",
-				name: "LFO > Osc.PWM",
-				controlspec: lfo_to_osc_pwm_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Osc.PWM", value) }
-			)
-		);
-
-		filter_frequency_spec = r_specs['MMFilter']['Frequency'].copy();
-		filter_frequency_spec.default = 2000;
+	~add_output_level_param = {
+		var spec = r_specs['MGain']['Gain'].copy;
+		spec.default = -10;
 
 		~params.add_(
 			(
 				type: "control",
-				id: "filter_frequency",
-				name: "Filter.Frequency",
-				controlspec: filter_frequency_spec,
-				action: { |value| ~engine.set_("Filter.Frequency", value) }
+				id: "output_level",
+				name: "Amplifier.Gain",
+				controlspec: spec,
+				formatter: formatters.round_(0.1),
+				action: { |value| ~engine.set_("Amplifier.Gain", value) }
 			)
 		);
-
-		filter_resonance_spec = r_specs['MMFilter']['Resonance'].copy();
-		filter_resonance_spec.default = 0.4;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "filter_resonance",
-				name: "Filter.Resonance",
-				controlspec: filter_resonance_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Filter.Resonance", value) }
-			)
-		);
-
-		lfo_to_filter_fm_spec = r_specs['MMFilter']['FM'].copy();
-		lfo_to_filter_fm_spec.default = 0.4;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "lfo_to_filter_fm",
-				name: "LFO > Filter.FM",
-				controlspec: lfo_to_filter_fm_spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Filter.FM", value) }
-			)
-		);
-
-		~params.bang_()
 	};
 
 	~redraw = {
@@ -162,18 +198,10 @@ start_script.value {
 		~screen.update_();
 	};
 
-/*
-	TODO
-	~enc = { |n, delta|
-		if (n == 1) {
-			~mix.delta_("output", delta);
-		};
-	};
-*/
 	~enc = { |n, delta|
 		case
 		{n == 1} {
-			~mix.delta_("output", delta);
+			~params.delta_("output_level", delta);
 		}
 		{n == 2} {
 			~params.delta_("lfo_frequency", delta);
@@ -184,5 +212,3 @@ start_script.value {
 	};
 };
 )
-
-

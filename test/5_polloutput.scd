@@ -50,6 +50,7 @@ start_script.value {
 		~engine.new_("Osc", "PulseOsc");
 		~engine.new_("Filter", "MMFilter");
 		~engine.new_("Amp", "Amp");
+		~engine.new_("Amplifier", "MGain");
 		~engine.new_("SoundOut", "SoundOut");
 
 		~engine.set_("Osc.FM", 1);
@@ -64,8 +65,9 @@ start_script.value {
 
 		~engine.connect_("Osc/Out", "Filter*In");
 		~engine.connect_("Filter/Lowpass", "Amp*In");
-		~engine.connect_("Amp/Out", "SoundOut*Left");
-		~engine.connect_("Amp/Out", "SoundOut*Right");
+		~engine.connect_("Amp/Out", "Amplifier*In");
+		~engine.connect_("Amplifier/Out", "SoundOut*Left");
+		~engine.connect_("Amplifier/Out", "SoundOut*Right");
 
 		~engine.polloutput_(1, "LFO/Sine");
 
@@ -243,6 +245,8 @@ start_script.value {
 			)
 		);
 
+		~add_output_level_param.value();
+
 		~engine.set_("FilterMod.Out", 1);
 		~engine.set_("Filter.FM", 1);
 
@@ -294,6 +298,22 @@ start_script.value {
 		};
 	};
 
+	~add_output_level_param = {
+		var spec = r_specs['MGain']['Gain'].copy;
+		spec.default = -10;
+
+		~params.add_(
+			(
+				type: "control",
+				id: "output_level",
+				name: "Amplifier.Gain",
+				controlspec: spec,
+				formatter: formatters.round_(0.1),
+				action: { |value| ~engine.set_("Amplifier.Gain", value) }
+			)
+		);
+	};
+
 	~redraw = {
 		~screen.clear_();
 		case
@@ -316,18 +336,10 @@ start_script.value {
 		~screen.update_();
 	};
 
-/*
-	TODO
-	~enc = { |n, delta|
-		if (n == 1) {
-			~mix.delta_("output", delta);
-		};
-	};
-*/
 	~enc = { |n, delta|
 		case
 		{n == 1} {
-			~mix.delta_("output", delta);
+			~params.delta_("output_level", delta);
 		}
 		{n == 2} {
 			~params.delta_("lfo_frequency", delta);
