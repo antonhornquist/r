@@ -1453,19 +1453,15 @@ var getModuleDefParamControlSpecs = { |moduleDef|
 var getModuleDefParamDescriptions = { |moduleDef|
 	var params = getModuleDefParams.value(moduleDef);
 	if (params.notNil) {
-		IdentityDictionary.newFrom(
+		asDict.value(
 			params.collect { |assoc|
 				var assocValue = assoc.value;
-				[
-					assoc.key, // key
-					// value ...
-					if (assocValue.class == Event) {
-						assocValue[\Description]
-					} {
-						nil
-					}
-				];
-			}.flatten;
+				assoc.key -> if (assocValue.class == Event) {
+					assocValue[\Description]
+				} {
+					nil
+				};
+			}
 		)
 	}
 };
@@ -1473,19 +1469,15 @@ var getModuleDefParamDescriptions = { |moduleDef|
 var getModuleDefInputDescriptions = { |moduleDef|
 	var inputs = getModuleDefInputs.value(moduleDef);
 	if (inputs.notNil) {
-		IdentityDictionary.newFrom(
+		asDict.value(
 			inputs.collect { |assoc|
 				var assocValue = assoc.value;
-				[
-					assoc.key, // key
-					// value ...
-					if (assocValue.class == Event) {
-						assocValue[\Description]
-					} {
-						nil
-					}
-				];
-			}.flatten;
+				assoc.key -> if (assocValue.class == Event) {
+					assocValue[\Description]
+				} {
+					nil
+				}
+			}
 		)
 	}
 };
@@ -1493,19 +1485,15 @@ var getModuleDefInputDescriptions = { |moduleDef|
 var getModuleDefOutputDescriptions = { |moduleDef|
 	var outputs = getModuleDefOutputs.value(moduleDef);
 	if (outputs.notNil) {
-		IdentityDictionary.newFrom(
+		asDict.value(
 			outputs.collect { |paramAssoc|
 				var assocValue = paramAssoc.value;
-				[
-					paramAssoc.key, // key
-					// value ...
-					if (assocValue.class == Event) {
-						assocValue[\Description]
-					} {
-						nil
-					}
-				];
-			}.flatten;
+				paramAssoc.key -> if (assocValue.class == Event) {
+					assocValue[\Description]
+				} {
+					nil
+				}
+			}
 		)
 	}
 };
@@ -1513,19 +1501,15 @@ var getModuleDefOutputDescriptions = { |moduleDef|
 var getModuleDefVisualDescriptions = { |moduleDef|
 	var visuals = getModuleDefVisuals.value(moduleDef);
 	if (visuals.notNil) {
-		IdentityDictionary.newFrom(
+		asDict.value(
 			visuals.collect { |assoc|
 				var assocValue = assoc.value;
-				[
-					assoc.key, // key
-					// value ...
-					if (assocValue.class == Event) {
-						assocValue[\Description]
-					} {
-						nil
-					}
-				];
-			}.flatten;
+				assoc.key -> if (assocValue.class == Event) {
+					assocValue[\Description]
+				} {
+					nil
+				}
+			}
 		)
 	}
 };
@@ -1533,19 +1517,15 @@ var getModuleDefVisualDescriptions = { |moduleDef|
 var getModuleDefSampleSlotDescriptions = { |moduleDef|
 	var sampleSlot = getModuleDefVisuals.value(moduleDef);
 	if (sampleSlot.notNil) {
-		IdentityDictionary.newFrom(
+		asDict.value(
 			sampleSlot.collect { |assoc|
 				var assocValue = assoc.value;
-				[
-					assoc.key, // key
-					// value ...
-					if (assocValue.class == Event) {
-						assocValue[\Description]
-					} {
-						nil
-					}
-				];
-			}.flatten;
+				assoc.key -> if (assocValue.class == Event) {
+					assocValue[\Description]
+				} {
+					nil
+				}
+			}
 		)
 	}
 };
@@ -6053,25 +6033,22 @@ var getModuleDefs = { |self|
 };
 
 // TODO: report *all* specs, deduce to param specs in r_specs.scd
+// TODO: this can be rewritten to a function returning a subset of getCoreStdModuleMetadata
 var getCoreStdModuleSpecs = {
+	// TODO: this is used since "param_" is prefixed in function with same name above
 	var getModuleDefParamControlSpecs = { |moduleDef|
 		var params = getModuleDefParams.value(moduleDef);
 		if (params.notNil) {
-			// TODO: refactor to local asDict that takes an array of associations
-			IdentityDictionary.newFrom(
+			asDict.value(
 				params.collect { |assoc|
 					var assocValue = assoc.value;
-					[
-						assoc.key, // key
-						// value ...
-						if (assocValue.class == ControlSpec) { // TODO: DRY this up
-							assocValue
-						} {
-							// TODO: Event assumed
-							assocValue[\Spec]
-						}
-					]
-				}.flatten
+					assoc.key -> if (assocValue.class == ControlSpec) { // TODO: DRY this up
+						assocValue
+					} {
+						// TODO: Event assumed
+						assocValue[\Spec]
+					};
+				}
 			)
 		}
 	};
@@ -6082,6 +6059,121 @@ var getCoreStdModuleSpecs = {
 			var moduleRef = moduleDef[\name];
 			var spec = getModuleDefSpec.value(moduleDef);
 			moduleRef -> getModuleDefParamControlSpecs.value(moduleDef);
+		}
+	);
+};
+
+// TODO: reports *all* specs, param specs to be deduced in r_specs.scd
+var getCoreStdModuleMetadata = {
+	// TODO: this is used since "param_" is prefixed in function getModuleDefParamControlSpecs above
+	var getModuleDefParamMetadata = { |moduleDef|
+		var params = getModuleDefParams.value(moduleDef);
+		if (params.notNil) {
+			asDict.value(
+				params.collect { |assoc|
+					var assocValue = assoc.value;
+					assoc.key -> (
+						Spec: if (assocValue.class == ControlSpec) { // TODO: DRY this up
+							assocValue
+						} {
+							// TODO: Event assumed
+							assocValue[\Spec]
+						};
+					)
+				}
+			)
+		}
+	};
+
+	var getModuleDefInputMetadata = { |moduleDef|
+		var inputs = getModuleDefInputs.value(moduleDef);
+		if (inputs.notNil) {
+			asDict.value(
+				inputs.collect { |assoc|
+					var assocValue = assoc.value;
+					assoc.key -> (
+						Description: if (assocValue.class == Event) {
+							assocValue[\Description]
+						} {
+							nil
+						}
+					)
+				}
+			)
+		}
+	};
+
+	var getModuleDefOutputMetadata = { |moduleDef|
+		var outputs = getModuleDefOutputs.value(moduleDef);
+		if (outputs.notNil) {
+			asDict.value(
+				outputs.collect { |assoc|
+					var assocValue = assoc.value;
+					assoc.key -> (
+						Description: if (assocValue.class == Event) {
+							assocValue[\Description]
+						} {
+							nil
+						}
+					)
+				}
+			)
+		}
+	};
+
+	var getModuleDefVisualMetadata = { |moduleDef|
+		var visuals = getModuleDefVisuals.value(moduleDef);
+		if (visuals.notNil) {
+			asDict.value(
+				visuals.collect { |assoc|
+					var assocValue = assoc.value;
+					assoc.key -> (
+						Description: if (assocValue.class == Event) {
+							assocValue[\Description]
+						} {
+							nil
+						},
+						Spec: if (assocValue.class == Event) {
+							assocValue[\Spec]
+						} {
+							nil
+						},
+					)
+				}
+			)
+		}
+	};
+
+	var getModuleDefSampleSlotMetadata = { |moduleDef|
+		var sampleSlots = getModuleDefSampleSlots.value(moduleDef);
+		if (sampleSlots.notNil) {
+			asDict.value(
+				sampleSlots.collect { |assoc|
+					var assocValue = assoc.value;
+					assoc.key -> (
+						Description: if (assocValue.class == Event) {
+							assocValue[\Description]
+						} {
+							nil
+						}
+					)
+				}
+			)
+		}
+	};
+
+	var moduleDefs = validateAndExpandModuleDefs.value(coreModules++stdModules);
+	asDict.value(
+		moduleDefs.collect { |moduleDef|
+			var moduleRef = moduleDef[\name];
+			var spec = getModuleDefSpec.value(moduleDef);
+			moduleRef -> (
+				parameters: getModuleDefParamMetadata.value(moduleDef),
+				inputs: getModuleDefInputMetadata.value(moduleDef),
+				outputs: getModuleDefOutputMetadata.value(moduleDef),
+				visuals: getModuleDefVisualMetadata.value(moduleDef),
+				sampleSlots: getModuleDefSampleSlotMetadata.value(moduleDef)
+			)
 		}
 	);
 };
@@ -6108,7 +6200,8 @@ var module = IdentityDictionary[
 	\getTapBus -> getTapBus,
 	\getVisualBus -> getVisualBus,
 	\generateDocsForAllModules -> generateDocsForAllModules,
-	\getCoreStdModuleSpecs -> getCoreStdModuleSpecs
+	\getCoreStdModuleSpecs -> getCoreStdModuleSpecs,
+	\getCoreStdModuleMetadata -> getCoreStdModuleMetadata
 ];
 
 module
