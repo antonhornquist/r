@@ -1033,21 +1033,24 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					};
 
 					var in_enc_1_area = { |x, y|
-						(x < (window_width/2)) and: (y < (window_height/2))
+						var bounds = window.view.bounds;
+						(x < (bounds.width/2)) and: (y < (bounds.height/2))
 					};
 
 					var in_enc_2_area = { |x, y|
-						(x < (window_width/2)) and: (y >= (window_height/2))
+						var bounds = window.view.bounds;
+						(x < (bounds.width/2)) and: (y >= (bounds.height/2))
 					};
 
 					var in_enc_3_area = { |x, y|
-						(x >= (window_width/2)) and: (y >= (window_height/2))
+						var bounds = window.view.bounds;
+						(x >= (bounds.width/2)) and: (y >= (bounds.height/2))
 					};
 
 					window.view
 						.mouseMoveAction_(mouse_move_action)
 						.acceptsMouseOver_(true)
-						.mouseOverAction_(mouse_move_action)
+						// TODO: not sure this is needed at all .mouseOverAction_(mouse_move_action)
 						.mouseDownAction_(mouse_down_action)
 						.mouseUpAction_(mouse_up_action)
 						.keyModifiersChangedAction_({ |view, modifiers|
