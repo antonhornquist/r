@@ -184,7 +184,7 @@ var redraw = {
 
 		~screen.level_(lo_level);
 		~screen.text_("LEVEL");
-		~screen.move_(enc1_x+45, enc1_y);
+		~screen.move_((enc1_x + ~screen.text_extents_("LEVEL") + 3), enc1_y);
 		~screen.level_(hi_level);
 		~screen.text_(round(~params.get_raw_("output_level")*100, 1));
 	};
