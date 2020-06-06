@@ -261,7 +261,7 @@ namespaces.poll_manager = {
 								self.time_.wait;
 							}
 						}.play;
-						"poll started".inform;
+						// "poll started".inform;
 					} {
 						"poll already started".inform;
 					};
@@ -838,7 +838,7 @@ namespaces.r_engine = {
 		);
 
 		(
-			instance: r_instance,
+			r_instance: r_instance,
 			commands: [
 				\new -> { |self, name, kind|
 					newCommand.value(r_instance, name, kind);
@@ -975,6 +975,8 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 			var screen_view = screen[\view];
 
 			var spawn_script_func = {
+				var script_instance = ();
+
 				var setup_window_mouse_and_key_hooks = {
 					var enc_area_pressed = false ! 3;
 					var enc_area_prev_pos;
@@ -1150,11 +1152,15 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 								var load_engine = r_engine[\load_engine];
 								var free_engine = r_engine[\free_engine];
 
-								var engine_instance = load_engine.value;
+								var r_engine_instance = load_engine.value;
 								var engine, polls;
-								# engine, poll_manager = setup_engine_globals.value(engine_instance[\commands], engine_instance[\polls]);
+								# engine, poll_manager = setup_engine_globals.value(r_engine_instance[\commands], r_engine_instance[\polls]);
 								~engine = engine;
 								~poll = poll_manager;
+								// script_instance[\r_engine_instance] = r_engine_instance; // TODO: probably not needed
+								script_instance[\engine_free_func] = {
+									free_engine.value(r_engine_instance);
+								};
 								"R engine loaded".debug;
 								completeFunc.value;
 							};
@@ -1169,43 +1175,38 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					}.value;
 				};
 
-				~scripts = ~scripts.add(script_env); // TODO: this goes to the currentEnvironment - check for topEnvironment?
+				script_instance[\environment] = script_env;
+
+				~scripts = ~scripts.add(script_env); // TODO: this goes to the currentEnvironment - do this in topEnvironment instead?
 				// TODO 2: call this script_envs since they're environments?
 
 				CmdPeriod.doOnce {
-					"script cleanup...".inform;
-					script_env.use {
-						script_env[\cleanup].value;
-					};
-					"freeing script device managers...".inform;
-					free_script.value(script_env);
-					"closing script screen window...".inform;
-					window.close;
-					"... script successfully freed.".inform;
+					pr_stop_script.value(script_instance);
 				};
+
+				{ // defer since Qt requires properties to be set in AppClock
+					screen_view
+						.mouseMoveAction_({false}) // returning false means: do not handle in this view
+						.mouseOverAction_({false})
+						.mouseDownAction_({false})
+						.mouseUpAction_({false})
+						;
+
+					window.view
+						.onResize_({ |windowView|
+							var bounds = windowView.bounds;
+							screen_view.moveTo(
+								(bounds.width/2)-(screen_view.bounds.width/2),
+								(bounds.height/2)-(screen_view.bounds.height/2)
+							);
+						})
+						.onClose_({ |windowView|
+							pr_stop_script.value(script_instance);
+						});
+				}.defer;
+
+				script_instance[\window] = window;
 			};
-
-			screen_view
-				.mouseMoveAction_({false}) // false means: not handled in this view
-				.mouseOverAction_({false})
-				.mouseDownAction_({false})
-				.mouseUpAction_({false})
-				;
-
-			window.view
-				.onResize_({ |windowView|
-					var bounds = windowView.bounds;
-					screen_view.moveTo(
-						(bounds.width/2)-(screen_view.bounds.width/2),
-						(bounds.height/2)-(screen_view.bounds.height/2)
-					);
-				})
-				.onClose_({ |windowView|
-					// TODO: stop running routines
-					script_env.use {
-						~metro.free_all_();
-					};
-				});
 
 			if (class_exists.value('SerialOSCClient')) {
 				var serialOSCClientClass = load_class_dynamically.value("SerialOSCClient");
@@ -1222,7 +1223,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		};
 
 		var select_script_environment = { |script_index|
-			// TODO: assumes scripts array resides in topEnvironment
 			var scripts = topEnvironment[\scripts];
 			if (scripts.notNil) {
 				var currentScriptEnvIndex = scripts.detectIndex { |script_environment| script_environment == currentEnvironment };
@@ -1244,9 +1244,27 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		};
 
 		var stop_script = { |script_instance|
-			// this should probably be triggered by CmdPeriod
-			// call ~cleanup
-			// call free_engine
+			// TODO: remove CmdPeriod function hooked to pr_stop_script
+		};
+
+		var pr_stop_script = { |script_instance|
+			var script_env = script_instance[\environment];
+			var engine_free_func = script_instance[\engine_free_func];
+			var window = script_instance[\window];
+
+			"script cleanup...".inform;
+			script_env.use {
+				~cleanup.value;
+				~metro.free_all_();
+			};
+			"freeing script device managers...".inform;
+			free_script.value(script_env);
+			"freeing engine...".inform;
+			engine_free_func.value;
+			"closing script screen window...".inform;
+			window.close;
+			"... script successfully freed.".inform;
+			// TODO: stop running routines
 		};
 
 		var class_exists = { |classname|
