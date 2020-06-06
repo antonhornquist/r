@@ -245,6 +245,6 @@ var module = IdentityDictionary[
 	\render_ring -> render_ring
 ];
 
-run_tests.value();
+// run_tests.value(); // uncomment to run tests
 module
 )
