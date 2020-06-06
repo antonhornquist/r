@@ -3349,14 +3349,14 @@ var stdModules = [
 		params: {
 			4.collect { |index|
 				("In"++(index+1)).asSymbol -> (
-					Spec: \unipolar.asSpec,
+					Spec: \unipolar.asSpec.copy.default_(1),
 					LagTime: 0.1,
 					Description: "Audio input" + (index+1) + "level TODO: range/spec."
 				)
 			} ++
 			[
 				'Out' -> (
-					Spec: \unipolar.asSpec,
+					Spec: \unipolar.asSpec.copy.default_(1),
 					LagTime: 0.1,
 					Description: "Output level TODO: range/spec."
 				)
