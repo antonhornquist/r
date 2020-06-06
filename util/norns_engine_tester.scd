@@ -982,79 +982,8 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					var enc_area_prev_pos;
 					var key_state = false ! 3;
 
-					var mouse_move_action = { |view, x, y|
-						if (enc_area_pressed[0] or: enc_area_pressed[1] or: enc_area_pressed[2]) {
-							var delta = enc_area_prev_pos.y - y;
-							if (delta != 0) {
-								case
-									{ enc_area_pressed[0] }
-									{
-										script_env.use {
-											~enc.value(1, delta);
-										};
-									}
-									{ enc_area_pressed[1] }
-									{
-										script_env.use {
-											~enc.value(2, delta);
-										};
-									}
-									{ enc_area_pressed[2] }
-									{
-										script_env.use {
-											~enc.value(3, delta);
-										};
-									}
-									;
-								enc_area_prev_pos = x@y;
-							};
-						};
-					};
-
-					var mouse_down_action = { |view, x, y|
-						case
-							{ in_enc_1_area.value(x, y) }
-							{
-								enc_area_pressed[0] = true; // 
-							}
-							{ in_enc_2_area.value(x, y) }
-							{
-								enc_area_pressed[1] = true;
-							}
-							{ in_enc_3_area.value(x, y) }
-							{
-								enc_area_pressed[2] = true;
-							};
-						enc_area_prev_pos = x@y;
-					};
-
-					var mouse_up_action = { |view, x, y|
-						enc_area_pressed[0] = false;
-						enc_area_pressed[1] = false;
-						enc_area_pressed[2] = false;
-					};
-
-					var in_enc_1_area = { |x, y|
-						var bounds = window.view.bounds;
-						(x < (bounds.width/2)) and: (y < (bounds.height/2))
-					};
-
-					var in_enc_2_area = { |x, y|
-						var bounds = window.view.bounds;
-						(x < (bounds.width/2)) and: (y >= (bounds.height/2))
-					};
-
-					var in_enc_3_area = { |x, y|
-						var bounds = window.view.bounds;
-						(x >= (bounds.width/2)) and: (y >= (bounds.height/2))
-					};
-
 					window.view
-						.mouseMoveAction_(mouse_move_action)
 						.acceptsMouseOver_(true)
-						// TODO: not sure this is needed at all .mouseOverAction_(mouse_move_action)
-						.mouseDownAction_(mouse_down_action)
-						.mouseUpAction_(mouse_up_action)
 						.keyModifiersChangedAction_({ |view, modifiers|
 							var shift_pressed;
 							var ctrl_pressed;
@@ -1117,6 +1046,64 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 								}
 							;
 						});
+				};
+
+				var mouse_pressed;
+				var mouse_pressed_pos;
+				var mouse_over_pos;
+				var mouse_move_pos;
+
+				var scale_mouse_pos = { |x, y|
+					(round(x/scale) max: 1)@(round(y/scale) max: 1)
+				};
+
+				var mouse_enter_action = { |view|
+					script_env.use {
+						~mouse.value("enter");
+					};
+				};
+
+				var mouse_over_action = { |view, x, y|
+					var scaled_pos = scale_mouse_pos.value(x, y);
+					if (mouse_over_pos != scaled_pos) {
+						mouse_over_pos = scaled_pos;
+						script_env.use {
+							~mouse.value("over", scaled_pos.x, scaled_pos.y);
+						};
+					};
+				};
+
+				var mouse_down_action = { |view, x, y|
+					var scaled_pos = scale_mouse_pos.value(x, y);
+					mouse_pressed = true;
+					mouse_pressed_pos = scaled_pos;
+					script_env.use {
+						~mouse.value("down", scaled_pos.x, scaled_pos.y);
+					};
+				};
+
+				var mouse_move_action = { |view, x, y|
+					var scaled_pos = scale_mouse_pos.value(x, y);
+					if (mouse_move_pos != scaled_pos) {
+						mouse_move_pos = scaled_pos;
+						script_env.use {
+							~mouse.value("move", scaled_pos.x, scaled_pos.y);
+						};
+					};
+				};
+
+				var mouse_up_action = { |view, x, y|
+					var scaled_pos = scale_mouse_pos.value(x, y);
+					mouse_pressed = false;
+					script_env.use {
+						~mouse.value("up", scaled_pos.x, scaled_pos.y);
+					};
+				};
+
+				var mouse_leave_action = { |view|
+					script_env.use {
+						~mouse.value("leave");
+					};
 				};
 
 				script_env = Environment.make {
@@ -1186,10 +1173,12 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 				{ // defer since Qt requires properties to be set in AppClock
 					screen_view
-						.mouseMoveAction_({false}) // returning false means: do not handle in this view
-						.mouseOverAction_({false})
-						.mouseDownAction_({false})
-						.mouseUpAction_({false})
+						.mouseEnterAction_(mouse_enter_action)
+						.mouseOverAction_(mouse_over_action)
+						.mouseDownAction_(mouse_down_action)
+						.mouseMoveAction_(mouse_move_action)
+						.mouseUpAction_(mouse_up_action)
+						.mouseLeaveAction_(mouse_leave_action)
 						;
 
 					window.view
