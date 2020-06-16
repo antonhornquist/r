@@ -41,6 +41,9 @@ var target_page;
 var page_trans_div;
 var page_trans_frames;
 
+var focus;
+var active;
+
 var pages;
 
 var init = { |r_polls, r_params, ui, settings_file, arg_fps|
@@ -160,6 +163,107 @@ var default_screen_refresh_handler = {
 	~redraw.value();
 };
 
+var mouse_hovers_over_area = { |rect|
+	rect.contains(~mouse_over_pos);
+};
+
+var get_enc1_value_bounds = {
+	var enc1_x = 1; // TODO: DRY
+	var enc1_y = 12;
+	var the_value = round(~params.get_raw_("output_level")*100).asString;
+	var value_x = enc1_x + ~screen.text_extents_("LEVEL") + 3;
+	var value_y = enc1_y;
+	var value_width = ~screen.text_extents_(the_value);
+	Rect(value_x, value_y-12, value_width, 12);
+};
+
+var mouse_down_at_enc1_value = {
+	var bounds = get_enc1_value_bounds.value();
+	bounds.contains(~mouse_down_pos);
+};
+
+var mouse_hovers_over_enc1_value = {
+	var bounds = get_enc1_value_bounds.value();
+	mouse_hovers_over_area.value(bounds);
+};
+
+var get_enc2_enc3_value_bounds = { |page, param_index, x, y|
+	var ui_param = pages[page][param_index];
+	var format_param = { |ui_param|
+		var param = ~params.lookup_param_(ui_param.id);
+		ui_param[\formatter].value(param);
+	};
+	var the_value = format_param.value(ui_param).asString;
+	var value_x = x;
+	var value_y = y + 12;
+	var value_width = ~screen.text_extents_(the_value).ceil; // TODO: round in text_extents_ instead?
+	Rect(value_x, value_y-12, value_width, 12).debug;
+};
+
+var get_enc2_value_bounds = {
+	var enc2_x = 10; // TODO: DRY
+	var enc2_y = 29;
+
+	var left = floor(current_page);
+	// var right = ceil(current_page);
+	var offset = current_page - left;
+	var pixel_ofs = round(offset*128);
+
+	get_enc2_enc3_value_bounds.value(left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
+};
+
+var mouse_down_at_enc2_value = {
+	var bounds = get_enc2_value_bounds.value();
+	bounds.contains(~mouse_down_pos);
+};
+
+var mouse_hovers_over_enc2_value = {
+	var bounds = get_enc2_value_bounds.value();
+	mouse_hovers_over_area.value(bounds);
+};
+
+var get_enc3_value_bounds = {
+	var enc2_x = 10; // TODO: DRY
+	var enc2_y = 29;
+	var enc3_x = enc2_x + 65;
+	var enc3_y = enc2_y;
+
+	var left = floor(current_page);
+	//var right = ceil(current_page);
+	var offset = current_page - left;
+	var pixel_ofs = round(offset*128);
+
+	get_enc2_enc3_value_bounds.value(left, 0, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
+};
+
+var mouse_down_at_enc3_value = {
+	var bounds = get_enc3_value_bounds.value();
+	bounds.contains(~mouse_down_pos);
+};
+
+var mouse_hovers_over_enc3_value = {
+	var bounds = get_enc3_value_bounds.value();
+	mouse_hovers_over_area.value(bounds);
+};
+
+var mouse_hovers_over_key2 = {
+	var key2_x = 1;
+	var key2_y = 63;
+	var text_width = ~screen.text_extents_("PREV");
+	var bounds = Rect(key2_x, key2_y-12, text_width, 12);
+	mouse_hovers_over_area.value(bounds);
+};
+
+var mouse_hovers_over_key3 = {
+	var key2_x = 1;
+	var key2_y = 63;
+	var key3_x = key2_x+65;
+	var key3_y = key2_y;
+	var text_width = ~screen.text_extents_("NEXT");
+	var bounds = Rect(key3_x, key3_x-12, text_width, 12);
+	mouse_hovers_over_area.value(bounds);
+};
+
 var redraw = {
 	// TODO
 	var enc1_x = 1;
@@ -180,13 +284,27 @@ var redraw = {
 	var key3_y = key2_y;
 
 	var draw_enc1_widget = {
-		~screen.move_(enc1_x, enc1_y);
-
-		~screen.level_(lo_level);
-		~screen.text_("LEVEL");
-		~screen.move_((enc1_x + ~screen.text_extents_("LEVEL") + 3), enc1_y);
-		~screen.level_(hi_level);
-		~screen.text_(round(~params.get_raw_("output_level")*100, 1));
+		var draw_label = {
+			~screen.move_(enc1_x, enc1_y);
+			~screen.level_(lo_level);
+			~screen.text_("LEVEL");
+		};
+		var draw_current_value = {
+			var the_value = round(~params.get_raw_("output_level")*100).asString;
+			var value_x = enc1_x + ~screen.text_extents_("LEVEL") + 3;
+			var value_y = enc1_y;
+			var value_width = ~screen.text_extents_(the_value);
+			var value_bounds = Rect(value_x, value_y-12, value_width, 12);
+			~screen.move_(value_x, value_y);
+			if (focus == 'enc1') {
+				~screen.level_((hi_level+lo_level)/2);
+			} {
+				~screen.level_(hi_level);
+			};
+			~screen.text_(the_value);
+		};
+		draw_label.value;
+		draw_current_value.value;
 	};
 
 	var draw_event_flash_widget = {
@@ -241,36 +359,48 @@ var redraw = {
 	};
 
 	// TODO: blit this
-	var draw_ui_param = { |page, param_index, x, y|
-		var format_param = { |ui_param|
-			var param = ~params.lookup_param_(ui_param.id);
-			ui_param[\formatter].value(param);
-		};
-
+	var draw_ui_param = { |page, param_index, x, y, focussed|
 		var ui_param = pages[page][param_index];
+		var draw_label = {
+			~screen.move_(x, y);
+			~screen.level_(lo_level);
+			~screen.text_(ui_param[\label]);
+		};
+		var draw_current_value = {
+			var format_param = { |ui_param|
+				var param = ~params.lookup_param_(ui_param.id);
+				ui_param[\formatter].value(param);
+			};
+			var the_value = format_param.value(ui_param).asString;
+			var value_x = x;
+			var value_y = y + 12;
+			var value_width = ~screen.text_extents_(the_value);
+			var value_bounds = Rect(value_x, value_y-12, value_width, 12);
+			~screen.move_(value_x, value_y);
+			if (focussed) {
+				~screen.level_((hi_level+lo_level)/2);
+			} {
+				~screen.level_(hi_level);
+			};
+			~screen.text_(the_value);
 
-		var ind_x;
-		var ind_y;
-		var visual_values;
-		var value;
+		};
+		var draw_widget = {
+			var widget_x = x + 1;
+			var widget_y = y + 14;
+			var visual_values = ui_param[\visual_values];
+			var raw_value = ~params.get_raw_(ui_param[\id]);
 
-		~screen.move_(x, y);
-		~screen.level_(lo_level);
-		~screen.text_(ui_param[\label]);
-		~screen.move_(x, y+12);
-		~screen.level_(hi_level);
-		~screen.text_(format_param.value(ui_param));
+			if (visual_values.notNil) {
+				draw_visual_values.value(widget_x, widget_y, ui_param[\label_width], visual_values);
+			};
 
-		ind_x = x + 1;
-		ind_y = y + 14;
-
-		visual_values = ui_param[\visual_values];
-		if (visual_values.notNil) {
-			draw_visual_values.value(ind_x, ind_y, ui_param[\label_width], visual_values);
+			draw_value.value(widget_x, widget_y, translate.value(raw_value, ui_param[\label_width]), hi_level);
 		};
 
-		value = ~params.get_raw_(ui_param[\id]);
-		draw_value.value(ind_x, ind_y, translate.value(value, ui_param[\label_width]), hi_level);
+		draw_label.value;
+		draw_current_value.value;
+		draw_widget.value;
 	};
 
 	var draw_enc2_widget = {
@@ -279,10 +409,23 @@ var redraw = {
 		var offset = current_page - left;
 		var pixel_ofs = round(offset*128);
 
-		draw_ui_param.value(left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
+		draw_ui_param.value(
+			left,
+			0,
+			enc2_x-pixel_ofs,
+			enc2_y,
+			focus == 'enc2' // TODO: on transition consider this unfocussed?
+		); // TODO: zero based
+
 
 		if (left != right) {
-			draw_ui_param.value(right, 0, enc2_x+128-pixel_ofs, enc2_y); // TODO: zero based
+			draw_ui_param.value(
+				right,
+				0,
+				enc2_x+128-pixel_ofs,
+				enc2_y,
+				false // TODO: on transition consider this unfocussed?
+			); // TODO: zero based
 		};
 	};
 
@@ -292,10 +435,22 @@ var redraw = {
 		var offset = current_page - left;
 		var pixel_ofs = round(offset*128);
 
-		draw_ui_param.value(left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
+		draw_ui_param.value(
+			left,
+			1,
+			enc3_x-pixel_ofs,
+			enc3_y,
+			focus == 'enc3' // TODO: on transition consider this unfocussed?
+		); // TODO: zero based
 
 		if (left != right) {
-			draw_ui_param.value(right, 1, enc3_x+128-pixel_ofs, enc3_y); // TODO: zero based
+			draw_ui_param.value(
+				right,
+				1,
+				enc3_x+128-pixel_ofs,
+				enc3_y,
+				false // TODO: on transition consider this unfocussed?
+			); // TODO: zero based
 		};
 	};
     
@@ -318,24 +473,26 @@ var redraw = {
 		~screen.text_("FN");
 	};
 
-	var draw_key2_widget = {
-		~screen.move_(key2_x, key2_y);
-		if (prev_held and: fine.not) {
+	var draw_key_widget = { |widget_x, widget_y, text, key_held, focussed|
+		~screen.move_(widget_x, widget_y);
+		if (key_held and: fine.not) {
 			~screen.level_(hi_level);
 		} {
-			~screen.level_(lo_level);
+			if (focussed) {
+				~screen.level_((hi_level+lo_level)/2);
+			} {
+				~screen.level_(lo_level);
+			};
 		};
-		~screen.text_("PREV");
+		~screen.text_(text);
+	};
+
+	var draw_key2_widget = {
+		draw_key_widget.value(key2_x, key2_y, "PREV", prev_held, focus == 'key2');
 	};
 
 	var draw_key3_widget = {
-		~screen.move_(key3_x, key3_y);
-		if (next_held and: fine.not) {
-			~screen.level_(hi_level);
-		} {
-			~screen.level_(lo_level);
-		};
-		~screen.text_("NEXT");
+		draw_key_widget.value(key3_x, key3_y, "NEXT", next_held, focus == 'key3');
 	};
 
 	~screen.font_size(16);
@@ -524,7 +681,117 @@ var start_script_polls = {
 };
 
 var set_ui_dirty = {
-  ui_set_dirty.value();
+	ui_set_dirty.value();
+};
+
+var mouse = { |what ... args|
+	[what, args].debug;
+	case
+	{ what == "leave" } {
+		~mouse_over_pos = nil;
+	}
+	{ what == "over" } {
+		var x = args[0], y = args[1];
+		var prev_focus = focus;
+
+		~mouse_over_pos = x@y;
+
+		case
+		{ mouse_hovers_over_enc1_value.value } {
+			focus = 'enc1';
+		}
+		{ mouse_hovers_over_enc2_value.value } {
+			focus = 'enc2';
+		}
+		{ mouse_hovers_over_enc3_value.value } {
+			focus = 'enc3';
+		}
+		{ mouse_hovers_over_key2.value } {
+			focus = 'key2';
+		}
+		{ mouse_hovers_over_key3.value } {
+			focus = 'key3';
+		}
+		{ true } {
+			focus = nil;
+		};
+		if (prev_focus != focus) {
+			ui_set_dirty.value();
+		};
+	}
+	{ what == "down" } {
+		var x = args[0], y = args[1];
+		var prev_active = active;
+		~mouse_down_pos = x@y;
+
+		case
+		{ focus == 'key2' } {
+			key.value(2, 1);
+		}
+		{ focus == 'key3' } {
+			key.value(3, 1);
+		};
+
+		active = focus;
+
+		if (prev_active != active) {
+			ui_set_dirty.value();
+		};
+	}
+	{ what == "move" } {
+		var x = args[0], y = args[1];
+		~prev_mouse_move_pos = ~mouse_move_pos;
+		~mouse_move_pos = x@y;
+		~mouse_move_delta = (~prev_mouse_move_pos ? ~mouse_down_pos) - (x@y);
+		if (~mouse_move_delta.y != 0) {
+			case
+			{active == 'enc1'} {
+				enc.value(1, ~mouse_move_delta.y);
+			}
+			{active == 'enc2'} {
+				enc.value(2, ~mouse_move_delta.y);
+			}
+			{active == 'enc3'} {
+				enc.value(3, ~mouse_move_delta.y);
+			};
+		};
+	}
+	{ what == "up" } {
+		var x = args[0], y = args[1];
+		var prev_active = active;
+
+		~mouse_move_pos = nil;
+
+		case
+		{ active == 'key2' } {
+			key.value(2, 0);
+		}
+		{ active == 'key3' } {
+			key.value(3, 0);
+		};
+
+		active = nil;
+
+		if (prev_active != active) {
+			ui_set_dirty.value();
+		};
+	}
+	{ what == "wheel" } {
+		var x_delta = args[0], y_delta = args[1];
+
+		if (y_delta != 0) {
+			case
+			{focus == 'enc1'} {
+				enc.value(1, y_delta*(-1));
+			}
+			{focus == 'enc2'} {
+				enc.value(2, y_delta*(-1));
+			}
+			{focus == 'enc3'} {
+				enc.value(3, y_delta*(-1));
+			};
+		};
+	}
 };
 
 var module = IdentityDictionary[
@@ -536,6 +803,7 @@ var module = IdentityDictionary[
 	\get_grid_width -> get_grid_width,
 	\get_active_page -> get_active_page,
 	\set_ui_dirty -> set_ui_dirty,
+	\mouse -> mouse,
 ];
 
 module

@@ -25,6 +25,7 @@ start_script.value {
 	var common_redraw = common[\redraw];
 	var common_enc = common[\enc];
 	var common_key = common[\key];
+	var common_mouse = common[\mouse];
 
 	var settings_file = "rymd.data";
 	var fps = 35;
@@ -112,6 +113,10 @@ start_script.value {
 
 	~key = { |n, z|
 		common_key.value(n, z);
+	};
+
+	~mouse = { |... args|
+		common_mouse.value(*args);
 	};
 };
 )
