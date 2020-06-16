@@ -1052,9 +1052,11 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 				var mouse_pressed_pos;
 				var mouse_over_pos;
 				var mouse_move_pos;
+				var mouse_wheel_accum_x = 0;
+				var mouse_wheel_accum_y = 0;
 
 				var scale_mouse_pos = { |x, y|
-					(round(x/scale) max: 1)@(round(y/scale) max: 1)
+					(round(x/scale) /*max: 1*/)@(round(y/scale) /*max: 1*/)
 				};
 
 				var mouse_enter_action = { |view|
@@ -1073,12 +1075,20 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					};
 				};
 
-				var mouse_down_action = { |view, x, y|
+				var mouse_down_action = { |view, x, y, modifiers, buttonNumber|
 					var scaled_pos = scale_mouse_pos.value(x, y);
 					mouse_pressed = true;
 					mouse_pressed_pos = scaled_pos;
 					script_env.use {
-						~mouse.value("down", scaled_pos.x, scaled_pos.y);
+						~mouse.value("down", scaled_pos.x, scaled_pos.y, buttonNumber+1);
+					};
+				};
+
+				var mouse_wheel_action = { |view, x, y, modifier, xDelta, yDelta|
+					if ((xDelta != 0) or: (yDelta != 0)) { // in 3.10 qt gui xDelta, yDelta is not always reported correctly: https://github.com/supercollider/supercollider/issues/4422
+						script_env.use {
+							~mouse.value("wheel", xDelta, yDelta);
+						};
 					};
 				};
 
@@ -1104,6 +1114,10 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					script_env.use {
 						~mouse.value("leave");
 					};
+				};
+
+				var teardown_function = {
+					pr_stop_script.value(script_instance);
 				};
 
 				script_env = Environment.make {
@@ -1167,15 +1181,14 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 				~scripts = ~scripts.add(script_env); // TODO: this goes to the currentEnvironment - do this in topEnvironment instead?
 				// TODO 2: call this script_envs since they're environments?
 
-				CmdPeriod.doOnce {
-					pr_stop_script.value(script_instance);
-				};
+				CmdPeriod.doOnce(teardown_function);
 
 				{ // defer since Qt requires properties to be set in AppClock
 					screen_view
 						.mouseEnterAction_(mouse_enter_action)
 						.mouseOverAction_(mouse_over_action)
 						.mouseDownAction_(mouse_down_action)
+						.mouseWheelAction_(mouse_wheel_action)
 						.mouseMoveAction_(mouse_move_action)
 						.mouseUpAction_(mouse_up_action)
 						.mouseLeaveAction_(mouse_leave_action)
@@ -1189,12 +1202,11 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 								(bounds.height/2)-(screen_view.bounds.height/2)
 							);
 						})
-						.onClose_({ |windowView|
-							pr_stop_script.value(script_instance);
-						});
+						.onClose_(teardown_function);
 				}.defer;
 
 				script_instance[\window] = window;
+				script_instance[\teardown_function] = teardown_function;
 			};
 
 			if (class_exists.value('SerialOSCClient')) {
@@ -1239,6 +1251,7 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var pr_stop_script = { |script_instance|
 			var script_env = script_instance[\environment];
 			var engine_free_func = script_instance[\engine_free_func];
+			var teardown_function = script_instance[\teardown_function];
 			var window = script_instance[\window];
 
 			"script cleanup...".inform;
@@ -1249,9 +1262,17 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 			"freeing script device managers...".inform;
 			free_script.value(script_env);
 			"freeing engine...".inform;
-			engine_free_func.value;
-			"closing script screen window...".inform;
-			window.close;
+			fork { // TODO: what was this about? polls still trying to getSynchronous ?
+				0.2.wait;
+				engine_free_func.value;
+			};
+			"removing CmdPeriod teardown function...".inform;
+			CmdPeriod.remove(teardown_function);
+			if (window.isClosed.not) {
+				"closing script screen window...".inform;
+				window.view.onClose = nil;
+				window.close;
+			};
 			"... script successfully freed.".inform;
 			// TODO: stop running routines
 		};

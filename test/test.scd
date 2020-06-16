@@ -8,5 +8,5 @@ var include_relative = { |relative_path|
 	};
 };
 
-include_relative.value("bob.scd");
+include_relative.value("rymd.scd");
 )

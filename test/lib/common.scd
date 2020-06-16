@@ -196,8 +196,8 @@ var get_enc2_enc3_value_bounds = { |page, param_index, x, y|
 	var the_value = format_param.value(ui_param).asString;
 	var value_x = x;
 	var value_y = y + 12;
-	var value_width = ~screen.text_extents_(the_value).ceil; // TODO: round in text_extents_ instead?
-	Rect(value_x, value_y-12, value_width, 12).debug;
+	var value_width = ~screen.text_extents_(the_value);
+	Rect(value_x, value_y-12, value_width, 12);
 };
 
 var get_enc2_value_bounds = {
@@ -233,7 +233,7 @@ var get_enc3_value_bounds = {
 	var offset = current_page - left;
 	var pixel_ofs = round(offset*128);
 
-	get_enc2_enc3_value_bounds.value(left, 0, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
+	get_enc2_enc3_value_bounds.value(left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
 };
 
 var mouse_down_at_enc3_value = {
@@ -685,7 +685,6 @@ var set_ui_dirty = {
 };
 
 var mouse = { |what ... args|
-	[what, args].debug;
 	case
 	{ what == "leave" } {
 		~mouse_over_pos = nil;
