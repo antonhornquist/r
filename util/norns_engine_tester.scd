@@ -1048,12 +1048,9 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 						});
 				};
 
-				var mouse_pressed;
 				var mouse_pressed_pos;
 				var mouse_over_pos;
 				var mouse_move_pos;
-				var mouse_wheel_accum_x = 0;
-				var mouse_wheel_accum_y = 0;
 
 				var scale_mouse_pos = { |x, y|
 					(round(x/scale) /*max: 1*/)@(round(y/scale) /*max: 1*/)
@@ -1077,7 +1074,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 				var mouse_down_action = { |view, x, y, modifiers, buttonNumber|
 					var scaled_pos = scale_mouse_pos.value(x, y);
-					mouse_pressed = true;
 					mouse_pressed_pos = scaled_pos;
 					script_env.use {
 						~mouse.value("down", scaled_pos.x, scaled_pos.y, buttonNumber+1);
@@ -1104,7 +1100,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 				var mouse_up_action = { |view, x, y|
 					var scaled_pos = scale_mouse_pos.value(x, y);
-					mouse_pressed = false;
 					script_env.use {
 						~mouse.value("up", scaled_pos.x, scaled_pos.y);
 					};

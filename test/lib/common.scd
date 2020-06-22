@@ -177,11 +177,6 @@ var get_enc1_value_bounds = {
 	Rect(value_x, value_y-12, value_width, 12);
 };
 
-var mouse_down_at_enc1_value = {
-	var bounds = get_enc1_value_bounds.value();
-	bounds.contains(~mouse_down_pos);
-};
-
 var mouse_hovers_over_enc1_value = {
 	var bounds = get_enc1_value_bounds.value();
 	mouse_hovers_over_area.value(bounds);
@@ -212,11 +207,6 @@ var get_enc2_value_bounds = {
 	get_enc2_enc3_value_bounds.value(left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
 };
 
-var mouse_down_at_enc2_value = {
-	var bounds = get_enc2_value_bounds.value();
-	bounds.contains(~mouse_down_pos);
-};
-
 var mouse_hovers_over_enc2_value = {
 	var bounds = get_enc2_value_bounds.value();
 	mouse_hovers_over_area.value(bounds);
@@ -234,11 +224,6 @@ var get_enc3_value_bounds = {
 	var pixel_ofs = round(offset*128);
 
 	get_enc2_enc3_value_bounds.value(left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
-};
-
-var mouse_down_at_enc3_value = {
-	var bounds = get_enc3_value_bounds.value();
-	bounds.contains(~mouse_down_pos);
 };
 
 var mouse_hovers_over_enc3_value = {
