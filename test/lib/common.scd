@@ -163,10 +163,6 @@ var default_screen_refresh_handler = {
 	~redraw.value();
 };
 
-var mouse_hovers_over_area = { |rect|
-	rect.contains(~mouse_over_pos);
-};
-
 var get_enc1_value_bounds = {
 	var enc1_x = 1; // TODO: DRY
 	var enc1_y = 12;
@@ -177,9 +173,9 @@ var get_enc1_value_bounds = {
 	Rect(value_x, value_y-12, value_width, 12);
 };
 
-var mouse_hovers_over_enc1_value = {
+var over_enc1_value = { |pos|
 	var bounds = get_enc1_value_bounds.value();
-	mouse_hovers_over_area.value(bounds);
+	bounds.contains(pos);
 };
 
 var get_enc2_enc3_value_bounds = { |page, param_index, x, y|
@@ -192,7 +188,7 @@ var get_enc2_enc3_value_bounds = { |page, param_index, x, y|
 	var value_x = x;
 	var value_y = y + 12;
 	var value_width = ~screen.text_extents_(the_value);
-	Rect(value_x, value_y-12, value_width, 12);
+	Rect(value_x, value_y-12, value_width, 10);
 };
 
 var get_enc2_value_bounds = {
@@ -207,9 +203,9 @@ var get_enc2_value_bounds = {
 	get_enc2_enc3_value_bounds.value(left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
 };
 
-var mouse_hovers_over_enc2_value = {
+var over_enc2_value = { |pos|
 	var bounds = get_enc2_value_bounds.value();
-	mouse_hovers_over_area.value(bounds);
+	bounds.contains(pos);
 };
 
 var get_enc3_value_bounds = {
@@ -226,27 +222,27 @@ var get_enc3_value_bounds = {
 	get_enc2_enc3_value_bounds.value(left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
 };
 
-var mouse_hovers_over_enc3_value = {
+var over_enc3_value = { |pos|
 	var bounds = get_enc3_value_bounds.value();
-	mouse_hovers_over_area.value(bounds);
+	bounds.contains(pos);
 };
 
-var mouse_hovers_over_key2 = {
+var over_key2 = { |pos|
 	var key2_x = 1;
 	var key2_y = 63;
 	var text_width = ~screen.text_extents_("PREV");
-	var bounds = Rect(key2_x, key2_y-12, text_width, 12);
-	mouse_hovers_over_area.value(bounds);
+	var bounds = Rect(key2_x, key2_y-12, text_width, 10);
+	bounds.contains(pos);
 };
 
-var mouse_hovers_over_key3 = {
+var over_key3 = { |pos|
 	var key2_x = 1;
 	var key2_y = 63;
 	var key3_x = key2_x+65;
 	var key3_y = key2_y;
 	var text_width = ~screen.text_extents_("NEXT");
-	var bounds = Rect(key3_x, key3_x-12, text_width, 12);
-	mouse_hovers_over_area.value(bounds);
+	var bounds = Rect(key3_x, key3_y-12, text_width, 10);
+	bounds.contains(pos);
 };
 
 var redraw = {
@@ -670,35 +666,20 @@ var set_ui_dirty = {
 };
 
 var mouse = { |what ... args|
+	[what, args].debug;
 	case
-	{ what == "leave" } {
+	{ what == "leave" } {
 		~mouse_over_pos = nil;
+		focus = nil;
 	}
-	{ what == "over" } {
+	{ what == "over" } {
 		var x = args[0], y = args[1];
 		var prev_focus = focus;
 
 		~mouse_over_pos = x@y;
 
-		case
-		{ mouse_hovers_over_enc1_value.value } {
-			focus = 'enc1';
-		}
-		{ mouse_hovers_over_enc2_value.value } {
-			focus = 'enc2';
-		}
-		{ mouse_hovers_over_enc3_value.value } {
-			focus = 'enc3';
-		}
-		{ mouse_hovers_over_key2.value } {
-			focus = 'key2';
-		}
-		{ mouse_hovers_over_key3.value } {
-			focus = 'key3';
-		}
-		{ true } {
-			focus = nil;
-		};
+		update_focus.value(~mouse_over_pos);
+
 		if (prev_focus != focus) {
 			ui_set_dirty.value();
 		};
@@ -722,21 +703,23 @@ var mouse = { |what ... args|
 			ui_set_dirty.value();
 		};
 	}
-	{ what == "move" } {
+	{ what == "move" } {
 		var x = args[0], y = args[1];
+		var mouse_move_delta;
+
 		~prev_mouse_move_pos = ~mouse_move_pos;
 		~mouse_move_pos = x@y;
-		~mouse_move_delta = (~prev_mouse_move_pos ? ~mouse_down_pos) - (x@y);
-		if (~mouse_move_delta.y != 0) {
+		mouse_move_delta = (~prev_mouse_move_pos ? ~mouse_down_pos) - (x@y);
+		if (mouse_move_delta.y != 0) {
 			case
 			{active == 'enc1'} {
-				enc.value(1, ~mouse_move_delta.y);
+				enc.value(1, mouse_move_delta.y);
 			}
 			{active == 'enc2'} {
-				enc.value(2, ~mouse_move_delta.y);
+				enc.value(2, mouse_move_delta.y);
 			}
 			{active == 'enc3'} {
-				enc.value(3, ~mouse_move_delta.y);
+				enc.value(3, mouse_move_delta.y);
 			};
 		};
 	}
@@ -755,6 +738,8 @@ var mouse = { |what ... args|
 		};
 
 		active = nil;
+
+		update_focus.value(x@y);
 
 		if (prev_active != active) {
 			ui_set_dirty.value();
@@ -776,6 +761,28 @@ var mouse = { |what ... args|
 			};
 		};
 	}
+};
+
+var update_focus = { |pos|
+	case
+	{ over_enc1_value.value(pos) } {
+		focus = 'enc1';
+	}
+	{ over_enc2_value.value(pos) } {
+		focus = 'enc2';
+	}
+	{ over_enc3_value.value(pos) } {
+		focus = 'enc3';
+	}
+	{ over_key2.value(pos) } {
+		focus = 'key2';
+	}
+	{ over_key3.value(pos) } {
+		focus = 'key3';
+	}
+	{ true } {
+		focus = nil;
+	};
 };
 
 var module = IdentityDictionary[
