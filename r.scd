@@ -989,7 +989,7 @@ var isValidModuleSampleSlotName = { |ref|
 
 	ref = ref.asString;
 	if (ref.includes(moduleSampleSlotRefDelimiter)) {
-		# module, sampleSlot = parseModuleParameterReference.value(ref);
+		# module, sampleSlot = parseModuleSampleSlotReference.value(ref);
 		isValidModuleName.value(module) and: isValidSampleSlotName.value(sampleSlot);
 	} {
 		false
@@ -1094,11 +1094,15 @@ var lookupModuleDefByKind = { |self, kind|
 };
 
 var free = { |self|
+	"R is freed... ".postln;
+
 	deleteAllModules.value(self);
 	self[\taps] do: { |tap|
 		tap[\bus].free;
 	};
 	self[\topGroup].free;
+
+	"R freed successfully.".postln;
 };
 
 var deleteAllModules = { |self|
@@ -1155,7 +1159,7 @@ var mapModuleParam = { |module, parameter, bus| var moduleDef = module[\moduleDe
 
 var setModuleSampleSlotChannelCount = { |module, sampleSlotName, channelCount|
 	var name;
-	name = ("numchannels_"++sampleSlotName.asString).asSymbol;
+	name = ("sampleslot_numchannels_"++sampleSlotName.asString).asSymbol;
 	module[\synth].set(name, channelCount.asInteger);
 };
 
@@ -1362,7 +1366,7 @@ var getModuleDefSpec = { |moduleDef|
 		outputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'out_'),
 		parameters: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'param_'),
 		visuals: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'visual_'),
-		sampleSlots: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'numchannels_').collect { |sampleSlotName|
+		sampleSlots: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'sampleslot_bufnums_').collect { |sampleSlotName|
 			var spec = sampleSlotDict[sampleSlotName];
 			sampleSlotName -> spec
 		},
@@ -1411,7 +1415,7 @@ var getModuleDefDefaultSynthArgs = { |moduleDef, inbusses, outbusses, visualbuss
 			var sampleSlotName = sampleSlotBuffersPerChannelAssoc.key;
 			var buffersPerChannel = sampleSlotBuffersPerChannelAssoc.value;
 			[
-				("bufnums_"++sampleSlotName.asString).asSymbol,
+				("sampleslot_bufnums_"++sampleSlotName.asString).asSymbol,
 				buffersPerChannel.collect { |channelCountBufferAssoc|
 					var buffer = channelCountBufferAssoc.value;
 					buffer
@@ -1633,7 +1637,7 @@ var postInvalidModuleVisualNameError = { |ref|
 var postInvalidModuleSampleSlotNameError = { |ref|
 	"module sample slot reference % does not conform to module sample slot syntax ([ModuleName]%[SampleSlotName])".format(
 		ref.asString.quote,
-		moduleParameterRefDelimiter.asString
+		moduleSampleSlotRefDelimiter.asString
 	).error;
 };
 
@@ -5617,8 +5621,8 @@ var stdModules = [
 				visual_Phase,
 				visual_Gate,
 				visual_Playing,
-				numchannels_Sample,
-				bufnums_Sample=#[0, 0]
+				sampleslot_numchannels_Sample,
+				sampleslot_bufnums_Sample=#[0, 0]
 			|
 
 			var sig_Gate = In.ar(in_Gate);
@@ -5647,16 +5651,16 @@ var stdModules = [
 			var leftmostSamplePosExtent = min(latched_sampleStart, latched_sampleEnd);
 			var rightmostSamplePosExtent = max(latched_sampleStart, latched_sampleEnd);
 
-			var mono_bufnum = bufnums_Sample[0];
-			var stereo_bufnum = bufnums_Sample[1];
+			var mono_bufnum = sampleslot_bufnums_Sample[0];
+			var stereo_bufnum = sampleslot_bufnums_Sample[1];
 
 /*
 			var monoSampleIsLoaded = Latch.ar(
-				(numchannels_Sample > 0) * (numchannels_Sample < 2),
+				(sampleslot_numchannels_Sample > 0) * (sampleslot_numchannels_Sample < 2),
 				gate
 			);
 			var stereoSampleIsLoaded = Latch.ar(
-				(numchannels_Sample > 1) * (numchannels_Sample < 3),
+				(sampleslot_numchannels_Sample > 1) * (sampleslot_numchannels_Sample < 3),
 				gate
 			);
 
@@ -5667,8 +5671,8 @@ var stdModules = [
 				gate
 			); // "fixes" bufnum to correct channelcount
 */
-			var monoSampleIsLoaded = (numchannels_Sample > 0) * (numchannels_Sample < 2);
-			var stereoSampleIsLoaded = (numchannels_Sample > 1) * (numchannels_Sample < 3);
+			var monoSampleIsLoaded = (sampleslot_numchannels_Sample > 0) * (sampleslot_numchannels_Sample < 2);
+			var stereoSampleIsLoaded = (sampleslot_numchannels_Sample > 1) * (sampleslot_numchannels_Sample < 3);
 			var bufnum = (monoSampleIsLoaded * mono_bufnum) + (stereoSampleIsLoaded * stereo_bufnum);
 
 			// var onset = Latch.ar(sampleStart, Impulse.ar(0)); // "fixes" onset to sample start at the time of spawning the synth, whereas sample end and *absolute* loop position (calculated from possibly modulating start and end positions) may vary
