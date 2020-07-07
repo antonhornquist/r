@@ -12,7 +12,7 @@ var norns_engine_tester = include_relative.value("../util/norns_engine_tester.sc
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	// scriptname: bob
+	// scriptname: moln
 	// v1.3.0 @jah
 	var r_moln = include_relative.value('lib/r_moln.scd');
 	var r_moln_init = r_moln[\init];
