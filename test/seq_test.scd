@@ -115,7 +115,7 @@ s.waitForBoot {
 	~set.value(r, "Seq.Value_2_8", -0.5);
 
 	CmdPeriod.doOnce {
-		~free.value(r);
+		~free.value(r, false); // TODO: server nodes are already freed by CmdPeriod logic
 	};
 };
 )
