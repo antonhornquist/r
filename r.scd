@@ -77,6 +77,7 @@ var validateAndExpandModuleDefs = { |moduleDefs|
 		var visualsDocSection;
 		var sampleSlots;
 		var sampleSlotsDocSection;
+		var customBuffers;
 
 		expandedModuleDef = ();
 	
@@ -157,6 +158,12 @@ var validateAndExpandModuleDefs = { |moduleDefs|
 			expandedModuleDef[\sampleSlotsDocSection] = sampleSlotsDocSection.value;
 		};
 
+		customBuffers = moduleDef[\customBuffers];
+		if (customBuffers.notNil) {
+			// TODO: validate against ugenGraphFunc
+			expandedModuleDef[\customBuffers] = customBuffers.value;
+		};
+
 		expandedModuleDef;
 	};
 };
@@ -205,6 +212,7 @@ var newCommand = { |self, name, kind|
 	var outbusses;
 	var visualbusses;
 	var sampleSlotBuffers;
+	var customBuffers;
 	var module;
 	var finalizeFunc;
 
@@ -216,25 +224,18 @@ var newCommand = { |self, name, kind|
 		} {
 			if (isValidModuleName.value(name)) {
 				/* var */ spec = getModuleDefSpec.value(moduleDef);
-				/* var */ group = Group.tail(self[\topGroup]);
-				/* var */ inputPatchCordGroup = spec[\inputs].notEmpty.if { Group.tail(group) };
-				/* var */ processingGroup = Group.tail(group);
-				/* var */ tapGroup = Group.tail(group);
-				/* var */ inbusses = spec[\inputs].collect { |input| input -> Bus.audio };
-				/* var */ outbusses = spec[\outputs].collect { |output| output -> Bus.audio };
-				/* var */ visualbusses = spec[\visuals].collect { |visual| visual -> Bus.control };
-				/* var */ sampleSlotBuffers = spec[\sampleSlots].collect { |sampleSlotAssoc|
-					var sampleSlotName = sampleSlotAssoc.key;
-					var sampleSlotSpec = sampleSlotAssoc.value;
-					sampleSlotName -> sampleSlotSpec[\Channels].collect { |channelCount|
-						var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message
-						if (self[\trace]) {
-							"buffer % created for sample slot % (channel count %)".format(buffer.bufnum, (name++":"++sampleSlotName).quote, channelCount);
-						};
 
-						channelCount -> buffer;
-					};
-				};
+				/* var */ group = allocateModuleGroup.value(self[\topGroup]);
+				/* var */ inputPatchCordGroup = allocateModuleInputPatchCordGroup.value(spec[\inputs], group);
+				/* var */ processingGroup = allocateModuleProcessingGroup.value(group);
+				/* var */ tapGroup = allocateModuleTapGroup.value(group);
+
+				/* var */ inbusses = allocateModuleInputBusses.value(spec[\inputs]);
+				/* var */ outbusses = allocateModuleOutputBusses.value(spec[\outputs]);
+				/* var */ visualbusses = allocateModuleVisualBusses.value(spec[\visuals]);
+				/* var */ sampleSlotBuffers = allocateModuleSampleSlotBuffers.value(name, spec[\sampleSlots], self[\trace]);
+				/* var */ customBuffers = allocateModuleCustomBuffers.value(name, spec[\customBuffers], self[\trace]);
+
 				/* var */ module = (
 					name: name.asSymbol,
 					kind: kind.asSymbol,
@@ -247,7 +248,8 @@ var newCommand = { |self, name, kind|
 						inbusses: inbusses,
 						outbusses: outbusses,
 						visualbusses: visualbusses,
-						sampleSlotBuffers: sampleSlotBuffers
+						sampleSlotBuffers: sampleSlotBuffers,
+						customBuffers: customBuffers
 					),
 					inputPatchCords: asDict.value(
 						spec[\inputs].collect { |input| input -> () } // TODO: better to bundle this together with inbusses (?)
@@ -266,7 +268,8 @@ var newCommand = { |self, name, kind|
 								mainInBus: self[\inBus],
 								mainOutBus: self[\outBus]
 							),
-							sampleSlotBuffers
+							sampleSlotBuffers,
+							customBuffers
 						),
 						target: processingGroup
 					);
@@ -274,7 +277,7 @@ var newCommand = { |self, name, kind|
 					self[\modules] = self[\modules].add(module);
 				};
 
-				if (module[\serverContext][\sampleSlotBuffers].notEmpty) {
+				if (module[\serverContext][\sampleSlotBuffers].notEmpty or: module[\serverContext][\customBuffers].notEmpty) { // TODO: sampleSlotBuffers and customBuffers might do (need not fetch from module dictionary
 					forkIfNeeded { // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
 						Server.default.sync;
 						finalizeFunc.value;
@@ -357,10 +360,10 @@ var connectCommand = { |self, moduleOutputRef, moduleInputRef|
 };
 
 var disconnectCommand = { |self, moduleOutputRef, moduleInputRef|
-	disconnect.value(self, moduleOutputRef, moduleInputRef);
+	disconnect.value(self, moduleOutputRef, moduleInputRef, true);
 };
 
-var disconnect = { |self, moduleOutputRef, moduleInputRef|
+var disconnect = { |self, moduleOutputRef, moduleInputRef, freeServerNode|
 	var sourceModuleRef, outputRef;
 	var destModuleRef, inputRef;
 	var sourceModule, destModule;
@@ -393,7 +396,9 @@ var disconnect = { |self, moduleOutputRef, moduleInputRef|
 							if (isConnected.value(self, moduleOutputRef, moduleInputRef)) {
 								destModule = lookupModuleByName.value(self, destModuleRef);
 
-								destModule[\inputPatchCords][inputRef.asSymbol][moduleOutputRef.asSymbol].free;
+								if (freeServerNode) {
+									destModule[\inputPatchCords][inputRef.asSymbol][moduleOutputRef.asSymbol].free;
+								};
 								destModule[\inputPatchCords][inputRef.asSymbol][moduleOutputRef.asSymbol] = nil;
 							} {
 								postInputAndOutputIsNotConnectedError.value(moduleOutputRef, moduleInputRef);
@@ -408,7 +413,7 @@ var disconnect = { |self, moduleOutputRef, moduleInputRef|
 
 var deleteCommand = { |self, moduleRef|
 	if (isValidModuleName.value(moduleRef)) {
-		deleteModule.value(self, moduleRef);
+		deleteModule.value(self, moduleRef, true);
 	} {
 		postModuleNameIsInvalidError.value(moduleRef);
 	};
@@ -577,8 +582,16 @@ var readsampleCommand = { |self, moduleSampleSlotRef, path|
 								buffer.updateInfo(path);
 								Server.default.sync;
 								if (self[\trace]) {
-									"sample % (% channels) loaded into sample slot % (buffer %)"
-										.format(path.quote, channelCount, (module[\name].asString++":"++sampleSlotRef).quote, buffer.bufnum, moduleRef).inform;
+									"sample % (% channels) loaded into sample slot % (buffer %)".format( // TODO: postSampleLoadedInformation
+										path.quote,
+										channelCount,
+										constructModuleSampleSlotReference.value(
+											module[\name],
+											sampleSlotRef
+										).asString.quote,
+										buffer.bufnum,
+										moduleRef
+									).inform;
 								};
 								setModuleSampleSlotChannelCount.value(module, sampleSlotRef, channelCount)
 							};
@@ -709,14 +722,18 @@ var constructModuleParameterReference = { |moduleRef, parameterRef|
 };
 
 var parseModuleInputReference = { |reference|
-	var destModuleRef, input;
+	var destModuleRef, inputRef;
 	if (reference.asString.includes(obsoleteModuleInputRefDelimiter)) {
-		"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format(obsoleteModuleInputRefDelimiter.asString.quote, moduleInputRefDelimiter.asString.quote, reference.asString.split(obsoleteModuleInputRefDelimiter).join(moduleInputRefDelimiter)).inform;
-		# destModuleRef, input = reference.asString.split(obsoleteModuleInputRefDelimiter);
+		# destModuleRef, inputRef = reference.asString.split(obsoleteModuleInputRefDelimiter);
+		"% as delimiter for module input references is deprecated. Use % instead, like so: %.".format( // TODO: post*
+			obsoleteModuleInputRefDelimiter.asString.quote,
+			moduleInputRefDelimiter.asString.quote,
+			constructModuleInputReference.value(destModuleRef, inputRef)
+		).inform;
 	} {
-		# destModuleRef, input = reference.asString.split(moduleInputRefDelimiter);
+		# destModuleRef, inputRef = reference.asString.split(moduleInputRefDelimiter);
 	};
-	[destModuleRef, input];
+	[destModuleRef, inputRef];
 };
 
 var constructModuleInputReference = { |moduleRef, inputRef|
@@ -737,6 +754,10 @@ var parseModuleVisualReference = { |reference|
 
 var parseModuleSampleSlotReference = { |reference|
 	reference.asString.split(moduleSampleSlotRefDelimiter);
+};
+
+var constructModuleSampleSlotReference = { |moduleRef, sampleSlotRef|
+	(moduleRef.asString++moduleSampleSlotRefDelimiter.asString++sampleSlotRef.asString).asSymbol;
 };
 
 /* Guts */
@@ -763,9 +784,9 @@ var getSoundFileNumChannels = { |path|
 	numChannels;
 };
 
-var lookupSampleSlotBuffersByName = { |module, sampleSlotName|
+var lookupSampleSlotBuffersByName = { |module, sampleSlotRef|
 	var sampleSlotBufferDict = asDict.value(module[\serverContext][\sampleSlotBuffers]);
-	asDict.value(sampleSlotBufferDict[sampleSlotName.asSymbol]);
+	asDict.value(sampleSlotBufferDict[sampleSlotRef.asSymbol]);
 };
 
 /*
@@ -783,46 +804,213 @@ var ifTapIndexWithinBoundsDo = { |self, tapIndex, func|
 	};
 };
 
-var deleteModule = { |self, moduleRef|
+var deleteModule = { |self, moduleRef, freeServerNodes|
 	var moduleToDelete = lookupModuleByName.value(self, moduleRef);
-
-/*
-	inline function optimization
-*/
-	var serverContext;
 
 	if (moduleToDelete.isNil) {
 		postModuleNotFoundError.value(moduleRef, self[\modules]);
 	} {
-		/* var */ serverContext = moduleToDelete[\serverContext];
-
 		clearTapsForModule.value(self, moduleRef);
 
-		disconnectModulePatchCords.value(self, moduleToDelete);
+		disconnectModulePatchCords.value(self, moduleToDelete, freeServerNodes);
 
-		moduleToDelete[\synth].free;
-		serverContext[\group].free;
-		serverContext[\inbusses] do: { |inputBusAssoc| inputBusAssoc.value.free };
-		serverContext[\outbusses] do: { |outputBusAssoc| outputBusAssoc.value.free };
-		serverContext[\visualbusses] do: { |visualBusAssoc| visualBusAssoc.value.free };
+		if (freeServerNodes) {
+			freeSynthForModule.value(moduleToDelete, self[\trace]);
+			freeGroupForModule.value(moduleToDelete, self[\trace]); // TODO: this'll do for all server nodes for module?
+		};
+		freeInputBussesForModule.value(moduleToDelete, self[\trace]);
+		freeOutputBussesForModule.value(moduleToDelete, self[\trace]);
+		freeVisualBussesForModule.value(moduleToDelete, self[\trace]);
 
 		forkIfNeeded {
-			Server.default.sync; // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples
-			serverContext[\sampleSlotBuffers] do: { |sampleSlotAssoc|
-				var sampleSlotName = sampleSlotAssoc.key;
-				var sampleSlotBuffers = sampleSlotAssoc.value;
-				sampleSlotBuffers do: { |sampleSlotBufferAssoc|
-					var channelCount = sampleSlotBufferAssoc.key;
-					var buffer = sampleSlotBufferAssoc.value;
-					var bufnum = buffer.bufnum;
-					buffer.free;
-					if (self[\trace]) {
-						"buffer % for sample slot % (channel count %) freed".format(bufnum, (moduleToDelete[\name]++":"++sampleSlotName).quote, channelCount);
-					};
-				}
-			};
+			Server.default.sync; // server.sync required to suppress "Buffer UGen: no buffer data" message for SynthDefs using samples due to synth using buffers are still running without syncing
+			freeSampleSlotBuffers.value(moduleToDelete, self[\trace]);
+			freeCustomBuffers.value(moduleToDelete, self[\trace]);
 			self[\modules].remove(moduleToDelete);
 		}
+	};
+};
+
+var allocateModuleGroup = { |parentGroup|
+	Group.tail(parentGroup);
+};
+
+var allocateModuleInputPatchCordGroup = { |inputs, moduleGroup|
+	inputs.notEmpty.if { Group.tail(moduleGroup) };
+};
+
+var allocateModuleProcessingGroup = { |moduleGroup|
+	Group.tail(moduleGroup);
+};
+
+var allocateModuleTapGroup = { |moduleGroup|
+	Group.tail(moduleGroup);
+};
+
+var allocateModuleInputBusses = { |inputs|
+	inputs.collect { |input| input -> Bus.audio };
+};
+
+var allocateModuleOutputBusses = { |outputs|
+	outputs.collect { |output| output -> Bus.audio };
+};
+
+var allocateModuleVisualBusses = { |visuals|
+	visuals.collect { |visual| visual -> Bus.control };
+};
+
+var allocateModuleSampleSlotBuffers = { |moduleName, sampleSlots, trace|
+	sampleSlots.collect { |sampleSlotAssoc|
+		var sampleSlotRef = sampleSlotAssoc.key;
+		var sampleSlotSpec = sampleSlotAssoc.value;
+		sampleSlotRef -> sampleSlotSpec[\Channels].collect { |channelCount|
+			var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message
+			if (trace) {
+				"buffer % created for sample slot % (channel count %)".format( // TODO: post*
+					buffer.bufnum,
+					constructModuleSampleSlotReference.value(moduleName, sampleSlotRef).asString.quote,
+					channelCount
+				).inform;
+			};
+
+			channelCount -> buffer;
+		};
+	};
+};
+
+var allocateModuleCustomBuffers = { |moduleName, customBuffers, trace|
+	customBuffers.collect { |customBufferAssoc|
+		var customBufferName = customBufferAssoc.key;
+		var customBufferSpec = customBufferAssoc.value;
+		var numChannels = customBufferSpec[\NumChannels];
+		var numFrames = customBufferSpec[\NumFrames];
+		var buffer = Buffer.alloc(numChannels: numChannels, numFrames: numFrames);
+
+		if (trace) {
+			"buffer % created for custom buffer % for module % (channel count %, frame count %)".format( // TODO: post*
+				buffer.bufnum,
+				customBufferName.asString.quote,
+				moduleName.asString.quote,
+				numChannels,
+				numFrames
+			).inform;
+		};
+
+		customBufferName -> buffer;
+	};
+};
+
+var freeSynthForModule = { |module, trace|
+	var synth = module[\synth];
+	synth.free;
+	if (trace) {
+		"synth % for module % freed".format(synth.asString.quote, module[\name].asString.quote).inform; // TODO: post*
+	};
+};
+
+var freeGroupForModule = { |module, trace|
+	var serverContext = module[\serverContext];
+	var group = serverContext[\group];
+	group.free;
+	if (trace) {
+		"group % for module % freed".format(group.asString.quote, module[\name].asString.quote).inform; // TODO: post*
+	};
+};
+
+var freeInputBussesForModule = { |module, trace|
+	var serverContext = module[\serverContext];
+	var inbusses = serverContext[\inbusses];
+	var numInbusses = inbusses.size;
+	inbusses do: { |inputBusAssoc|
+		var bus = inputBusAssoc.value;
+		bus.free;
+		if (trace) {
+			"inbus % for module % freed".format(bus, module[\name].asString.quote).inform; // TODO: post*
+		};
+	};
+	if (trace) {
+		"in total: % inbusses for module % freed".format(numInbusses, module[\name].asString.quote).inform; // TODO: post*
+	};
+};
+
+var freeOutputBussesForModule = { |module, trace|
+	var serverContext = module[\serverContext];
+	var outbusses = serverContext[\outbusses];
+	var numOutbusses = outbusses.size;
+	outbusses do: { |outputBusAssoc|
+		var bus = outputBusAssoc.value;
+		bus.free;
+		if (trace) {
+			"outbus % for module % freed".format(bus, module[\name].asString.quote).inform; // TODO: post*
+		};
+	};
+	if (trace) {
+		"% outbusses for module % freed".format(numOutbusses, module[\name].asString.quote).inform; // TODO: post*
+	};
+};
+
+var freeVisualBussesForModule = { |module, trace|
+	var serverContext = module[\serverContext];
+	var visualbusses = serverContext[\visualbusses];
+	var numVisualbusses = visualbusses.size;
+	visualbusses do: { |visualBusAssoc|
+		var bus = visualBusAssoc.value;
+		bus.free;
+		if (trace) {
+			"visualbus % for module % freed".format(bus, module[\name].asString.quote).inform; // TODO: post*
+		};
+	};
+	if (trace) {
+		"% visualbusses for module % freed".format(numVisualbusses, module[\name].asString.quote).inform; // TODO: post*
+	};
+};
+
+var freeSampleSlotBuffers = { |module, trace|
+	var serverContext = module[\serverContext];
+	var sampleSlotBuffers = serverContext[\sampleSlotBuffers];
+	sampleSlotBuffers do: { |sampleSlotAssoc|
+		var sampleSlotRef = sampleSlotAssoc.key;
+		var sampleSlotChannelBuffers = sampleSlotAssoc.value;
+		sampleSlotChannelBuffers do: { |sampleSlotChannelBufferAssoc|
+			var channelCount = sampleSlotChannelBufferAssoc.key;
+			var buffer = sampleSlotChannelBufferAssoc.value;
+			var bufnum = buffer.bufnum;
+			buffer.free;
+			if (trace) {
+				"buffer % for sample slot % (channel count %) freed".format( // TODO: post*
+					bufnum,
+					constructModuleSampleSlotReference.value(
+						module[\name],
+						sampleSlotRef
+					).asString.quote,
+					channelCount
+				).inform;
+
+			};
+		};
+		if (trace) {
+			"% sample slot channel buffers for module % and sample slot % freed".format( // TODO: post*
+				sampleSlotChannelBuffers.size,
+				module[\name].asString.quote,
+				sampleSlotRef
+			).inform;
+		};
+	};
+};
+
+var freeCustomBuffers = { |module, trace|
+	var serverContext = module[\serverContext];
+	var customBuffers = serverContext[\customBuffers];
+	customBuffers do: { |customBufferAssoc|
+		var customBufferName = customBufferAssoc.key;
+		var customBuffer = customBufferAssoc.value;
+		customBuffer.free;
+		if (trace) {
+			"buffer % for custom buffer % for module % freed".format(customBuffer.bufnum, customBufferName.quote, module[\name].asString.quote).inform; // TODO: post*
+		};
+	};
+	if (trace) {
+		"% custom buffers for module % freed".format(customBuffers.size, module[\name].asString.quote).inform; // TODO: post*
 	};
 };
 
@@ -895,7 +1083,7 @@ var isConnected = { |self, moduleOutputRef, moduleInputRef|
 	}
 };
 
-var disconnectModulePatchCords = { |self, moduleToDisconnect|
+var disconnectModulePatchCords = { |self, moduleToDisconnect, freeServerNodes|
 	var spec = getModuleDefSpec.value(moduleToDisconnect[\moduleDef]);
 	var moduleInputs = spec[\inputs].collect { |input|
 		constructModuleInputReference.value(moduleToDisconnect[\name], input);
@@ -908,7 +1096,7 @@ var disconnectModulePatchCords = { |self, moduleToDisconnect|
 	} ++ [moduleOutputs, getAllModuleInputs.value(self)].allTuples.select { |tuple|
 		isConnected.value(self, tuple[0], tuple[1]);
 	}.do { |tuple|
-		disconnect.value(self, tuple[0], tuple[1]);
+		disconnect.value(self, tuple[0], tuple[1], freeServerNodes);
 	}
 };
 
@@ -1075,8 +1263,8 @@ var lookupModuleByName = { |self, name|
 	self[\modules].detect { |module| module[\name] == name };
 };
 
-var getDefaultModuleSynthArgs = { |moduleDef, inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers|
-	var defaults = getModuleDefDefaultSynthArgs.value(moduleDef, inbusses, outbusses, visualbusses, sampleSlotBuffers);
+var getDefaultModuleSynthArgs = { |moduleDef, inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers, customBuffers|
+	var defaults = getModuleDefDefaultSynthArgs.value(moduleDef, inbusses, outbusses, visualbusses, sampleSlotBuffers, customBuffers);
 
 	case
 	{ moduleDef[\name] == 'SoundIn' } {
@@ -1093,21 +1281,23 @@ var lookupModuleDefByKind = { |self, kind|
 	}
 };
 
-var free = { |self|
+var free = { |self, freeServerNodes=true| // TODO: on CmdPeriod make so that freeServerNodes can be set to false and no server errors will be thrown. does this work as expected?
 	"R is freed... ".postln;
 
-	deleteAllModules.value(self);
+	deleteAllModules.value(self, freeServerNodes);
 	self[\taps] do: { |tap|
 		tap[\bus].free;
 	};
-	self[\topGroup].free;
+	if (freeServerNodes) {
+		self[\topGroup].free; // TODO: this will do for all contained nodes
+	};
 
 	"R freed successfully.".postln;
 };
 
-var deleteAllModules = { |self|
+var deleteAllModules = { |self, freeServerNodes|
 	self[\modules].collect(_.name) do: { |modulename| // collect used to dup here since deleteCommand removes entries in modules
-		deleteModule.value(self, modulename)
+		deleteModule.value(self, modulename, freeServerNodes)
 	};
 };
 
@@ -1157,9 +1347,9 @@ var mapModuleParam = { |module, parameter, bus| var moduleDef = module[\moduleDe
 	}
 };
 
-var setModuleSampleSlotChannelCount = { |module, sampleSlotName, channelCount|
+var setModuleSampleSlotChannelCount = { |module, sampleSlotRef, channelCount|
 	var name;
-	name = ("sampleslot_numchannels_"++sampleSlotName.asString).asSymbol;
+	name = ("sampleslot_numchannels_"++sampleSlotRef.asString).asSymbol;
 	module[\synth].set(name, channelCount.asInteger);
 };
 
@@ -1331,14 +1521,14 @@ var sendModuleSynthDefToServer = { |moduleDef, trace|
 	var metadata = getModuleDefSynthDefMetadata.value(moduleDef);
 
 	if (trace) {
-		"Module %: spawning SynthDef %...".format(name.asString.quote, synthDefName.asString.quote).postln;
+		"Module %: spawning SynthDef %...".format(name.asString.quote, synthDefName.asString.quote).inform; // TODO: post*
 	};
 
 	SynthDef(synthDefName, ugenGraphFunc, lagTimes, metadata: metadata).add;
 
 	if (trace) {
-		"...OK. SynthDef % was sent to server".format(synthDefName.asString.quote).postln;
-		"".postln;
+		"...OK. SynthDef % was sent to server".format(synthDefName.asString.quote).inform; // TODO: post*
+		"".inform;
 	};
 };
 
@@ -1361,14 +1551,19 @@ var getModuleDefSynthDefMetadata = { |moduleDef|
 
 var getModuleDefSpec = { |moduleDef|
 	var sampleSlotDict = moduleDef[\sampleSlots] !? { |sampleSlots| asDict.value(sampleSlots) };
+	var customBufferDict = moduleDef[\customBuffers] !? { |customBuffers| asDict.value(customBuffers) };
 	(
 		inputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'in_'),
 		outputs: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'out_'),
 		parameters: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'param_'),
 		visuals: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'visual_'),
-		sampleSlots: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'sampleslot_bufnums_').collect { |sampleSlotName|
-			var spec = sampleSlotDict[sampleSlotName];
-			sampleSlotName -> spec
+		sampleSlots: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'sampleslot_bufnums_').collect { |sampleSlotRef|
+			var spec = sampleSlotDict[sampleSlotRef];
+			sampleSlotRef -> spec
+		},
+		customBuffers: lookupModuleDefArgNameSuffixesPrefixedBy.value(moduleDef, 'custombuffer_bufnum_').collect { |customBufferName|
+			var spec = customBufferDict[customBufferName];
+			customBufferName -> spec
 		},
 	)
 };
@@ -1382,7 +1577,7 @@ var lookupModuleDefArgNameSuffixesPrefixedBy = { |moduleDef, token|
 	}
 };
 
-var getModuleDefDefaultSynthArgs = { |moduleDef, inbusses, outbusses, visualbusses, sampleSlotBuffers|
+var getModuleDefDefaultSynthArgs = { |moduleDef, inbusses, outbusses, visualbusses, sampleSlotBuffers, customBuffers|
 	var spec = getModuleDefSpec.value(moduleDef);
 	var paramControlSpecs = getModuleDefParamControlSpecs.value(moduleDef);
 	(
@@ -1411,15 +1606,24 @@ var getModuleDefDefaultSynthArgs = { |moduleDef, inbusses, outbusses, visualbuss
 			]
 		}
 		++
-		sampleSlotBuffers.collect { |sampleSlotBuffersPerChannelAssoc|
-			var sampleSlotName = sampleSlotBuffersPerChannelAssoc.key;
+		sampleSlotBuffers.collect { |sampleSlotBuffersPerChannelAssoc| // TODO: wouldn't spec do?
+			var sampleSlotRef = sampleSlotBuffersPerChannelAssoc.key;
 			var buffersPerChannel = sampleSlotBuffersPerChannelAssoc.value;
 			[
-				("sampleslot_bufnums_"++sampleSlotName.asString).asSymbol,
+				("sampleslot_bufnums_"++sampleSlotRef.asString).asSymbol,
 				buffersPerChannel.collect { |channelCountBufferAssoc|
 					var buffer = channelCountBufferAssoc.value;
 					buffer
 				}
+			]
+		}
+		++
+		customBuffers.collect { |customBufferAssoc| // TODO: wouldn't spec do?
+			var customBufferName = customBufferAssoc.key;
+			var customBuffer = customBufferAssoc.value;
+			[
+				("custombuffer_bufnum_"++customBufferName.asString).asSymbol,
+				customBuffer
 			]
 		}
 	).flatten
