@@ -5,6 +5,10 @@ var load_class_dynamically = { |classname|
 	thisProcess.interpreter.interpret(classname.asString);
 };
 
+var class_exists = { |classname|
+	Class.allClasses.collect { |class| class.asSymbol }.includes(classname.asSymbol);
+};
+
 namespaces.arc_device_manager = {
 	// utility library to use a SerialOSCEnc to mock a norns enc, implementing a subset of functions.
 
@@ -14,39 +18,44 @@ namespaces.arc_device_manager = {
 		arc_device_manager['__enc_delta_funcs__'] = [];
 
 		arc_device_manager.connect_ = { |self, n|
-			var arc_device;
-			var serialOSCEncClass = load_class_dynamically.value("SerialOSCEnc");
-			var encDeltaFuncClass = load_class_dynamically.value("EncDeltaFunc");
+			if (class_exists.value('SerialOSCClient')) {
+				var arc_device;
+				var serialOSCEncClass = load_class_dynamically.value("SerialOSCEnc");
+				var encDeltaFuncClass = load_class_dynamically.value("EncDeltaFunc");
 
-			n = n ? 1; 
+				n = n ? 1;
 
-			if (n != 1) {
-				Error("multiple arcs are not supported").throw
-			};
-
-			arc_device = ();
-			arc_device.led_ = { |self, ring, x, val|
-				serialOSCEncClass.default !? {
-					serialOSCEncClass.ringSet(ring-1, x-1, val);
+				if (n != 1) {
+					Error("multiple arcs are not supported").throw
 				};
-			};
-			arc_device.all_ = { |self, ring, val|
-				serialOSCEncClass.default !? {
-					serialOSCEncClass.ringAll(ring-1, val);
+
+				arc_device = ();
+				arc_device.led_ = { |self, ring, x, val|
+					serialOSCEncClass.default !? {
+						serialOSCEncClass.ringSet(ring-1, x-1, val);
+					};
 				};
+				arc_device.all_ = { |self, ring, val|
+					serialOSCEncClass.default !? {
+						serialOSCEncClass.ringAll(ring-1, val);
+					};
+				};
+
+				arc_device_manager['__enc_delta_funcs__'] = arc_device_manager['__enc_delta_funcs__'].add(
+					encDeltaFuncClass.new(
+						{ |ring, n, delta|
+							script_env.use {
+								arc_device[\delta].value(ring+1, n+1, delta); // TODO: change to delta_, if possible without introducing self arg
+							};
+						}
+					)
+				);
+
+				arc_device;
+			} {
+				"Arc usage is disabled. SerialOSCClient SuperCollider library is required. Download the library from http://github.com/antonhornquist/SerialOSCClient-sc.".inform;
+				();
 			};
-
-			arc_device_manager['__enc_delta_funcs__'] = arc_device_manager['__enc_delta_funcs__'].add(
-				encDeltaFuncClass.new(
-					{ |ring, n, delta|
-						script_env.use {
-							arc_device[\delta].value(ring+1, n+1, delta); // TODO: change to delta_, if possible without introducing self arg
-						};
-					}
-				)
-			);
-
-			arc_device;
 		};
 		arc_device_manager
 	};
@@ -71,7 +80,7 @@ namespaces.midi_device_manager = {
 
 			MIDIIn.connectAll;
 
-			n = n ? 1; 
+			n = n ? 1;
 
 			if (n != 1) {
 				Error("multiple midi devices are not supported").throw
@@ -174,48 +183,53 @@ namespaces.grid_device_manager = {
 		grid_device_manager['__grid_key_funcs__'] = [];
 
 		grid_device_manager.connect_ = {
-			var grid_device;
-			var serialOSCGridClass = load_class_dynamically.value("SerialOSCGrid");
-			var gridKeyFuncClass = load_class_dynamically.value("GridKeyFunc");
+			if (class_exists.value('SerialOSCClient')) {
+				var grid_device;
+				var serialOSCGridClass = load_class_dynamically.value("SerialOSCGrid");
+				var gridKeyFuncClass = load_class_dynamically.value("GridKeyFunc");
 
-			n = n ? 1; 
+				n = n ? 1;
 
-			if (n != 1) {
-				Error("multiple grids are not supported").throw
-			};
-
-			grid_device = ();
-			grid_device.led_ = { |self, x, y, val|
-				serialOSCGridClass.default !? {
-					serialOSCGridClass.ledLevelSet(x-1, y-1, val);
+				if (n != 1) {
+					Error("multiple grids are not supported").throw
 				};
-			};
-			grid_device.all_ = { |self, val|
-				serialOSCGridClass.default !? {
-					serialOSCGridClass.ledLevelAll(val);
+
+				grid_device = ();
+				grid_device.led_ = { |self, x, y, val|
+					serialOSCGridClass.default !? {
+						serialOSCGridClass.ledLevelSet(x-1, y-1, val);
+					};
 				};
-			};
-			grid_device.cols_ = { |self|
-				serialOSCGridClass.numCols;
-			};
-			grid_device.rows_ = { |self|
-				serialOSCGridClass.numRows;
-			};
-			grid_device.device_ = { |self|
-				serialOSCGridClass.default;
-			};
+				grid_device.all_ = { |self, val|
+					serialOSCGridClass.default !? {
+						serialOSCGridClass.ledLevelAll(val);
+					};
+				};
+				grid_device.cols_ = { |self|
+					serialOSCGridClass.numCols;
+				};
+				grid_device.rows_ = { |self|
+					serialOSCGridClass.numRows;
+				};
+				grid_device.device_ = { |self|
+					serialOSCGridClass.default;
+				};
 
-			grid_device_manager['__grid_key_funcs__'] = grid_device_manager['__grid_key_funcs__'].add(
-				gridKeyFuncClass.new(
-					{ |x, y, state|
-						script_env.use {
-							grid_device[\key].value(x+1, y+1, state); // TODO: change to key_, if possible without introducing self arg
-						};
-					}
-				)
-			);
+				grid_device_manager['__grid_key_funcs__'] = grid_device_manager['__grid_key_funcs__'].add(
+					gridKeyFuncClass.new(
+						{ |x, y, state|
+							script_env.use {
+								grid_device[\key].value(x+1, y+1, state); // TODO: change to key_, if possible without introducing self arg
+							};
+						}
+					)
+				);
 
-			grid_device;
+				grid_device;
+			} {
+				"Grid usage is disabled. SerialOSCClient SuperCollider library is required. Download the library from http://github.com/antonhornquist/SerialOSCClient-sc.".inform;
+				();
+			};
 		};
 		grid_device_manager;
 	};
@@ -1270,10 +1284,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 			};
 			"... script successfully freed.".inform;
 			// TODO: stop running routines
-		};
-
-		var class_exists = { |classname|
-			Class.allClasses.collect { |class| class.asSymbol }.includes(classname.asSymbol);
 		};
 
 		var module = IdentityDictionary[
