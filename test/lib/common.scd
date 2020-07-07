@@ -669,8 +669,12 @@ var mouse = { |what ... args|
 	[what, args].debug;
 	case
 	{ what == "leave" } {
+		var prev_focus = focus;
 		~mouse_over_pos = nil;
 		focus = nil;
+		if (prev_focus != focus) {
+			ui_set_dirty.value();
+		};
 	}
 	{ what == "over" } {
 		var x = args[0], y = args[1];
