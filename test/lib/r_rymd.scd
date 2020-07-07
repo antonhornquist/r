@@ -52,8 +52,8 @@ var connect_modules = {
 	~engine.connect_("LFO/Sine", "Delay2*DelayTimeModulation");
 	~engine.connect_("SoundIn/Left", "Direct*Left");
 	~engine.connect_("SoundIn/Right", "Direct*Right");
-	~engine.connect_("Direct/Left", "SoundOut*Left");
-	~engine.connect_("Direct/Right", "SoundOut*Right");
+	~engine.connect_("Direct/Left", "Amplifier*Left");
+	~engine.connect_("Direct/Right", "Amplifier*Right");
 
 	~engine.connect_("SoundIn/Left", "FXSend*Left");
 	~engine.connect_("SoundIn/Right", "FXSend*Right");
