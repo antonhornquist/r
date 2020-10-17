@@ -1,7 +1,6 @@
 Engine_R : CroneEngine {
 	var <rrrr;
 
-	var useScdBasedR = true;
 	var numPolls = 10;
 
 	var <pollConfigs;
@@ -73,300 +72,154 @@ Engine_R : CroneEngine {
 	}
 
 	alloc {
-		if (useScdBasedR) {
-			var rScdAPI = this.spawnScdBasedRrrr;
-			init = rScdAPI[\init];
-			free = rScdAPI[\free];
-			newCommand = rScdAPI[\newCommand];
-			connectCommand = rScdAPI[\connectCommand];
-			disconnectCommand = rScdAPI[\disconnectCommand];
-			deleteCommand = rScdAPI[\deleteCommand];
-			setCommand = rScdAPI[\setCommand];
-			bulksetCommand = rScdAPI[\bulksetCommand];
-			newmacroCommand = rScdAPI[\newmacroCommand];
-			deletemacroCommand = rScdAPI[\deletemacroCommand];
-			macrosetCommand = rScdAPI[\macrosetCommand];
-			readsampleCommand = rScdAPI[\readsampleCommand];
-			tapoutputCommand = rScdAPI[\tapoutputCommand];
-			tapclearCommand = rScdAPI[\tapclearCommand];
-			getTapBus = rScdAPI[\getTapBus];
-			getVisualBus = rScdAPI[\getVisualBus];
+		var rScdAPI = this.spawnScdBasedRrrr;
+		init = rScdAPI[\init];
+		free = rScdAPI[\free];
+		newCommand = rScdAPI[\newCommand];
+		connectCommand = rScdAPI[\connectCommand];
+		disconnectCommand = rScdAPI[\disconnectCommand];
+		deleteCommand = rScdAPI[\deleteCommand];
+		setCommand = rScdAPI[\setCommand];
+		bulksetCommand = rScdAPI[\bulksetCommand];
+		newmacroCommand = rScdAPI[\newmacroCommand];
+		deletemacroCommand = rScdAPI[\deletemacroCommand];
+		macrosetCommand = rScdAPI[\macrosetCommand];
+		readsampleCommand = rScdAPI[\readsampleCommand];
+		tapoutputCommand = rScdAPI[\tapoutputCommand];
+		tapclearCommand = rScdAPI[\tapclearCommand];
+		getTapBus = rScdAPI[\getTapBus];
+		getVisualBus = rScdAPI[\getVisualBus];
 
-			rrrr=init.(
-				(
-					trace: false,
-					group: context.xg,
-					inBus: context.in_b,
-					outBus: context.out_b,
-					numTaps: numPolls
-				)
-			);
-		} {
-			rrrr = Rrrr.new(
-				(
-					server: context.server,
-					group: context.xg,
-					inBus: context.in_b,
-					outBus: context.out_b,
-					numTaps: 10
-				)
-			);
-		};
+		rrrr=init.(
+			(
+				trace: false,
+				group: context.xg,
+				inBus: context.in_b,
+				outBus: context.out_b,
+				numTaps: numPolls
+			)
+		);
 
 		this.addCommands;
 		this.addPolls;
 	}
 
 	addCommands {
-		if (useScdBasedR) {
-			this.addCommand('new', "ss") { |msg|
-				var moduleRef = msg[1];
-				var moduleType = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \newCommand, moduleRef, moduleType].debug(\received);
-				};
-				newCommand.value(rrrr, moduleRef, moduleType);
+		this.addCommand('new', "ss") { |msg|
+			var moduleRef = msg[1];
+			var moduleType = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \newCommand, moduleRef, moduleType].debug(\received);
 			};
-		} {
-			this.addCommand('new', "ss") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \newCommand, msg[1], msg[2]].debug(\received);
-				};
-				rrrr.newCommand(msg[1], msg[2]);
-			};
+			newCommand.value(rrrr, moduleRef, moduleType);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('delete', "s") { |msg|
-				var moduleRef = msg[1];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \deleteCommand, moduleRef.asString[0..20]].debug(\received);
-				};
-				deleteCommand.value(rrrr, moduleRef);
+		this.addCommand('delete', "s") { |msg|
+			var moduleRef = msg[1];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \deleteCommand, moduleRef.asString[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('delete', "s") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \deleteCommand, msg[1].asString[0..20]].debug(\received);
-				};
-				rrrr.deleteCommand(msg[1]);
-			};
+			deleteCommand.value(rrrr, moduleRef);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('connect', "ss") { |msg|
-				var moduleOutputRef = msg[1];
-				var moduleInputRef = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \connectCommand, (moduleOutputRef.asString + moduleInputRef.asString)[0..20]].debug(\received);
-				};
-				connectCommand.value(rrrr, moduleOutputRef, moduleInputRef);
+		this.addCommand('connect', "ss") { |msg|
+			var moduleOutputRef = msg[1];
+			var moduleInputRef = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \connectCommand, (moduleOutputRef.asString + moduleInputRef.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('connect', "ss") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \connectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-				};
-				rrrr.connectCommand(msg[1], msg[2]);
-			};
+			connectCommand.value(rrrr, moduleOutputRef, moduleInputRef);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('disconnect', "ss") { |msg|
-				var moduleOutputRef = msg[1];
-				var moduleInputRef = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \disconnectCommand, (moduleOutputRef.asString + moduleInputRef.asString)[0..20]].debug(\received);
-				};
-				disconnectCommand.value(rrrr, moduleOutputRef, moduleInputRef);
+		this.addCommand('disconnect', "ss") { |msg|
+			var moduleOutputRef = msg[1];
+			var moduleInputRef = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \disconnectCommand, (moduleOutputRef.asString + moduleInputRef.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('disconnect', "ss") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \disconnectCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-				};
-				rrrr.disconnectCommand(msg[1], msg[2]);
-			};
+			disconnectCommand.value(rrrr, moduleOutputRef, moduleInputRef);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('set', "sf") { |msg|
-				var moduleParameterRef = msg[1];
-				var value = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \setCommand, (moduleParameterRef.asString + value.asString)[0..20]].debug(\received);
-				};
-				setCommand.value(rrrr, moduleParameterRef, value);
+		this.addCommand('set', "sf") { |msg|
+			var moduleParameterRef = msg[1];
+			var value = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \setCommand, (moduleParameterRef.asString + value.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('set', "sf") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \setCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-				};
-				rrrr.setCommand(msg[1], msg[2]);
-			};
+			setCommand.value(rrrr, moduleParameterRef, value);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('bulkset', "s") { |msg|
-				var bundle = msg[1];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \bulksetCommand, bundle.asString[0..20]].debug(\received);
-				};
-				bulksetCommand.value(rrrr, bundle);
+		this.addCommand('bulkset', "s") { |msg|
+			var bundle = msg[1];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \bulksetCommand, bundle.asString[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('bulkset', "s") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \bulksetCommand, msg[1].asString[0..20]].debug(\received);
-				};
-				rrrr.bulksetCommand(msg[1]);
-			};
+			bulksetCommand.value(rrrr, bundle);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('newmacro', "ss") { |msg|
-				var name = msg[1];
-				var bundle = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \newmacroCommand, (name.asString + bundle.asString)[0..20]].debug(\received);
-				};
-				newmacroCommand.value(rrrr, name, bundle);
+		this.addCommand('newmacro', "ss") { |msg|
+			var name = msg[1];
+			var bundle = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \newmacroCommand, (name.asString + bundle.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('newmacro', "ss") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \newmacroCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-				};
-				rrrr.newmacroCommand(msg[1], msg[2]);
-			};
+			newmacroCommand.value(rrrr, name, bundle);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('deletemacro', "s") { |msg|
-				var name = msg[1];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \deletemacroCommand, (name.asString)[0..20]].debug(\received);
-				};
-				deletemacroCommand.value(rrrr, name);
+		this.addCommand('deletemacro', "s") { |msg|
+			var name = msg[1];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \deletemacroCommand, (name.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('deletemacro', "s") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \deletemacroCommand, (msg[1].asString)[0..20]].debug(\received);
-				};
-				rrrr.deletemacroCommand(msg[1]);
-			};
+			deletemacroCommand.value(rrrr, name);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('macroset', "sf") { |msg|
-				var name = msg[1];
-				var value = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \macrosetCommand, (name.asString + value.asString)[0..20]].debug(\received);
-				};
-				macrosetCommand.value(rrrr, name, value);
+		this.addCommand('macroset', "sf") { |msg|
+			var name = msg[1];
+			var value = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \macrosetCommand, (name.asString + value.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('macroset', "sf") { |msg|
-				if (rrrr.trace) {
-					[SystemClock.seconds, \macrosetCommand, (msg[1].asString + msg[2].asString)[0..20]].debug(\received);
-				};
-				rrrr.macrosetCommand(msg[1], msg[2]);
-			};
+			macrosetCommand.value(rrrr, name, value);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('polloutput', "is") { |msg|
-				var oneBasedIndex = msg[1];
-				var moduleOutputRef = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \polloutputCommand, (oneBasedIndex.asString + moduleOutputRef.asString)[0..20]].debug(\received);
-				};
-				polloutputCommand.value(rrrr, oneBasedIndex, moduleOutputRef);
+		this.addCommand('polloutput', "is") { |msg|
+			var oneBasedIndex = msg[1];
+			var moduleOutputRef = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \polloutputCommand, (oneBasedIndex.asString + moduleOutputRef.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('polloutput', "is") { |msg|
-				var oneBasedIndex = msg[1];
-				var outputRef = msg[2];
-				if (rrrr.trace) {
-					[SystemClock.seconds, \polloutputCommand, (oneBasedIndex.asString + outputRef.asString)[0..20]].debug(\received);
-				};
-				this.polloutputCommand(oneBasedIndex-1, outputRef);
-			};
+			polloutputCommand.value(rrrr, oneBasedIndex, moduleOutputRef);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('pollvisual', "is") { |msg|
-				var oneBasedIndex = msg[1];
-				var moduleVisualRef = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \pollvisualCommand, (oneBasedIndex.asString + moduleVisualRef.asString)[0..20]].debug(\received);
-				};
-				pollvisualCommand.value(rrrr, oneBasedIndex, moduleVisualRef);
+		this.addCommand('pollvisual', "is") { |msg|
+			var oneBasedIndex = msg[1];
+			var moduleVisualRef = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \pollvisualCommand, (oneBasedIndex.asString + moduleVisualRef.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('pollvisual', "is") { |msg|
-				var oneBasedIndex = msg[1];
-				var visualRef = msg[2];
-				if (rrrr.trace) {
-					[SystemClock.seconds, \pollvisualCommand, (oneBasedIndex.asString + visualRef.asString)[0..20]].debug(\received);
-				};
-				this.pollvisualCommand(oneBasedIndex-1, visualRef);
-			};
+			pollvisualCommand.value(rrrr, oneBasedIndex, moduleVisualRef);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('pollclear', "i") { |msg|
-				var oneBasedIndex = msg[1];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \pollclearCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
-				};
-				pollclearCommand.value(rrrr, oneBasedIndex);
+		this.addCommand('pollclear', "i") { |msg|
+			var oneBasedIndex = msg[1];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \pollclearCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('pollclear', "i") { |msg|
-				var oneBasedIndex = msg[1];
-				if (rrrr.trace) {
-					[SystemClock.seconds, \pollclearCommand, (oneBasedIndex.asString)[0..20]].debug(\received);
-				};
-				this.pollclearCommand(oneBasedIndex-1);
-			};
+			pollclearCommand.value(rrrr, oneBasedIndex);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('readsample', "ss") { |msg|
-				var moduleSampleSlotRef = msg[1];
-				var path = msg[2];
-				if (rrrr[\trace]) {
-					[SystemClock.seconds, \readsampleCommand, (moduleSampleSlotRef.asString + path.asString)[0..20]].debug(\received);
-				};
-				readsampleCommand.value(rrrr, moduleSampleSlotRef, path.asString);
+		this.addCommand('readsample', "ss") { |msg|
+			var moduleSampleSlotRef = msg[1];
+			var path = msg[2];
+			if (rrrr[\trace]) {
+				[SystemClock.seconds, \readsampleCommand, (moduleSampleSlotRef.asString + path.asString)[0..20]].debug(\received);
 			};
-		} {
-			this.addCommand('readsample', "ss") { |msg|
-				var sampleSlot = msg[1];
-				var path = msg[2];
-				if (rrrr.trace) {
-					[SystemClock.seconds, \readsampleCommand, (sampleSlot.asString + path.asString)[0..20]].debug(\received);
-				};
-				if (useScdBasedR) {
-					readsampleCommand.(rrrr, sampleSlot, path.asString);
-				} {
-					rrrr.readsampleCommand(sampleSlot, path.asString);
-				}
-			};
+			readsampleCommand.value(rrrr, moduleSampleSlotRef, path.asString);
 		};
 
-		if (useScdBasedR) {
-			this.addCommand('trace', "i") { |msg|
-				rrrr[\trace] = msg[1].asBoolean;
-			};
-		} {
-			this.addCommand('trace', "i") { |msg|
-				rrrr.trace = msg[1].asBoolean;
-			};
+		this.addCommand('trace', "i") { |msg|
+			rrrr[\trace] = msg[1].asBoolean;
 		};
 	}
 
@@ -423,11 +276,7 @@ Engine_R : CroneEngine {
 	}
 
 	free {
-		if (useScdBasedR) {
-			free.(rrrr);
-		} {
-			rrrr.free;
-		};
+		free.(rrrr);
 	}
 
 	*generateLuaSpecs {
