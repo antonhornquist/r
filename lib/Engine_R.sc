@@ -278,38 +278,4 @@ Engine_R : CroneEngine {
 	free {
 		free.(rrrr);
 	}
-
-	*generateLuaSpecs {
-		^"local specs = {}\n" ++
-		"\n" ++
-		Rrrr.allRModuleClasses.collect { |rModuleClass|
-			rModuleClass.generateLuaSpecs
-		}.join("\n")
-	}
-}
-
-+ RModule {
-	*generateLuaSpecs {
-		^"specs['"++this.shortName.asString++"'] = {\n"++
-			if (this.params.isNil) {
-				""
-			} {
-				this.spec[\parameters].collect { |param| // TODO: report error when controlSpec is not found / or rely on .asSpec
-					var controlSpec = this.paramControlSpecs[("param_"++param.asString).asSymbol]; // TODO: throw error when nothing found -- will happen when *params does not comply with param_Args in ugenGraphFunc
-					"\t" ++ param.asString ++ " = " ++ if (controlSpec.class == Symbol) {
-						"\\" ++ controlSpec.asString
-					} {
-						controlSpec.asSpecifier !? { |specifier| "ControlSpec."++specifier.asString.toUpper } ? ("ControlSpec.new("++[
-							switch (controlSpec.minval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.minval,
-							switch (controlSpec.maxval) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.maxval,
-							controlSpec.warp.asSpecifier.asString.quote,
-							controlSpec.step,
-							switch (controlSpec.default) { -inf } { "-math.huge" } { inf } { "math.huge" } ? controlSpec.default,
-							controlSpec.units.quote
-						].join(", ")++")")
-					}
-				}.join(",\n") ++ "\n"
-			} ++
-		"}" ++ "\n";
-	}
 }
