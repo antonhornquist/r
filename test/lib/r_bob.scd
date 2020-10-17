@@ -220,12 +220,12 @@ var init_r_params = {
 		]
 	);
 
-	r_params = r_params.add(add_output_level_param.value);
+	r_params = r_params.add(init_output_level_param.value);
 
 	r_params;
 };
 
-var add_output_level_param = {
+var init_output_level_param = {
 	var spec = r_specs['MGain']['Gain'].copy;
 	spec.default = -10;
 

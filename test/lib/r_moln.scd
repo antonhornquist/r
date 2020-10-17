@@ -8,6 +8,7 @@ var include_relative = { |relative_path|
 	};
 };
 
+// TODO: refactor to separate file (start)
 var r_specs = include_relative.value("r_specs.scd");
 var r_util = (
 	// utility function to expand a moduleparam ref to #polyphony ones suffixed with 1..polyphony
@@ -72,11 +73,9 @@ var r_engine = (
 		};
 	},
 );
+// TODO: refactor to separate file (fin)
 
 var formatters = include_relative.value("formatters.scd");
-var capped_list = include_relative.value("capped_list.scd");
-var capped_list_create = capped_list[\create];
-var capped_list_push = capped_list[\push];
 var voice = include_relative.value("voice.scd");
 var voice_new = voice[\voice_new];
 
@@ -163,7 +162,7 @@ var create_macros = {
 };
 
 var init_r_params = {
-	var r_params = [
+	[
 		init_filter_frequency_param.value,
 		init_filter_resonance_param.value,
 		init_osc_a_range_param.value,
@@ -178,10 +177,8 @@ var init_r_params = {
 		init_env_decay_param.value,
 		init_env_sustain_param.value,
 		init_env_release_param.value,
-		add_output_level_param.value
-	];
-
-	r_params;
+		init_output_level_param.value
+	]
 };
 
 var init_filter_frequency_param = {
@@ -401,7 +398,7 @@ var init_env_release_param = {
 	];
 };
 
-var add_output_level_param = {
+var init_output_level_param = {
 	var spec = r_specs['MGain']['Gain'].copy;
 	spec.default = -10;
 
