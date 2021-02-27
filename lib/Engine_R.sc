@@ -12,7 +12,7 @@ Engine_R : CroneEngine {
 
 	*new { |context, callback| ^super.new(context, callback) }
 
-	spawnScdBasedRrrr {
+	getScdBasedEngine {
 		var scdFilePath = (PathName(this.class.filenameSymbol.asString).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
 
 		var postPollIndexNotWithinBoundsError = { |pollIndex|
@@ -72,23 +72,23 @@ Engine_R : CroneEngine {
 	}
 
 	alloc {
-		var rScdAPI = this.spawnScdBasedRrrr;
-		init = rScdAPI[\init];
-		free = rScdAPI[\free];
-		newCommand = rScdAPI[\newCommand];
-		connectCommand = rScdAPI[\connectCommand];
-		disconnectCommand = rScdAPI[\disconnectCommand];
-		deleteCommand = rScdAPI[\deleteCommand];
-		setCommand = rScdAPI[\setCommand];
-		bulksetCommand = rScdAPI[\bulksetCommand];
-		newmacroCommand = rScdAPI[\newmacroCommand];
-		deletemacroCommand = rScdAPI[\deletemacroCommand];
-		macrosetCommand = rScdAPI[\macrosetCommand];
-		readsampleCommand = rScdAPI[\readsampleCommand];
-		tapoutputCommand = rScdAPI[\tapoutputCommand];
-		tapclearCommand = rScdAPI[\tapclearCommand];
-		getTapBus = rScdAPI[\getTapBus];
-		getVisualBus = rScdAPI[\getVisualBus];
+		var scdAPI = this.getScdBasedEngine;
+		init = scdAPI[\init];
+		free = scdAPI[\free];
+		newCommand = scdAPI[\newCommand];
+		connectCommand = scdAPI[\connectCommand];
+		disconnectCommand = scdAPI[\disconnectCommand];
+		deleteCommand = scdAPI[\deleteCommand];
+		setCommand = scdAPI[\setCommand];
+		bulksetCommand = scdAPI[\bulksetCommand];
+		newmacroCommand = scdAPI[\newmacroCommand];
+		deletemacroCommand = scdAPI[\deletemacroCommand];
+		macrosetCommand = scdAPI[\macrosetCommand];
+		readsampleCommand = scdAPI[\readsampleCommand];
+		tapoutputCommand = scdAPI[\tapoutputCommand];
+		tapclearCommand = scdAPI[\tapclearCommand];
+		getTapBus = scdAPI[\getTapBus];
+		getVisualBus = scdAPI[\getVisualBus];
 
 		rrrr=init.(
 			(
