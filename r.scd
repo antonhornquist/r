@@ -184,6 +184,8 @@ var sendSynthDefsToServer = { |moduleDefs, trace|
 		sendModuleSynthDefToServer.value(moduleDef, trace);
 	};
 
+	// TODO: introduce "RModule class"- (as opposed to "instance"-) based alloc for each module, for general resources (buffers, &c)
+
 	SynthDef(\r_tapout, { |in, out|
 		Out.kr(out, A2K.kr(In.ar(in)));
 	}).add;
@@ -436,7 +438,7 @@ var setCommand = { |self, moduleParameterRef, value|
 			if (spec[\parameters].includes(parameterRef.asSymbol)) {
 				setModuleParam.value(module, parameterRef, value);
 			} {
-				postInvalidModuleParameterError.value(module, parameterRef, )
+				postInvalidModuleParameterError.value(module, parameterRef)
 			}
 		};
 	};
@@ -538,7 +540,7 @@ var macrosetCommand = { |self, name, value|
 };
 
 var readsampleCommand = { |self, moduleSampleSlotRef, path|
-	// TODO: this.lookupSampleSlot(...)
+	// TODO: lookupSampleSlot.value(...)
 	var moduleRef, sampleSlotRef;
 	var module;
 
@@ -791,7 +793,7 @@ var lookupSampleSlotBuffersByName = { |module, sampleSlotRef|
 
 /*
 TODO
-lookupSampleSlot { |moduleSampleSlotRef|
+lookupSampleSlot = { |moduleSampleSlotRef|
 };
 */
 
@@ -864,7 +866,7 @@ var allocateModuleSampleSlotBuffers = { |moduleName, sampleSlots, trace|
 		var sampleSlotRef = sampleSlotAssoc.key;
 		var sampleSlotSpec = sampleSlotAssoc.value;
 		sampleSlotRef -> sampleSlotSpec[\Channels].collect { |channelCount|
-			var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message
+			var buffer = Buffer.alloc(numChannels: channelCount, numFrames: 1); // TODO: allocating one frame to suppress warning message, is there a better way?
 			if (trace) {
 				"buffer % created for sample slot % (channel count %)".format( // TODO: post*
 					buffer.bufnum,
@@ -2018,12 +2020,7 @@ var coreModules = [
 				('connect' -> ['Osc/Out', 'Out*Right']),
 				('connect' -> ['Osc/Out', 'Out*Left']),
 			]
-		],
-	/*
-		params: [
-			'Gain' -> \db.asSpec.copy.maxval_(12).default_(0),
 		]
-	*/
 	)
 ];
 
@@ -4078,15 +4075,19 @@ var stdModules = [
 		outputs: [
 			'Sine' -> (
 				Description: "Sine wave oscillator output."
+				// Range: [0, 0] // TODO
 			),
 			'Triangle' -> (
 				Description: "Triangle wave oscillator output."
+				// Range: [0, 0] // TODO
 			),
 			'Saw' -> (
 				Description: "Saw wave oscillator output."
+				// Range: [0, 0] // TODO
 			),
 			'Pulse' -> (
 				Description: "Pulse wave oscillator output."
+				// Range: [0, 0] // TODO
 			),
 		],
 		params: [
