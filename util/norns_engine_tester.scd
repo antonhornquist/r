@@ -29,15 +29,28 @@ namespaces.arc_device_manager = {
 					Error("multiple arcs are not supported").throw
 				};
 
-				arc_device = ();
+				arc_device = (
+					ring0_map: Array.fill(64),
+					ring1_map: Array.fill(64),
+					ring2_map: Array.fill(64),
+					ring3_map: Array.fill(64)
+				);
 				arc_device.led_ = { |self, ring, x, val|
-					serialOSCEncClass.default !? {
-						serialOSCEncClass.ringSet(ring-1, x-1, val);
-					};
+					self[("ring"++(ring-1)++"_map").asSymbol][x-1] = val;
 				};
 				arc_device.all_ = { |self, ring, val|
+					64.do { |index|
+						self[("ring"++(ring-1)++"_map").asSymbol][index] = val;
+					};
+				};
+				arc_device.refresh_ = { |self|
 					serialOSCEncClass.default !? {
-						serialOSCEncClass.ringAll(ring-1, val);
+						serialOSCEncClass.ringMap(0, self[\ring0_map]);
+						serialOSCEncClass.ringMap(1, self[\ring1_map]);
+						if (serialOSCEncClass.numEncs == 4) {
+							serialOSCEncClass.ringMap(2, self[\ring2_map]);
+							serialOSCEncClass.ringMap(3, self[\ring3_map]);
+						};
 					};
 				};
 
@@ -194,15 +207,32 @@ namespaces.grid_device_manager = {
 					Error("multiple grids are not supported").throw
 				};
 
-				grid_device = ();
+				grid_device = (
+					topleft_map: Array.fill(64),
+					topright_map: Array.fill(64),
+					bottomleft_map: Array.fill(64),
+					bottomright_map: Array.fill(64)
+				);
 				grid_device.led_ = { |self, x, y, val|
-					serialOSCGridClass.default !? {
-						serialOSCGridClass.ledLevelSet(x-1, y-1, val);
+					if ((x < 9) and: (y < 9)) {
+						self[\topleft_map][((y-1)*8)+(x-1)] = val;
+					};
+					if ((x >= 9) and: (y < 9)) {
+						self[\topright_map][((y-1)*8)+(x-1-8)] = val;
+					};
+					if ((x < 9) and: (y >= 9)) {
+						self[\bottomleft_map][((y-1-8)*8)+(x-1)] = val;
+					};
+					if ((x >= 9) and: (y >= 9)) {
+						self[\bottomright_map][((y-1-8)*8)+(x-1-8)] = val;
 					};
 				};
 				grid_device.all_ = { |self, val|
-					serialOSCGridClass.default !? {
-						serialOSCGridClass.ledLevelAll(val);
+					64.do { |index|
+						self[\topleft_map][index] = val;
+						self[\topright_map][index] = val;
+						self[\bottomleft_map][index] = val;
+						self[\bottomright_map][index] = val;
 					};
 				};
 				grid_device.cols_ = { |self|
@@ -213,6 +243,22 @@ namespaces.grid_device_manager = {
 				};
 				grid_device.device_ = { |self|
 					serialOSCGridClass.default;
+				};
+				grid_device.refresh_ = { |self|
+					serialOSCGridClass.default !? {
+						var num_cols = serialOSCGridClass.numCols;
+						var num_rows = serialOSCGridClass.numRows;
+						serialOSCGridClass.ledLevelMap(0, 0, self[\topleft_map]);
+						if (num_cols == 16) {
+							serialOSCGridClass.ledLevelMap(8, 0, self[\topright_map]);
+						};
+						if (num_rows == 16) {
+							serialOSCGridClass.ledLevelMap(0, 8, self[\bottomleft_map]);
+						};
+						if ((num_cols == 16) and: (num_rows == 16)) {
+							serialOSCGridClass.ledLevelMap(8, 8, self[\bottomright_map]);
+						};
+					};
 				};
 
 				grid_device_manager['__grid_key_funcs__'] = grid_device_manager['__grid_key_funcs__'].add(
@@ -251,7 +297,7 @@ namespaces.poll_manager = {
 		var poll_manager = ();
 
 		poll_manager['__polls__'] = [];
-		poll_manager.set_ = { |self, name, callback|
+		poll_manager.set__ = { |self, name, callback|
 			var engine_poll = engine_polls.detect { |engine_poll|
 				engine_poll.key == name.asSymbol
 			};
@@ -340,6 +386,7 @@ namespaces.metro_manager = {
 				if (count.notNil) {
 					self[\count] = count;
 				};
+				self[\routine].stop;
 				self[\routine] = fork {
 					self[\count].do {
 						self[\event].value;
@@ -412,6 +459,7 @@ namespaces.screen = { // TODO: call this mock_screen?
 					};
 					instance[\queued_screen_ops] = [];
 				})
+				.canReceiveDragHandler_({true})
 				.clearOnRefresh_(false),
 			font_size: default_font_size,
 			font: Font(lookup_font.value, calculate_scaled_font_size.value(scale, default_font_size)),
@@ -518,11 +566,13 @@ namespaces.screen = { // TODO: call this mock_screen?
 	};
 
 	var screen_stroke = { |instance|
+		var scale = instance[\scale];
 		var level = instance[\level];
 		var color = instance[\colors][level];
 		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
 			{
 				Pen.strokeColor = color;
+				Pen.width = scale;
 				Pen.stroke;
 			}
 		);
@@ -666,32 +716,108 @@ namespaces.paramset = {
 			name: "unnamed"
 		);
 
+		paramset.add_separator_ = { |self|
+			var param;
+			param = ();
+			param[\type] = \separator;
+			params = params.add(param);
+		};
 		paramset.add_ = { |self, arg_param|
 			var type = arg_param[\type].asSymbol;
 			var id = arg_param[\id].asSymbol;
 			var name = arg_param[\name];
-			var controlspec = arg_param[\controlspec].asSpec;
 			var action = arg_param[\action];
-			var formatter = arg_param[\formatter];
 			var param;
 
-			if (type != 'control') {
-				Error("only params of type 'control' are supported").throw;
+			if (['file', 'control', 'number', 'option'].includes(type).not) {
+				Error("only params of type 'file', 'control', 'number' and 'option' are supported").throw;
 			};
 
 			param = ();
+
 			param[\type] = type;
 			param[\id] = id;
 			param[\name] = name;
-			param[\controlspec] = controlspec;
-			param[\action] = action;
-			param[\formatter] = formatter;
-			param[\raw] = if (controlspec.default.notNil) { controlspec.unmap(controlspec.default) } { 0 };
-			param.get_ = { |self| // TODO
-				self[\controlspec].map(self[\raw])
-			};
-			param.get_raw_ = { |self|
-				self[\raw];
+
+			case
+			{ type == 'file' } {
+				param[\path] = "-";
+				param[\action] = action;
+				param.get_ = { |self|
+					self[\path]
+				};
+				param.set__ = { |self, value, silent|
+					if (self[\path] != value) {
+						self[\path] = value;
+					};
+					if (silent.asBoolean.not) {
+						self.bang_();
+					}
+				};
+				param.bang_ = { |self|
+					self[\action].value(self[\path]);
+				};
+			}
+			{ type == 'control' } {
+				var controlspec = arg_param[\controlspec].asSpec;
+				var formatter = arg_param[\formatter];
+				param[\controlspec] = controlspec;
+				param[\action] = action;
+				param[\formatter] = formatter;
+				param[\raw] = if (controlspec.default.notNil) { controlspec.unmap(controlspec.default) } { 0 };
+				param.get_ = { |self| // TODO
+					self[\controlspec].map(self[\raw])
+				};
+				param.get_raw_ = { |self|
+					self[\raw];
+				};
+				param.set__ = { |self, value|
+					self.set_raw_(self[\controlspec].unmap(value));
+				};
+				param.set_raw_ = { |self, value|
+					self[\raw] = value.clip(0, 1);
+					self[\action].value(self[\controlspec].map(self[\raw]));
+				};
+				param.delta_ = { |self, delta|
+					self.set_raw_(self[\raw] + (delta/100));
+				};
+				param.bang_ = { |self|
+					self[\action].value(self.get_());
+				};
+			}
+			{ type == 'option' } {
+				var options = arg_param[\options];
+				param[\options] = options;
+				param[\action] = action;
+				param[\selected] = 1; // TODO: employ 1 based indexing
+				param.get_ = { |self|
+					self[\selected]
+				};
+				param.set__ = { |self, value|
+					self[\selected] = value.asInteger; // TODO: constrain to options
+				};
+				param.bang_ = { |self|
+					self[\action].value(self[\selected]);
+				};
+			}
+			{ type == 'number' } {
+				var min_ = arg_param[\min];
+				var max_ = arg_param[\max];
+				var default_ = arg_param[\default];
+				param[\min] = min_;
+				param[\max] = max_;
+				param[\default] = default_ ? 0;
+				param[\value] = param[\default];
+				param[\action] = action;
+				param.get_ = { |self|
+					self[\value]
+				};
+				param.set__ = { |self, value|
+					self[\value] = value.asInteger; // TODO: constrain to number spec
+				};
+				param.bang_ = { |self|
+					self[\action].value(self[\value]);
+				};
 			};
 
 			params = params.add(param);
@@ -703,32 +829,31 @@ namespaces.paramset = {
 			var param = self.lookup_param_(id);
 			param[\name];
 		};
-		paramset.set_ = { |self, id, value|
+		paramset.set__ = { |self, id, value|
 			var param = self.lookup_param_(id);
-			param[\raw] = param[\controlspec].unmap(value);
-			self.set_raw_(id, param[\controlspec].unmap(value));
+			param.set__(value);
 		};
 		paramset.get_ = { |self, id|
 			var param = self.lookup_param_(id);
-			param[\controlspec].map(param[\raw]);
+			param.get_();
 		};
 		paramset.set_raw_ = { |self, id, value|
 			var param = self.lookup_param_(id);
-			param[\raw] = value.clip(0, 1);
-			param[\action].value(param[\controlspec].map(param[\raw]));
+			param.set_raw_(value);
 		};
 		paramset.get_raw_ = { |self, id|
 			var param = self.lookup_param_(id);
-			param[\raw];
+			param.get_raw_();
 		};
-		paramset.delta_ = { |self, id, d|
+		paramset.delta_ = { |self, id, delta|
 			var param = self.lookup_param_(id);
-			self.set_raw_(id, param[\raw] + (d/100));
+			param.delta_(delta);
 		};
 		paramset.bang_ = { |self|
 			params.do { |param|
-				var value = paramset.get_(param[\id]);
-				param[\action].value(value);
+				// TODO: remove var value = paramset.get_(param[\id]);
+				// TODO: remove param[\action].value(value);
+				param.bang_();
 			};
 		};
 		paramset.write_ = { |self|
@@ -747,7 +872,7 @@ namespaces.paramset = {
 			};
 		};
 		paramset.list_ = { |self|
-			postln("parmset [" ++ self.name ++ "]");
+			postln("paramset [" ++ self.name ++ "]");
 			params.do { |param|
 				postln(param[\id]);
 			};
@@ -761,6 +886,175 @@ namespaces.paramset = {
 	];
 
 	module;
+}.value;
+
+namespaces.ack_engine = {
+	var ack_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ ".." +/+ "ack" +/+ "ack.scd").standardizePath;
+	var ack = this.executeFile(ack_path);
+
+	var init = ack[\init];
+	var free = ack[\free];
+	var loadSampleCommand = ack[\loadSampleCommand];
+	var multiTrigCommand = ack[\multiTrigCommand];
+	var trigCommand = ack[\trigCommand];
+	var multiKillCommand = ack[\multiKillCommand];
+	var killCommand = ack[\killCommand];
+	var includeInMuteGroupCommand = ack[\includeInMuteGroupCommand];
+	var sampleStartCommand = ack[\sampleStartCommand];
+	var sampleEndCommand = ack[\sampleEndCommand];
+	var loopPointCommand = ack[\loopPointCommand];
+	var enableLoopCommand = ack[\enableLoopCommand];
+	var disableLoopCommand = ack[\disableLoopCommand];
+	var speedCommand = ack[\speedCommand];
+	var volumeCommand = ack[\volumeCommand];
+	var volumeEnvAttackCommand = ack[\volumeEnvAttackCommand];
+	var volumeEnvReleaseCommand = ack[\volumeEnvReleaseCommand];
+	var panCommand = ack[\panCommand];
+	var filterCutoffCommand = ack[\filterCutoffCommand];
+	var filterResCommand = ack[\filterResCommand];
+	var filterModeCommand = ack[\filterModeCommand];
+	var filterEnvAttackCommand = ack[\filterEnvAttackCommand];
+	var filterEnvReleaseCommand = ack[\filterEnvReleaseCommand];
+	var filterEnvModCommand = ack[\filterEnvModCommand];
+	var sampleRateCommand = ack[\sampleRateCommand];
+	var bitDepthCommand = ack[\bitDepthCommand];
+	var distCommand = ack[\distCommand];
+	var delaySendCommand = ack[\delaySendCommand];
+	var reverbSendCommand = ack[\reverbSendCommand];
+	var delayTimeCommand = ack[\delayTimeCommand];
+	var delayFeedbackCommand = ack[\delayFeedbackCommand];
+	var delayLevelCommand = ack[\delayLevelCommand];
+	var reverbRoomCommand = ack[\reverbRoomCommand];
+	var reverbDampCommand = ack[\reverbDampCommand];
+	var reverbLevelCommand = ack[\reverbLevelCommand];
+
+	// server booted assumed
+	var load_engine = {
+		var tmp;
+		var ack_instance = init.value(
+			(
+				autostartServer: false,
+				trace: false
+			)
+		);
+
+		(
+			ack_instance: ack_instance,
+			commands: [
+				\loadSample -> { |self, channelnum, path|
+					loadSampleCommand.value(ack_instance, channelnum, path);
+				},
+				\multiTrig -> { |self ... channels|
+					multiTrigCommand.valueArray([ack_instance]++channels);
+				},
+				\trig -> { |self ... args|
+					trigCommand.valueArray([ack_instance]++args);
+				},
+				\multiKill -> { |self ... args|
+					multiKillCommand.valueArray([ack_instance]++args);
+				},
+				\kill -> { |self ... args|
+					killCommand.valueArray([ack_instance]++args);
+				},
+				\includeInMuteGroup -> { |self ... args|
+					includeInMuteGroupCommand.valueArray([ack_instance]++args);
+				},
+				\sampleStart -> { |self ... args|
+					sampleStartCommand.valueArray([ack_instance]++args);
+				},
+				\sampleEnd -> { |self ... args|
+					sampleEndCommand.valueArray([ack_instance]++args);
+				},
+				\loopPoint -> { |self ... args|
+					loopPointCommand.valueArray([ack_instance]++args);
+				},
+				\enableLoop -> { |self ... args|
+					enableLoopCommand.valueArray([ack_instance]++args);
+				},
+				\disableLoop -> { |self ... args|
+					disableLoopCommand.valueArray([ack_instance]++args);
+				},
+				\speed -> { |self ... args|
+					speedCommand.valueArray([ack_instance]++args);
+				},
+				\volume -> { |self ... args|
+					volumeCommand.valueArray([ack_instance]++args);
+				},
+				\volumeEnvAttack -> { |self ... args|
+					volumeEnvAttackCommand.valueArray([ack_instance]++args);
+				},
+				\volumeEnvRelease -> { |self ... args|
+					volumeEnvReleaseCommand.valueArray([ack_instance]++args);
+				},
+				\pan -> { |self ... args|
+					panCommand.valueArray([ack_instance]++args);
+				},
+				\filterCutoff -> { |self ... args|
+					filterCutoffCommand.valueArray([ack_instance]++args);
+				},
+				\filterRes -> { |self ... args|
+					filterResCommand.valueArray([ack_instance]++args);
+				},
+				\filterMode -> { |self ... args|
+					filterModeCommand.valueArray([ack_instance]++args);
+				},
+				\filterEnvAttack -> { |self ... args|
+					filterEnvAttackCommand.valueArray([ack_instance]++args);
+				},
+				\filterEnvRelease -> { |self ... args|
+					filterEnvReleaseCommand.valueArray([ack_instance]++args);
+				},
+				\filterEnvMod -> { |self ... args|
+					filterEnvModCommand.valueArray([ack_instance]++args);
+				},
+				\sampleRate -> { |self ... args|
+					sampleRateCommand.valueArray([ack_instance]++args);
+				},
+				\bitDepth -> { |self ... args|
+					bitDepthCommand.valueArray([ack_instance]++args);
+				},
+				\dist -> { |self ... args|
+					distCommand.valueArray([ack_instance]++args);
+				},
+				\delaySend -> { |self ... args|
+					delaySendCommand.valueArray([ack_instance]++args);
+				},
+				\reverbSend -> { |self ... args|
+					reverbSendCommand.valueArray([ack_instance]++args);
+				},
+				\delayTime -> { |self ... args|
+					delayTimeCommand.valueArray([ack_instance]++args);
+				},
+				\delayFeedback -> { |self ... args|
+					delayFeedbackCommand.valueArray([ack_instance]++args);
+				},
+				\delayLevel -> { |self ... args|
+					delayLevelCommand.valueArray([ack_instance]++args);
+				},
+				\reverbRoom -> { |self ... args|
+					reverbRoomCommand.valueArray([ack_instance]++args);
+				},
+				\reverbDamp -> { |self ... args|
+					reverbDampCommand.valueArray([ack_instance]++args);
+				},
+				\reverbLevel -> { |self ... args|
+					reverbLevelCommand.valueArray([ack_instance]++args);
+				}
+			],
+			polls: []
+		)
+	};
+
+	var free_engine = { |instance| // TODO: not triggered yet, right?
+		free.value(instance[\ack_instance]);
+	};
+
+	var module = IdentityDictionary[
+		\load_engine -> load_engine,
+		\free_engine -> free_engine
+	];
+
+	module
 }.value;
 
 namespaces.r_engine = {
@@ -1064,15 +1358,26 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 				var mouse_pressed_pos;
 				var mouse_over_pos;
+				var mouse_drag_pos;
 				var mouse_move_pos;
 
 				var scale_mouse_pos = { |x, y|
-					(round(x/scale) /*max: 1*/)@(round(y/scale) /*max: 1*/)
+					(round(x/scale)+1 /*max: 1*/)@(round(y/scale)+1 /*max: 1*/)
 				};
 
 				var mouse_enter_action = { |view|
 					script_env.use {
 						~mouse.value("enter");
+					};
+				};
+
+				var mouse_drag_action = { |view, x, y|
+					var scaled_pos = scale_mouse_pos.value(x, y);
+					if (mouse_drag_pos != scaled_pos) {
+						mouse_drag_pos = scaled_pos;
+						script_env.use {
+							~mouse.value("drag", scaled_pos.x, scaled_pos.y, View.currentDrag);
+						};
 					};
 				};
 
@@ -1176,10 +1481,26 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 							};
 						}
 						{~engine[\name] == 'Ack' } {
-							Error("Ack engine not yet supported").throw;
+							s.waitForBoot {
+								var ack_engine = namespaces[\ack_engine];
+								var load_engine = ack_engine[\load_engine];
+								var free_engine = ack_engine[\free_engine];
+
+								var ack_engine_instance = load_engine.value;
+								var engine, polls;
+								# engine, poll_manager = setup_engine_globals.value(ack_engine_instance[\commands], ack_engine_instance[\polls]);
+								~engine = engine;
+								~poll = poll_manager;
+								// script_instance[\ack_engine_instance] = ack_engine_instance; // TODO: probably not needed
+								script_instance[\engine_free_func] = {
+									free_engine.value(ack_engine_instance);
+								};
+								"Ack engine loaded".debug;
+								completeFunc.value;
+							};
 						}
 						{ true } {
-							"no engine set!".debug;
+							"not supported engine".debug;
 							completeFunc.value;
 						};
 					}.value;
@@ -1196,6 +1517,8 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 					screen_view
 						.mouseEnterAction_(mouse_enter_action)
 						.mouseOverAction_(mouse_over_action)
+						.mouseOverAction_(mouse_over_action)
+						.receiveDragHandler_(mouse_drag_action)
 						.mouseDownAction_(mouse_down_action)
 						.mouseWheelAction_(mouse_wheel_action)
 						.mouseMoveAction_(mouse_move_action)
@@ -1240,11 +1563,11 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 
 				if (script.notNil) {
 					if (currentScriptEnvIndex.notNil) {
-						"script #%'s environment popped".format(currentScriptEnvIndex).inform;
+						"script #%'s environment popped".format(currentScriptEnvIndex).inform; // TODO: print script name
 						Environment.pop;
 					};
 					script.push;
-					"script #%'s environment pushed".format(script_index).inform;
+					"script #%'s environment pushed".format(script_index).inform; // TODO: print script name
 				} {
 					Error("no script with index % in scripts array!".format(script_index)).throw;
 				};
