@@ -31,12 +31,11 @@ start_script.value {
 	var common_mouse = common[\mouse];
 
 	var settings_file = "moln.data";
-	var fps = 35;
+	var ui_refresh_rate = 35;
+
+	var script_context;
 
 	var engine_ready = false;
-
-	var r_polls, visual_values, r_params;
-	var ui;
 
 	var start_after_1_second_delay; // TODO: global in lua
 	var init_engine_init_delay_metro; // TODO: global in lua
@@ -44,9 +43,14 @@ start_script.value {
 	~engine.name = 'R';
 
 	~init = {
-		# r_polls, visual_values, r_params = r_moln_init.value(round(fps/20));
+		var r_moln_instance = r_moln_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: round(ui_refresh_rate/20)
+			)
+		);
 
-		ui = (
+		var ui_spec = (
 			arc: ( device: ~arc.connect_() ),
 			midi: (
 				device: ~midi.connect_(),
@@ -55,10 +59,10 @@ start_script.value {
 						var msg = ~midi.to_msg_(data);
 						case
 						{msg['type'] == 'note_off'} {
-							r_moln_note_off.value(msg.note);
+							r_moln_note_off.value(~engine, msg.note);
 						}
 						{msg['type'] == 'note_on'} {
-							r_moln_note_on.value(msg.note, msg.vel / 127);
+							r_moln_note_on.value(~engine, msg.note, msg.vel / 127);
 
 						}
 						{msg['type'] == 'cc'} {
@@ -117,99 +121,42 @@ start_script.value {
 				}
 			),
 			pages: [
-				[
-					(
-						label: "FREQ",
-						id: "filter_frequency",
-						formatter: formatters[\adaptive_freq]
-					),
-					(
-						label: "RES",
-						id: "filter_resonance",
-						formatter: formatters[\percentage]
-					),
-				],
-				[
-					(
-						label: "A.RNG",
-						id: "osc_a_range",
-						formatter: formatters[\range],
-					),
-					(
-						label: "B.RNG",
-						id: "osc_b_range",
-						formatter: formatters[\range]
-					),
-				],
-				[
-					(
-						label: "A.PW",
-						id: "osc_a_pulsewidth",
-						formatter: formatters[\percentage],
-					),
-					(
-						label: "B.PW",
-						id: "osc_b_pulsewidth",
-						formatter: formatters[\percentage],
-					),
-				],
-				[
-					(
-						label: "DETUN",
-						id: "osc_detune",
-						formatter: formatters[\percentage],
-					),
-					(
-						label: "LFO",
-						id: "lfo_frequency",
-						formatter: formatters[\adaptive_freq],
-					),
-				],
-				[
-					(
-						label: "PWM",
-						id: "lfo_to_osc_pwm",
-						formatter: formatters[\percentage],
-					),
-					(
-						label: "E>FIL",
-						id: "env_to_filter_fm",
-						formatter: formatters[\percentage],
-					),
-				],
-				[
-					(
-						label: "E.ATK",
-						id: "env_attack",
-						formatter: formatters[\adaptive_time],
-					),
-					(
-						label: "E.DEC",
-						id: "env_decay",
-						formatter: formatters[\adaptive_time],
-					),
-				],
-				[
-					(
-						label: "E.SUS",
-						id: "env_sustain",
-						formatter: formatters[\percentage],
-					),
-					(
-						label: "E.REL",
-						id: "env_release",
-						formatter: formatters[\adaptive_time],
-					),
-				],
-			]
+				[ (id: "filter_frequency"), (id: "filter_resonance") ],
+				[ (id: "osc_a_range"), (id: "osc_b_range") ],
+				[ (id: "osc_a_pulsewidth"), (id: "osc_b_pulsewidth") ],
+				[ (id: "osc_detune"), (id: "lfo_frequency") ],
+				[ (id: "lfo_to_osc_pwm"), (id: "env_to_filter_fm") ],
+				[ (id: "env_attack"), (id: "env_decay") ],
+				[ (id: "env_sustain"), (id: "env_release") ],
+			],
+			refresh_rate: ui_refresh_rate
 		);
 
-		start_after_1_second_delay.value;
+		script_context = common_init.value(
+			(
+				globals: (
+					screen: ~screen,
+					metro: ~metro,
+					params: ~params,
+					poll: ~poll,
+					redraw: ~redraw
+				),
+				param_specs: r_moln_instance[\param_specs],
+/*
+	TODO
+				poll_specs: r_moln_instance[\poll_specs],
+				visual_values: r_moln_instance[\visual_values],
+*/
+				ui_spec: ui_spec,
+				settings_file: settings_file,
+			)
+		);
+
+		start_after_1_second_delay.value(r_moln_instance);
 	};
 
-	start_after_1_second_delay = {
+	start_after_1_second_delay = { |r_moln_instance|
 		init_engine_init_delay_metro.value();
-		common_init.value(r_polls, r_params, ui, settings_file, fps);
 	};
 
 	init_engine_init_delay_metro = {
@@ -225,24 +172,42 @@ start_script.value {
 		engine_init_delay_metro.start_();
 	};
 
+/*
+	TODO
 	~cleanup = {
 		common_cleanup.value(settings_file);
 	};
+*/
 
 	~redraw = {
-		common_redraw.value();
+		common_redraw.value(script_context);
 	};
 
+/*
+	TODO
 	~enc = { |n, delta|
 		common_enc.value(n, delta);
 	};
+*/
 
 	~key = { |n, z|
-		common_key.value(n, z);
+		if (n == 1) {
+			if (z == 1) {
+				[60, 63, 67] do: { |note|
+					r_moln_note_on.value(~engine, note, 1);
+				};
+			} {
+				[60, 63, 67] do: { |note|
+					r_moln_note_off.value(~engine, note);
+				};
+			}
+		} {
+			common_key.value(script_context, n, z);
+		};
 	};
 
-	~mouse = { |... args|
-		common_mouse.value(*args);
+	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
+		common_mouse.value(*([script_context]++args)); // TODO: get away from using varargs for ~mouse
 	};
 };
 )

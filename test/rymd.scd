@@ -17,106 +17,80 @@ start_script.value {
 	var r_rymd = include_relative.value('lib/r_rymd.scd');
 	var r_rymd_init = r_rymd[\init];
 
-	var formatters = include_relative.value("lib/formatters.scd");
-
 	var common = include_relative.value("lib/common.scd");
 	var common_init = common[\init];
-	var common_cleanup = common[\cleanup];
 	var common_redraw = common[\redraw];
-	var common_enc = common[\enc];
 	var common_key = common[\key];
 	var common_mouse = common[\mouse];
 
 	var settings_file = "rymd.data";
-	var fps = 35;
+	var ui_refresh_rate = 35;
+
+	var script_context;
 
 	~engine.name = 'R';
 
 	~init = {
-		var r_polls, visual_values, r_params;
-		var ui;
-
-		# r_polls, visual_values, r_params = r_rymd_init.value(round(fps/20));
-
-		ui = (
-			arc: ( device: ~arc.connect_() ),
-			pages: [
-				[
-					(
-						label: "DIR",
-						id: "direct",
-						formatter: formatters[\adaptive_db],
-					),
-					(
-						label: "SEND",
-						id: "delay_send",
-						formatter: formatters[\adaptive_db]
-					),
-				],
-				[
-					(
-						label: "L.TIME",
-						id: "delay_time_left",
-						formatter: formatters[\adaptive_time],
-						visual_values: visual_values[\delay_time_left]
-					),
-					(
-						label: "R.TIME",
-						id: "delay_time_right",
-						formatter: formatters[\adaptive_time],
-						visual_values: visual_values[\delay_time_right]
-					),
-				],
-				[
-					(
-						label: "DAMP",
-						id: "damping",
-						formatter: formatters[\adaptive_freq],
-					),
-					(
-						label: "FBK",
-						id: "feedback",
-						formatter: { |param|
-							round(param.get_raw_()*100, 1).asString++"%";
-						}
-					),
-				],
-				[
-					(
-						label: "RATE",
-						id: "mod_rate",
-						formatter: formatters[\adaptive_freq],
-					),
-					(
-						label: "MOD",
-						id: "delay_time_mod_depth",
-						formatter: formatters[\percentage],
-					),
-				],
-			]
+		var r_rymd_instance = r_rymd_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: round(ui_refresh_rate/20)
+			)
 		);
 
-		common_init.value(r_polls, r_params, ui, settings_file, fps);
+		var ui_spec = (
+			arc: ( device: ~arc.connect_() ),
+			pages: [
+				[ (id: 'direct'), (id: 'delay_send') ],
+				[ (id: 'delay_time_left'), ( id: 'delay_time_right') ],
+				[ (id: 'damping'), (id: 'feedback') ],
+				[ (id: 'mod_rate'), (id: 'delay_time_mod_depth') ]
+			],
+			refresh_rate: ui_refresh_rate
+		);
+
+		script_context = common_init.value(
+			(
+				globals: (
+					screen: ~screen,
+					metro: ~metro,
+					params: ~params,
+					poll: ~poll,
+					redraw: ~redraw
+				),
+				param_specs: r_rymd_instance[\param_specs],
+				poll_specs: r_rymd_instance[\poll_specs], // TODO: rename to visual specs?
+				visual_values: r_rymd_instance[\visual_values],
+				ui_spec: ui_spec,
+				settings_file: settings_file,
+			)
+		);
 	};
 
+/*
+	TODO
 	~cleanup = {
 		common_cleanup.value(settings_file);
 	};
+*/
 
 	~redraw = {
-		common_redraw.value();
+		common_redraw.value(script_context);
 	};
 
+/*
+	TODO
 	~enc = { |n, delta|
 		common_enc.value(n, delta);
 	};
+*/
 
 	~key = { |n, z|
-		common_key.value(n, z);
+		common_key.value(script_context, n, z);
 	};
 
-	~mouse = { |... args|
-		common_mouse.value(*args);
+	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
+		common_mouse.value(*([script_context]++args)); // TODO: get away from using varargs for ~mouse
 	};
 };
 )

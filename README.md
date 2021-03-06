@@ -685,6 +685,8 @@ R.util.poly_expand("Osc", 3) -- returns "Osc1 Osc2 Osc3"
 
 ## Extending R
 
+TODO: new approach used
+
 Modules are written by way of subclassing the `RModule` class. A subclass supplies a unique module type name (by overriding `*shortName`), an array of specs for each module parameter (`*params`) and a SynthDef Ugen Graph function (`*ugenGraphFunc`) whose function arguments prefixed with `param_`, `in_` and `out_` are treated as parameter controls and input and output busses. The R engine will introspect the ugenGraphFunc and together with the parameter specs provide scaffolding necessary to supply parameter values and interconnect modules.
 
 Note: If a dictionary is supplied for a parameter in the `*params` array, its `Spec` key value will be used as spec and its `LagTime` value will be used as fixed lag rate for the parameter.
@@ -725,9 +727,9 @@ RTestModule : RModule { // subclassing RModule makes this a module
 
 ### Updating the R Lua module
 
-To be usable with functions in the R Lua module `R.engine` table module parameter metadata has to be included in the `R.specs` table. `R.specs` can be generated in SuperCollider from RModule metadata using the `Engine_R.generateLuaSpecs` method.
+To be usable with functions in the R Lua module `R.engine` table module parameter metadata has to be included in the `R.specs` table. `R.specs` can be generated in SuperCollider from RModule metadata using the `Engine_R.generateLuaSpecs` method. TODO: new variant used
 
-Module documentation stubs may be generated in SuperCollider using the ```Rrrr.generateModulesDocSection``` method.
+Module documentation stubs may be generated in SuperCollider using the ```Rrrr.generateModulesDocSection``` method. TODO: new variant used
 
 ### Gotchas
 

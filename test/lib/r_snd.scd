@@ -9,114 +9,128 @@ var include_relative = { |relative_path|
 };
 
 var r_specs = include_relative.value("r_specs.scd");
-var formatters = include_relative.value("formatters.scd");
+var formatters = include_relative.value("formatters.scd"); // TODO: ... this
+var custom_formatters = include_relative.value("formatters.scd"); // TODO: ... this
 
-var visual_values;
+var init = { |config|
+	var engine_global = config[\engine_global] ?? { Error("engine global is required").throw }; // TODO: make this more declarative: do not invoke engine global here, only send back metadata
+	var visual_buf_size = config[\visual_buf_size] ?? { Error("visual_buf_size is required").throw };
+	var parameter_style = config[\parameter_style] ? 'wide';
 
-var init = { |visual_buf_size|
-	var r_polls, r_params;
-	init_r_modules.value();
-	r_params = init_r_params.value();
+	init_r_modules.value(engine_global);
 
-	[nil, nil, r_params];
+	(
+		param_specs: get_param_specs.value(engine_global)
+	)
 };
 
-var init_r_modules = {
-	create_modules.value();
-	set_static_module_params.value();
-	connect_modules.value();
+var init_r_modules = { |engine_global|
+	create_modules.value(engine_global);
+	set_static_module_params.value(engine_global);
+	connect_modules.value(engine_global);
 };
 
-var create_modules = {
-	~engine.new_("FreqGate", "FreqGate");
-	~engine.new_("MultiOsc", "MultiOsc");
-	~engine.new_("Filter", "LPLadder");
-	~engine.new_("Amplifier", "MGain");
-	~engine.new_("SoundOut", "SoundOut");
+var create_modules = { |engine_global|
+	engine_global.new_("FreqGate", "FreqGate");
+	engine_global.new_("MultiOsc", "MultiOsc");
+	engine_global.new_("Filter", "LPLadder");
+	engine_global.new_("Amplifier", "MGain");
+	engine_global.new_("SoundOut", "SoundOut");
 };
 
-var set_static_module_params = {
-	~engine.set_("MultiOsc.FM", 1);
+var set_static_module_params = { |engine_global|
+	engine_global.set_("MultiOsc.FM", 1);
 };
 
-var connect_modules = {
-	~engine.connect_("FreqGate/Frequency", "MultiOsc*FM");
-	~engine.connect_("MultiOsc/Pulse", "Filter*In");
-	~engine.connect_("Filter/Out", "Amplifier*In");
-	~engine.connect_("Amplifier/Out", "SoundOut*Left");
-	~engine.connect_("Amplifier/Out", "SoundOut*Right");
+var connect_modules = { |engine_global|
+	engine_global.connect_("FreqGate/Frequency", "MultiOsc*FM");
+	engine_global.connect_("MultiOsc/Pulse", "Filter*In");
+	engine_global.connect_("Filter/Out", "Amplifier*In");
+	engine_global.connect_("Amplifier/Out", "SoundOut*Left");
+	engine_global.connect_("Amplifier/Out", "SoundOut*Right");
 };
 
-var cutoff_spec;
-
-var init_r_params = {
-	var r_params = [];
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "frequency",
-			\type -> "control",
-			\name -> "Frequency",
-			\controlspec -> r_specs[\FreqGate][\Frequency],
-			\action -> { |value|
-				~engine.set_("FreqGate.Frequency", value);
-			}
-		]
-	);
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "pulse_width",
-			\type -> "control",
-			\name -> "Pulse Width",
-			\controlspec -> r_specs[\MultiOsc][\PulseWidth],
-			\action -> { |value|
-				~engine.set_("MultiOsc.PulseWidth", value);
-			}
-		]
-	);
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "cutoff",
-			\type -> "control",
-			\name -> "Cutoff",
-			\controlspec -> r_specs[\LPLadder][\Frequency],
-			\action -> { |value|
-				~engine.set_("Filter.Frequency", value);
-			}
-		]
-	);
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "resonance",
-			\type -> "control",
-			\name -> "Resonance",
-			\controlspec -> r_specs[\LPLadder][\Resonance],
-			\formatter -> formatters[\percentage],
-			\action -> { |value|
-				~engine.set_("Filter.Resonance", value);
-			}
-		]
-	);
-
-	r_params = r_params.add(add_output_level_param.value);
-
-	r_params;
+var get_param_specs = { |engine_global|
+	[
+		get_osc_frequency_param_spec.value(engine_global),
+		get_osc_pulsewidth_param_spec.value(engine_global),
+		get_filter_cutoff_param_spec.value(engine_global),
+		get_filter_resonance_param_spec.value(engine_global),
+		get_output_level_param_spec.value(engine_global)
+	];
 };
 
-var add_output_level_param = {
+var get_osc_frequency_param_spec = { |engine_global|
+	IdentityDictionary[
+		\id -> "frequency",
+		\type -> "control",
+		\controlspec -> r_specs[\FreqGate][\Frequency],
+		\name -> "Frequency",
+		\narrow_name -> "FREQ",
+		\formatter -> custom_formatters[\adaptive_freq],
+		\action -> { |value|
+			engine_global.set_("FreqGate.Frequency", value);
+		}
+	];
+};
+
+var get_osc_pulsewidth_param_spec = { |engine_global|
+	IdentityDictionary[
+		\id -> "pulse_width",
+		\type -> "control",
+		\controlspec -> r_specs[\MultiOsc][\PulseWidth],
+		\name -> "Pulse Width",
+		\formatter -> formatters[\percentage],
+		\narrow_name -> "PW",
+		\action -> { |value|
+			engine_global.set_("MultiOsc.PulseWidth", value);
+		}
+	];
+};
+
+var get_filter_cutoff_param_spec = { |engine_global|
+	var param_spec = IdentityDictionary[
+		\id -> "cutoff",
+		\type -> "control",
+		\controlspec -> r_specs[\LPLadder][\Frequency],
+		\name -> "Cutoff",
+		\narrow_name -> "CUTOFF",
+		\narrow_formatter -> custom_formatters[\adaptive_freq],
+		\action -> { |value|
+			engine_global.set_("Filter.Frequency", value);
+		}
+	];
+
+	param_spec;
+};
+
+var get_filter_resonance_param_spec = { |engine_global|
+	IdentityDictionary[
+		\id -> "resonance",
+		\type -> "control",
+		\controlspec -> r_specs[\LPLadder][\Resonance],
+		\name -> "Resonance",
+		\formatter -> custom_formatters[\percentage],
+		\narrow_name -> "RES",
+		\action -> { |value|
+			engine_global.set_("Filter.Resonance", value);
+		}
+	];
+};
+
+var get_output_level_param_spec = { |engine_global|
 	var spec = r_specs['MGain']['Gain'].copy;
 	spec.default = -10;
 
 	IdentityDictionary[
 		\id -> "output_level",
 		\type -> "control",
-		\name -> "Amplifier.Gain",
 		\controlspec -> spec,
-		\formatter -> formatters.round_(0.1),
-		\action -> { |value| ~engine.set_("Amplifier.Gain", value) }
+		\name -> "Level",
+		\narrow_name -> "LVL", // TODO: format to 0 ... 100 in narrow_formatter - don't use raw value in script
+		\action -> { |value|
+			engine_global.set_("Amplifier.Gain", value);
+		}
 	];
 };
 

@@ -17,106 +17,87 @@ start_script.value {
 	var r_skev = include_relative.value('lib/r_skev.scd');
 	var r_skev_init = r_skev[\init];
 
-	var formatters = include_relative.value("lib/formatters.scd");
-
 	var common = include_relative.value("lib/common.scd");
 	var common_init = common[\init];
-	var common_cleanup = common[\cleanup];
 	var common_redraw = common[\redraw];
-	var common_enc = common[\enc];
 	var common_key = common[\key];
 	var common_mouse = common[\mouse];
 
+	/*
+		TODO
+	var common_cleanup = common[\cleanup];
+	var common_enc = common[\enc];
+	var common_key = common[\key];
+	*/
+
 	var settings_file = "skev.data";
-	var fps = 35;
+	var ui_refresh_rate = 35;
+
+	var script_context;
 
 	~engine.name = 'R';
 
 	~init = {
-		var r_polls, visual_values, r_params;
-		var ui;
-
-		# r_polls, visual_values, r_params = r_skev_init.value(round(fps/20));
-
-		ui = (
-			arc: ( device: ~arc.connect_() ),
-			pages: [
-				[
-					(
-						label: "F.SHFT",
-						id: "freq_shift",
-						formatter: formatters[\adaptive_freq],
-						visual_values: visual_values[\freq_shift]
-					),
-					(
-						label: "P.RAT",
-						id: "pitch_ratio",
-						formatter: formatters[\percentage],
-						visual_values: visual_values[\pitch_ratio]
-					),
-				],
-				[
-					(
-						label: "P.DISP",
-						id: "pitch_dispersion",
-						formatter: formatters[\percentage]
-					),
-					(
-						label: "T.DISP",
-						id: "time_dispersion",
-						formatter: formatters[\percentage]
-					),
-				],
-				[
-					(
-						label: "LFO.HZ",
-						id: "lfo_rate",
-						formatter: formatters[\adaptive_freq],
-					),
-					(
-						label: "LFO.SHP",
-						id: "lfo_rate",
-						formatter: { |param|
-							"N/A";
-						}
-					),
-				],
-				[
-					(
-						label: ">F.SHIFT",
-						id: "lfo_to_freq_shift",
-						formatter: formatters[\percentage],
-					),
-					(
-						label: ">P.RAT",
-						id: "lfo_to_pitch_ratio",
-						formatter: formatters[\percentage],
-					),
-				],
-			]
+		var r_skev_instance = r_skev_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: round(ui_refresh_rate/20)
+			)
 		);
 
-		common_init.value(r_polls, r_params, ui, settings_file, fps);
+		var ui_spec = (
+			arc: ( device: ~arc.connect_() ),
+			pages: [
+				[ (id: 'freq_shift'), (id: 'pitch_ratio') ],
+				[ (id: 'pitch_dispersion'), ( id: 'time_dispersion') ],
+				[ (id: 'lfo_rate'), (id: 'lfo_rate') ],
+				[ (id: 'lfo_to_freq_shift'), (id: 'lfo_to_pitch_ratio') ]
+			],
+			refresh_rate: ui_refresh_rate
+		);
+
+		script_context = common_init.value(
+			(
+				globals: (
+					screen: ~screen,
+					metro: ~metro,
+					params: ~params,
+					poll: ~poll,
+					redraw: ~redraw
+				),
+				param_specs: r_skev_instance[\param_specs],
+				poll_specs: r_skev_instance[\poll_specs],
+				visual_values: r_skev_instance[\visual_values],
+				ui_spec: ui_spec,
+				settings_file: settings_file,
+			)
+		);
 	};
 
+/*
+	TODO
 	~cleanup = {
 		common_cleanup.value(settings_file);
 	};
+*/
 
 	~redraw = {
-		common_redraw.value();
+		common_redraw.value(script_context);
 	};
 
+/*
+	TODO
 	~enc = { |n, delta|
 		common_enc.value(n, delta);
 	};
+*/
 
 	~key = { |n, z|
-		common_key.value(n, z);
+		common_key.value(script_context, n, z);
 	};
 
-	~mouse = { |... args|
-		common_mouse.value(*args);
+	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
+		common_mouse.value(*([script_context]++args)); // TODO: get away from using varargs for ~mouse
 	};
 };
 )

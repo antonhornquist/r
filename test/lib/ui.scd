@@ -40,6 +40,7 @@ var midi_event_callback;
 var midi_is_inited = false;
 
 var screen_refresh_callback;
+var screen_global;
 
 // refresh logic
 
@@ -79,7 +80,7 @@ var refresh = {
 		if (screen_refresh_callback.notNil) {
 			screen_refresh_callback.value();
 		};
-		~screen.update_(); // norns global
+		screen_global.update_(); // norns global
 		screen_dirty = false;
 	};
 };
@@ -208,6 +209,7 @@ var check_midi_connected = {
 // screen
 
 var init_screen = { |config|
+	screen_global = config[\screen_global] ?? { Error("screen global is required").throw };
 	screen_refresh_callback = config[\on_refresh];
 };
 

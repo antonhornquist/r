@@ -10,222 +10,242 @@ var include_relative = { |relative_path|
 
 var r_specs = include_relative.value("r_specs.scd");
 var formatters = include_relative.value("formatters.scd");
+var custom_formatters = include_relative.value("formatters.scd"); // TODO: ... this
 var capped_list = include_relative.value("capped_list.scd");
 var capped_list_create = capped_list[\create];
 var capped_list_push = capped_list[\push];
 
-var visual_values;
+var init = { |config|
+	var engine_global = config[\engine_global] ?? { Error("engine global is required").throw }; // TODO: make this more declarative: do not invoke engine global here, only send back metadata
+	var visual_buf_size = config[\visual_buf_size] ?? { Error("visual_buf_size is required").throw };
+	var visual_value_bufs = create_visual_values_bufs.value(visual_buf_size);
 
-var init = { |visual_buf_size|
-	var r_polls, r_params;
-	init_r_modules.value();
-	visual_values = init_visual_values_bufs.value(visual_buf_size);
-	r_polls = init_r_polls.value();
-	r_params = init_r_params.value();
+	init_r_modules.value(engine_global);
 
-	[r_polls, visual_values, r_params];
+	(
+		param_specs: get_param_specs.value(engine_global),
+		poll_specs: get_poll_specs.value(visual_value_bufs),
+		visual_values: visual_value_bufs // TODO: rename key to visual_value_bufs too
+	)
 };
 
-var init_r_modules = {
-	create_modules.value();
-	set_static_module_params.value();
-	connect_modules.value();
-	~engine.pollvisual_(1, "FilterL=Frequency");
+var init_r_modules = { |engine_global|
+	create_modules.value(engine_global);
+	set_static_module_params.value(engine_global);
+	connect_modules.value(engine_global);
+	engine_global.pollvisual_(1, "FilterL=Frequency");
 };
 
-var create_modules = {
-	~engine.new_("LFO", "MultiLFO");
-	~engine.new_("SoundIn", "SoundIn");
-	~engine.new_("EnvF", "EnvF");
-	~engine.new_("ModMix", "LinMixer");
-	~engine.new_("FilterL", "LPLadder");
-	~engine.new_("FilterR", "LPLadder");
-	~engine.new_("Amplifier", "SGain");
-	~engine.new_("SoundOut", "SoundOut");
+var create_modules = { |engine_global|
+	engine_global.new_("LFO", "MultiLFO");
+	engine_global.new_("SoundIn", "SoundIn");
+	engine_global.new_("EnvF", "EnvF");
+	engine_global.new_("ModMix", "LinMixer");
+	engine_global.new_("FilterL", "LPLadder");
+	engine_global.new_("FilterR", "LPLadder");
+	engine_global.new_("Amplifier", "SGain");
+	engine_global.new_("SoundOut", "SoundOut");
 };
 
-var set_static_module_params = {
-	~engine.set_("FilterL.FM", 1);
-	~engine.set_("FilterR.FM", 1);
-	~engine.set_("ModMix.Out", 1);
+var set_static_module_params = { |engine_global|
+	engine_global.set_("FilterL.FM", 1);
+	engine_global.set_("FilterR.FM", 1);
+	engine_global.set_("ModMix.Out", 1);
 };
 
-var connect_modules = {
-	~engine.connect_("SoundIn/Left", "FilterL*In");
-	~engine.connect_("SoundIn/Right", "FilterR*In");
-	~engine.connect_("LFO/Sine", "ModMix*In1");
-	~engine.connect_("SoundIn/Left", "EnvF*In");
-	~engine.connect_("EnvF/Env", "ModMix*In2");
-	~engine.connect_("ModMix/Out", "FilterL*FM");
-	~engine.connect_("ModMix/Out", "FilterR*FM");
-	~engine.connect_("FilterL/Out", "Amplifier*Left");
-	~engine.connect_("FilterR/Out", "Amplifier*Right");
-	~engine.connect_("Amplifier/Left", "SoundOut*Left");
-	~engine.connect_("Amplifier/Right", "SoundOut*Right");
+var connect_modules = { |engine_global|
+	engine_global.connect_("SoundIn/Left", "FilterL*In");
+	engine_global.connect_("SoundIn/Right", "FilterR*In");
+	engine_global.connect_("LFO/Sine", "ModMix*In1");
+	engine_global.connect_("SoundIn/Left", "EnvF*In");
+	engine_global.connect_("EnvF/Env", "ModMix*In2");
+	engine_global.connect_("ModMix/Out", "FilterL*FM");
+	engine_global.connect_("ModMix/Out", "FilterR*FM");
+	engine_global.connect_("FilterL/Out", "Amplifier*Left");
+	engine_global.connect_("FilterR/Out", "Amplifier*Right");
+	engine_global.connect_("Amplifier/Left", "SoundOut*Left");
+	engine_global.connect_("Amplifier/Right", "SoundOut*Right");
 };
 
-var init_visual_values_bufs = { |visual_buf_size|
+var create_visual_values_bufs = { |visual_buf_size|
 	IdentityDictionary[
 		\cutoff -> capped_list_create.value(visual_buf_size)
 	];
 };
 
-var cutoff_spec;
-
-var init_r_polls = {
+var get_poll_specs = { |visual_values|
 	[
-		IdentityDictionary[
-			\id -> "cutoff",
-			\handler -> { |value|
-				var visual_value = cutoff_spec.unmap(value);
-				capped_list_push.value(visual_values[\cutoff], visual_value);
-			}
-		]
+		get_cutoff_poll_spec.value(visual_values),
+	];
+};
+
+var get_cutoff_poll_spec = { |visual_values|
+	var spec = r_specs[\LPLadder][\Frequency].copy();
+	spec.default = 1000;
+	spec.minval = 20; // TODO: this might not be right
+	spec.maxval = 10000; // TODO: this might not be right
+	IdentityDictionary[
+		\id -> "cutoff",
+		\handler -> { |value|
+			var visual_value = spec.unmap(value);
+			capped_list_push.value(visual_values[\cutoff], visual_value);
+		}
+	];
+};
+
+var get_param_specs = { |engine_global|
+	[
+		get_cutoff_param_spec.value(engine_global),
+		get_resonance_param_spec.value(engine_global),
+		get_lfo_rate_param_spec.value(engine_global),
+		get_lfo_to_cutoff_param_spec.value(engine_global),
+		get_env_attack_param_spec.value(engine_global),
+		env_decay_param_spec.value(engine_global),
+		env_sensitivity_param_spec.value(engine_global),
+		env_to_cutoff_param_spec.value(engine_global),
+		get_output_level_param_spec.value(engine_global)
+	];
+};
+
+var get_cutoff_param_spec = { |engine_global|
+	var spec = r_specs[\LPLadder][\Frequency].copy();
+	spec.default = 1000;
+	spec.minval = 20;
+	spec.maxval = 10000;
+
+	IdentityDictionary[
+		\id -> "cutoff",
+		\type -> "control",
+		\name -> "Cutoff",
+		\narrow_name -> "CUTOFF",
+		\narrow_formatter -> custom_formatters[\adaptive_freq],
+		\controlspec -> spec,
+		\action -> { |value|
+			engine_global.set_("FilterL.Frequency", value);
+			engine_global.set_("FilterR.Frequency", value);
+		}
 	]
 };
 
-var init_r_params = {
-	var r_params = [];
+var get_resonance_param_spec = { |engine_global|
+	var spec = r_specs[\LPLadder][\Resonance].copy();
+	spec.default = 0.5;
 
-	var resonance_spec;
-	var lfo_rate_spec;
-	var lfo_to_cutoff_spec;
-	var env_attack_spec;
-	var env_decay_spec;
-	var env_to_cutoff_spec;
-
-	cutoff_spec = r_specs[\LPLadder][\Frequency].copy();
-	cutoff_spec.default = 1000;
-	cutoff_spec.minval = 20;
-	cutoff_spec.maxval = 10000;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "cutoff",
-			\type -> "control",
-			\name -> "Cutoff",
-			\controlspec -> cutoff_spec,
-			\action -> { |value|
-				~engine.set_("FilterL.Frequency", value);
-				~engine.set_("FilterR.Frequency", value);
-			}
-		]
-	);
-
-	resonance_spec = r_specs[\LPLadder][\Resonance].copy();
-	resonance_spec.default = 0.5;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "resonance",
-			\type -> "control",
-			\name -> "Resonance",
-			\controlspec -> resonance_spec,
-			\formatter -> formatters[\percentage],
-			\action -> { |value|
-				~engine.set_("FilterL.Resonance", value);
-				~engine.set_("FilterR.Resonance", value);
-			}
-		]
-	);
-
-	lfo_rate_spec = r_specs[\MultiLFO][\Frequency].copy();
-	lfo_rate_spec.default = 0.5;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "lfo_rate",
-			\type -> "control",
-			\name -> "LFO Rate",
-			\controlspec -> lfo_rate_spec,
-			\formatter -> formatters[\round].value(0.001),
-			\action -> { |value|
-				~engine.set_("LFO.Frequency", value);
-			}
-		]
-	);
-
-	lfo_to_cutoff_spec = r_specs[\LinMixer][\In1];
-	lfo_to_cutoff_spec.default = 0.1;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "lfo_to_cutoff",
-			\type -> "control",
-			\name -> "LFO > Cutoff",
-			\controlspec -> lfo_to_cutoff_spec,
-			\formatter -> formatters[\percentage],
-			\action -> { |value|
-				~engine.set_("ModMix.In1", value);
-			}
-		]
-	);
-
-	env_attack_spec = r_specs[\ADSREnv][\Attack].copy();
-	env_attack_spec.default = 50;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "envf_attack",
-			\type -> "control",
-			\name -> "EnvF Attack",
-			\controlspec -> env_attack_spec,
-			\action -> { |value|
-				~engine.set_("EnvF.Attack", value);
-			}
-		]
-	);
-
-	env_decay_spec = r_specs[\ADSREnv][\Decay].copy();
-	env_decay_spec.default = 100;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "envf_decay",
-			\type -> "control",
-			\name -> "EnvF Decay",
-			\controlspec -> env_decay_spec,
-			\action -> { |value|
-				~engine.set_("EnvF.Decay", value);
-			}
-		]
-	);
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "envf_sensitivity",
-			\type -> "control",
-			\name -> "EnvF Sensitivity",
-			\controlspec -> ControlSpec.new(0, 1),
-			\formatter -> formatters[\percentage],
-			\action -> { |value|
-				~engine.set_("EnvF.Sensitivity", value);
-			}
-		]
-	);
-
-	env_to_cutoff_spec = r_specs[\LinMixer][\In2].copy();
-	env_to_cutoff_spec.default = 0.1;
-
-	r_params = r_params.add(
-		IdentityDictionary[
-			\id -> "env_to_cutoff",
-			\type -> "control",
-			\name -> "Env > Cutoff",
-			\controlspec -> env_to_cutoff_spec,
-			\formatter -> formatters[\percentage],
-			\action -> { |value|
-				~engine.set_("ModMix.In2", value);
-			}
-		]
-	);
-
-	r_params = r_params.add(init_output_level_param.value);
-
-	r_params;
+	IdentityDictionary[
+		\id -> "resonance",
+		\type -> "control",
+		\name -> "Resonance",
+		\narrow_name -> "RES",
+		\controlspec -> spec,
+		\formatter -> formatters[\percentage],
+		\action -> { |value|
+			engine_global.set_("FilterL.Resonance", value);
+			engine_global.set_("FilterR.Resonance", value);
+		}
+	]
 };
 
-var init_output_level_param = {
+var get_lfo_rate_param_spec = { |engine_global|
+	var spec = r_specs[\MultiLFO][\Frequency].copy();
+	spec.default = 0.5;
+
+	IdentityDictionary[
+		\id -> "lfo_rate",
+		\type -> "control",
+		\name -> "LFO Rate",
+		\narrow_name -> "LFO",
+		\controlspec -> spec,
+		\formatter -> formatters[\round].value(0.001),
+		\narrow_formatter -> custom_formatters[\adaptive_freq],
+		\action -> { |value|
+			engine_global.set_("LFO.Frequency", value);
+		}
+	]
+};
+
+var get_lfo_to_cutoff_param_spec = { |engine_global|
+	var spec = r_specs[\LinMixer][\In1];
+	spec.default = 0.1;
+
+	IdentityDictionary[
+		\id -> "lfo_to_cutoff",
+		\type -> "control",
+		\name -> "LFO > Cutoff",
+		\name -> "L>FRQ",
+		\controlspec -> spec,
+		\formatter -> formatters[\percentage],
+		\action -> { |value|
+			engine_global.set_("ModMix.In1", value);
+		}
+	]
+};
+
+var get_env_attack_param_spec = { |engine_global|
+	var spec = r_specs[\ADSREnv][\Attack].copy();
+	spec.default = 50;
+
+	IdentityDictionary[
+		\id -> "envf_attack",
+		\type -> "control",
+		\name -> "EnvF Attack",
+		\narrow_name -> "E.ATK",
+		\controlspec -> spec,
+		\narrow_formatter -> custom_formatters[\adaptive_time],
+		\action -> { |value|
+			engine_global.set_("EnvF.Attack", value);
+		}
+	]
+};
+
+var env_decay_param_spec = { |engine_global|
+	var spec = r_specs[\ADSREnv][\Decay].copy();
+	spec.default = 100;
+
+	IdentityDictionary[
+		\id -> "envf_decay",
+		\type -> "control",
+		\name -> "EnvF Decay",
+		\narrow_name -> "E.DEC",
+		\controlspec -> spec,
+		\narrow_formatter -> custom_formatters[\adaptive_time],
+		\action -> { |value|
+			engine_global.set_("EnvF.Decay", value);
+		}
+	]
+};
+
+var env_sensitivity_param_spec = { |engine_global|
+	IdentityDictionary[
+		\id -> "envf_sensitivity",
+		\type -> "control",
+		\name -> "EnvF Sensitivity",
+		\narrow_name -> "E.SNS",
+		\controlspec -> ControlSpec.new(0, 1),
+		\formatter -> formatters[\percentage],
+		\action -> { |value|
+			engine_global.set_("EnvF.Sensitivity", value);
+		}
+	]
+};
+
+var env_to_cutoff_param_spec = { |engine_global|
+	var spec = r_specs[\LinMixer][\In2].copy();
+	spec.default = 0.1;
+
+	IdentityDictionary[
+		\id -> "env_to_cutoff",
+		\type -> "control",
+		\name -> "Env > Cutoff",
+		\narrow_name -> "E>FRQ",
+		\controlspec -> spec,
+		\formatter -> formatters[\percentage],
+		\action -> { |value|
+			engine_global.set_("ModMix.In2", value);
+		}
+	]
+};
+
+var get_output_level_param_spec = { |engine_global|
 	var spec = r_specs['MGain']['Gain'].copy;
 	spec.default = -10;
 
@@ -235,7 +255,7 @@ var init_output_level_param = {
 		\name -> "Amplifier.Gain",
 		\controlspec -> spec,
 		\formatter -> formatters.round_(0.1),
-		\action -> { |value| ~engine.set_("Amplifier.Gain", value) }
+		\action -> { |value| engine_global.set_("Amplifier.Gain", value) }
 	];
 };
 

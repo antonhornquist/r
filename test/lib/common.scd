@@ -1,8 +1,6 @@
 (
 // shared logic for paged user interface
 
-// uses screen, metro, params, poll globals
-
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	if (File.exists(path)) {
@@ -12,240 +10,229 @@ var include_relative = { |relative_path|
 	};
 };
 
-var ui = include_relative.value("ui.scd");
-var ui_init_arc = ui[\init_arc];
-var ui_init_screen = ui[\init_screen];
-var ui_init_grid = ui[\init_grid];
-var ui_init_midi = ui[\init_midi];
-var ui_grid_width = ui[\grid_width];
-var ui_refresh = ui[\refresh];
-var ui_set_dirty = ui[\set_dirty];
-var ui_event_indicator_is_shown = ui[\event_indicator_is_shown];
+var device_manager = include_relative.value("device_manager.scd");
+var device_manager_init = device_manager[\init];
+var device_manager_grid_width = device_manager[\grid_width];
+var device_manager_refresh = device_manager[\refresh];
+var device_manager_set_dirty = device_manager[\set_dirty];
+var device_manager_event_indicator_is_shown = device_manager[\event_indicator_is_shown]; // TODO: event_received_recently
 
+// arc_common - start
 var bow = include_relative.value("bow.scd");
-var spawn_render_ring_function = bow[\spawn_render_ring_function];
-var render_ring = spawn_render_ring_function.value();
+var bob_spawn_render_ring_function = bow[\spawn_render_ring_function];
+var render_ring = bob_spawn_render_ring_function.value();
+// arc_common - finish
 
 var hi_level = 15;
 var lo_level = 5; // TODO: 4 in lua
 
-var fine = false;
-var prev_held = false;
-var next_held = false;
-var fps;
-var current_page = 0;
+var init = { |conf|
+	var globals = conf[\globals];
+	var param_specs = conf[\param_specs] ?? { Error("param specs are required").throw };
+	var poll_specs = conf[\poll_specs];
+	var visual_values = conf[\visual_values] ? ();
+	var settings_file = conf[\settings_file];
+	var ui_spec = conf[\ui_spec]; // TODO: ui_spec/pages can be made optional
 
-var script_polls;
+	var screen_global = globals[\screen] ?? { Error("screen global is required").throw };
+	var redraw_global = globals[\redraw] ?? { Error("redraw global is required").throw };
+	var metro_global = globals[\metro] ?? { Error("metro global is required").throw };
+	var params_global = globals[\params] ?? { Error("params global is required").throw }; // TODO: only required if there are param specs passed
+	var poll_global = globals[\poll] ?? { Error("poll global is required").throw }; // TODO: only required if there are poll specs passed
 
-var target_page;
-var page_trans_div;
-var page_trans_frames;
+	var refresh_rate = ui_spec[\refresh_rate] ?? { Error("refresh rate is required").throw };
 
-var focus;
-var active;
+	var script_context = (
+		globals: (
+			screen: screen_global,
+			redraw: redraw_global,
+			metro: metro_global,
+			params: params_global,
+			poll: poll_global
+		), // TODO: flatten into script context - for speed
+		ui_spec: ui_spec,
+		state: ( // TODO: flatten into script context - for speed
+			current_page: 0,
+			fine: false,
+			prev_held: false,
+			next_held: false,
+			target_page: nil,
+			page_trans_div: nil,
+			page_trans_frames: nil,
+			focus: nil,
+			active: nil,
+			mouse_move_pos: nil,
+			mouse_down_pos: nil,
+			visual_values: visual_values,
+			settings_file: settings_file,
+			ui_instance: nil // TODO: soon
+		)
+	);
 
-var pages;
+	add_params.value(script_context, param_specs, params_global);
+	init_ui.value(script_context);
+	load_settings_and_params.value(settings_file, params_global);
+	create_and_start_polls.value(script_context, poll_specs, refresh_rate);
+	start_ui.value(script_context);
 
-var init = { |r_polls, r_params, ui, settings_file, arg_fps|
-	fps = arg_fps;
-
-	init_script_polls.value(r_polls);
-	init_params.value(r_params);
-	init_ui.value(ui);
-	load_settings_and_params.value(settings_file);
-	start_script_polls.value();
-	start_ui.value();
+	script_context;
 };
 
-var init_script_polls = { |r_polls|
-	script_polls = r_polls.collect { |r_poll, i|
-		var script_poll = ~poll.set_("poll" ++ (i+1)) { |value|
-			r_poll[\handler].value(value);
-			ui_set_dirty.value();
-		};
-		script_poll.time_ = 1/fps;
-		script_poll
-	};
-};
-
-var init_params = { |r_params|
-	r_params.do { |r_param|
-		~params.add_(
+var add_params = { |script_context, param_specs, params_global|
+	param_specs.do { |param_spec|
+		params_global.add_(
 			(
-				type: r_param[\type],
-				id: r_param[\id],
-				name: r_param[\name],
-				controlspec: r_param[\controlspec],
+				type: param_spec[\type],
+				id: param_spec[\id],
+				name: param_spec[\narrow_name] ? param_spec[\name],
+				controlspec: param_spec[\controlspec],
+				formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
 				action: { |value|
-					r_param[\action].value(value);
-					ui_set_dirty.value();
+					param_spec[\action].value(value);
+					set_ui_dirty.value(script_context);
 				}
 			)
 		);
 	};
 };
 
-var init_ui = { |conf|
-	var screen_conf;
+var init_ui = { |script_context|
+	var globals = script_context[\globals];
+	var params_global = globals[\params];
+	var screen_global = globals[\screen];
+	var redraw_global = globals[\redraw];
 
-	if (conf.arc.notNil) {
-		var arc_conf = conf.arc;
+	var ui_spec = script_context[\ui_spec];
 
-		if (arc_conf.on_delta.isNil) {
-			arc_conf.on_delta = default_arc_delta_handler;
-		};
+	var state = script_context[\state];
 
-		if (arc_conf.on_refresh.isNil) {
-			arc_conf.on_refresh = default_arc_refresh_handler;
-		};
+	var device_manager_config = ();
 
-		ui_init_arc.value(arc_conf);
+	if (ui_spec.arc.notNil) {
+		/*
+			TODO
+		arc: (
+			device: ~arc.connect_(),
+			on_delta: { |n, delta|
+				var d;
+				var id;
+				var val;
+				if (state[\fine]) {
+					d = delta/5;
+				} {
+					d = delta;
+				};
+				id = get_param_id_for_current_page.value(script_context, n);
+				val = params_global.get_raw_(id);
+				params_global.set_raw_(id, val+d/500);
+			},
+			on_refresh: { |my_arc|
+				render_active_page_on_arc.value(script_context, my_arc);
+			};
+		)
+		*/
+		device_manager_config[\arc] = ui_spec.arc;
+	};
+	if (ui_spec.grid.notNil) {
+		/*
+			TODO
+		grid: (
+			device: ~grid.connect_(),
+			on_key: {
+			}
+		)
+		*/
+		device_manager_config[\grid] = ui_spec.grid;
+	};
+	if (ui_spec.midi.notNil) {
+		/*
+			TODO
+		midi: (
+			device: ~midi.connect_(),
+			on_event: {
+			}
+		)
+		*/
+		device_manager_config[\midi] = ui_spec.midi;
 	};
 
-	if (conf.screen.notNil) {
-		screen_conf = conf.screen;
-	} {
-		screen_conf = (
-			on_refresh: default_screen_refresh_handler
-		);
-	};
-	ui_init_screen.value(screen_conf);
+	device_manager_config[\screen] = (
+		screen_global: screen_global,
+		on_refresh: {
+			redraw_global.value();
+		}
+	);
 
-	if (conf.grid.notNil) {
-		ui_init_grid.value(conf.grid);
-	};
+	state[\device_manager_instance] = device_manager_init.value(device_manager_config);
 
-	if (conf.midi.notNil) {
-		ui_init_midi.value(conf.midi);
-	};
-
-	pages = conf.pages ? [];
-	calculate_ui_label_widths.value(pages);
+	calculate_ui_label_widths.value(params_global, screen_global, ui_spec[\pages]);
 };
 
-var calculate_ui_label_widths = { |pages|
-	~screen.font_size_(16);
+var calculate_ui_label_widths = { |params_global, screen_global, pages|
+	screen_global.font_size_(16);
 	pages.do { |page, index|
-		pages[index][0].label_width = ~screen.text_extents_(page[0].label) - 2;
-		pages[index][1].label_width = ~screen.text_extents_(page[1].label) - 2;
+		page.do { |page_param|
+			var label = params_global.get_name_(page_param[\id]);
+			page_param[\label_width] = screen_global.text_extents_(label) - 2; // TODO: label_width ? name_width ?
+		};
 	};
 };
 
-var start_ui = {
-	var update_ui_metro = ~metro.init_();
-	update_ui_metro.event = update_ui;
-	update_ui_metro.time = 1/fps;
+var start_ui = { |script_context| // TODO: this could well be in the script?
+	var metro_global = script_context[\globals][\metro];
+	var state = script_context[\state];
+	var ui_spec = script_context[\ui_spec];
+	var refresh_rate = ui_spec[\refresh_rate];
+	var update_ui_metro = metro_global.init_();
+
+	update_ui_metro.event = {
+		var target_page = state[\target_page];
+		if (target_page.notNil) {
+			update_page_transition.value(script_context);
+		};
+		device_manager_refresh.value(state[\device_manager_instance]);
+	};
+
+	update_ui_metro.time = 1/refresh_rate;
 	update_ui_metro.start_();
 };
 
-var get_grid_width = {
-	ui_grid_width.value();
+var get_grid_width = { |script_context|
+	device_manager_grid_width.value(script_context[\state][\device_manager_instance]);
 };
 
-var update_ui = {
-	if (target_page.notNil) {
-		update_page_transition.value();
+var update_page_transition = { |script_context|
+	var state = script_context[\state];
+	var current_page = state[\current_page];
+	var target_page = state[\target_page];
+	var page_trans_div = state[\page_trans_div];
+	var new_current_page;
+	new_current_page = current_page + page_trans_div;
+	state[\page_trans_frames] = state[\page_trans_frames] - 1;
+	if (state[\page_trans_frames] == 0) {
+		new_current_page = target_page;
+		state[\target_page] = nil;
 	};
-	ui_refresh.value();
+	state[\current_page] = new_current_page;
+	set_ui_dirty.value(script_context);
 };
 
-var update_page_transition = {
-	current_page = current_page + page_trans_div;
-	page_trans_frames = page_trans_frames - 1;
-	if (page_trans_frames == 0) {
-		current_page = target_page;
-		target_page = nil;
-	};
-	ui_set_dirty.value();
-};
+var redraw = { |script_context|
+	var globals = script_context[\globals];
+	var screen_global = globals[\screen];
+	var params_global = globals[\params];
 
-var default_screen_refresh_handler = {
-	~redraw.value();
-};
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
 
-var get_enc1_value_bounds = {
-	var enc1_x = 1; // TODO: DRY
-	var enc1_y = 12;
-	var the_value = round(~params.get_raw_("output_level")*100).asString;
-	var value_x = enc1_x + ~screen.text_extents_("LEVEL") + 3;
-	var value_y = enc1_y;
-	var value_width = ~screen.text_extents_(the_value);
-	Rect(value_x, value_y-12, value_width, 12);
-};
+	var state = script_context[\state];
+	var visual_values_arr = state[\visual_values]; // TODO
+	var current_page = state[\current_page];
+	var fine = state[\fine];
+	var prev_held = state[\prev_held];
+	var next_held = state[\next_held];
+	var focus = state[\focus];
 
-var over_enc1_value = { |pos|
-	var bounds = get_enc1_value_bounds.value();
-	bounds.contains(pos);
-};
-
-var get_enc2_enc3_value_bounds = { |page, param_index, x, y|
-	var ui_param = pages[page][param_index];
-	var format_param = { |ui_param|
-		var param = ~params.lookup_param_(ui_param.id);
-		ui_param[\formatter].value(param);
-	};
-	var the_value = format_param.value(ui_param).asString;
-	var value_x = x;
-	var value_y = y + 12;
-	var value_width = ~screen.text_extents_(the_value);
-	Rect(value_x, value_y-12, value_width, 10);
-};
-
-var get_enc2_value_bounds = {
-	var enc2_x = 10; // TODO: DRY
-	var enc2_y = 29;
-
-	var left = floor(current_page);
-	// var right = ceil(current_page);
-	var offset = current_page - left;
-	var pixel_ofs = round(offset*128);
-
-	get_enc2_enc3_value_bounds.value(left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
-};
-
-var over_enc2_value = { |pos|
-	var bounds = get_enc2_value_bounds.value();
-	bounds.contains(pos);
-};
-
-var get_enc3_value_bounds = {
-	var enc2_x = 10; // TODO: DRY
-	var enc2_y = 29;
-	var enc3_x = enc2_x + 65;
-	var enc3_y = enc2_y;
-
-	var left = floor(current_page);
-	//var right = ceil(current_page);
-	var offset = current_page - left;
-	var pixel_ofs = round(offset*128);
-
-	get_enc2_enc3_value_bounds.value(left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
-};
-
-var over_enc3_value = { |pos|
-	var bounds = get_enc3_value_bounds.value();
-	bounds.contains(pos);
-};
-
-var over_key2 = { |pos|
-	var key2_x = 1;
-	var key2_y = 63;
-	var text_width = ~screen.text_extents_("PREV");
-	var bounds = Rect(key2_x, key2_y-12, text_width, 10);
-	bounds.contains(pos);
-};
-
-var over_key3 = { |pos|
-	var key2_x = 1;
-	var key2_y = 63;
-	var key3_x = key2_x+65;
-	var key3_y = key2_y;
-	var text_width = ~screen.text_extents_("NEXT");
-	var bounds = Rect(key3_x, key3_y-12, text_width, 10);
-	bounds.contains(pos);
-};
-
-var redraw = {
 	// TODO
 	var enc1_x = 1;
 	var enc1_y = 12;
@@ -266,38 +253,38 @@ var redraw = {
 
 	var draw_enc1_widget = {
 		var draw_label = {
-			~screen.move_(enc1_x, enc1_y);
-			~screen.level_(lo_level);
-			~screen.text_("LEVEL");
+			screen_global.move_(enc1_x, enc1_y);
+			screen_global.level_(lo_level);
+			screen_global.text_("LEVEL");
 		};
 		var draw_current_value = {
-			var the_value = round(~params.get_raw_("output_level")*100).asString;
-			var value_x = enc1_x + ~screen.text_extents_("LEVEL") + 3;
+			var the_value = round(params_global.get_raw_("output_level")*100).asInteger.asString;
+			var value_x = enc1_x + screen_global.text_extents_("LEVEL") + 3;
 			var value_y = enc1_y;
-			var value_width = ~screen.text_extents_(the_value);
+			var value_width = screen_global.text_extents_(the_value);
 			var value_bounds = Rect(value_x, value_y-12, value_width, 12);
-			~screen.move_(value_x, value_y);
+			screen_global.move_(value_x, value_y);
 			if (focus == 'enc1') {
-				~screen.level_((hi_level+lo_level)/2);
+				screen_global.level_((hi_level+lo_level)/2);
 			} {
-				~screen.level_(hi_level);
+				screen_global.level_(hi_level);
 			};
-			~screen.text_(the_value);
+			screen_global.text_(the_value);
 		};
 		draw_label.value;
 		draw_current_value.value;
 	};
 
 	var draw_event_flash_widget = {
-		~screen.level_(lo_level);
-		~screen.rect_(122, enc1_y-7, 5, 5);
-		~screen.fill_();
+		screen_global.level_(lo_level);
+		screen_global.rect_(122, enc1_y-7, 5, 5);
+		screen_global.fill_();
 	};
 
 	var draw_bullet = { |x, y, level|
-		~screen.level_(level);
-		~screen.rect_(x, y, 2, 2);
-		~screen.fill_();
+		screen_global.level_(level);
+		screen_global.rect_(x, y, 2, 2);
+		screen_global.fill_();
 	};
 
 	var translate = { |value, indicator_width|
@@ -340,43 +327,41 @@ var redraw = {
 	};
 
 	// TODO: blit this
-	var draw_ui_param = { |page, param_index, x, y, focussed|
-		var ui_param = pages[page][param_index];
+	var draw_page_param = { |page, param_index, x, y, focussed|
+		var page_param = pages[page][param_index];
 		var draw_label = {
-			~screen.move_(x, y);
-			~screen.level_(lo_level);
-			~screen.text_(ui_param[\label]);
+			var label = params_global.get_name_(page_param[\id]);
+			screen_global.move_(x, y);
+			screen_global.level_(lo_level);
+			screen_global.text_(label); // TODO
 		};
 		var draw_current_value = {
-			var format_param = { |ui_param|
-				var param = ~params.lookup_param_(ui_param.id);
-				ui_param[\formatter].value(param);
-			};
-			var the_value = format_param.value(ui_param).asString;
+			var the_value = params_global.string_(page_param[\id]);
 			var value_x = x;
 			var value_y = y + 12;
-			var value_width = ~screen.text_extents_(the_value);
+			var value_width = screen_global.text_extents_(the_value);
 			var value_bounds = Rect(value_x, value_y-12, value_width, 12);
-			~screen.move_(value_x, value_y);
+			screen_global.move_(value_x, value_y);
 			if (focussed) {
-				~screen.level_((hi_level+lo_level)/2);
+				screen_global.level_((hi_level+lo_level)/2);
 			} {
-				~screen.level_(hi_level);
+				screen_global.level_(hi_level);
 			};
-			~screen.text_(the_value);
+			screen_global.text_(the_value);
 
 		};
 		var draw_widget = {
 			var widget_x = x + 1;
 			var widget_y = y + 14;
-			var visual_values = ui_param[\visual_values];
-			var raw_value = ~params.get_raw_(ui_param[\id]);
+			var id = page_param[\id];
+			var visual_values = visual_values_arr[id];
+			var raw_value = params_global.get_raw_(id);
 
 			if (visual_values.notNil) {
-				draw_visual_values.value(widget_x, widget_y, ui_param[\label_width], visual_values);
+				draw_visual_values.value(widget_x, widget_y, page_param[\label_width], visual_values);
 			};
 
-			draw_value.value(widget_x, widget_y, translate.value(raw_value, ui_param[\label_width]), hi_level);
+			draw_value.value(widget_x, widget_y, translate.value(raw_value, page_param[\label_width]), hi_level);
 		};
 
 		draw_label.value;
@@ -390,7 +375,7 @@ var redraw = {
 		var offset = current_page - left;
 		var pixel_ofs = round(offset*128);
 
-		draw_ui_param.value(
+		draw_page_param.value(
 			left,
 			0,
 			enc2_x-pixel_ofs,
@@ -400,7 +385,7 @@ var redraw = {
 
 
 		if (left != right) {
-			draw_ui_param.value(
+			draw_page_param.value(
 				right,
 				0,
 				enc2_x+128-pixel_ofs,
@@ -416,7 +401,7 @@ var redraw = {
 		var offset = current_page - left;
 		var pixel_ofs = round(offset*128);
 
-		draw_ui_param.value(
+		draw_page_param.value(
 			left,
 			1,
 			enc3_x-pixel_ofs,
@@ -425,7 +410,7 @@ var redraw = {
 		); // TODO: zero based
 
 		if (left != right) {
-			draw_ui_param.value(
+			draw_page_param.value(
 				right,
 				1,
 				enc3_x+128-pixel_ofs,
@@ -443,29 +428,29 @@ var redraw = {
 		var width = round(div);
 		var height = 2;
 
-		~screen.level_(lo_level);
-		~screen.rect_(x, y, width, height);
-		~screen.fill_();
+		screen_global.level_(lo_level);
+		screen_global.rect_(x, y, width, height);
+		screen_global.fill_();
 	};
 
 	var draw_key2key3_widget = {
-		~screen.move_(key2_x+42, key2_y);
-		~screen.level_(hi_level);
-		~screen.text_("FN");
+		screen_global.move_(key2_x+42, key2_y);
+		screen_global.level_(hi_level);
+		screen_global.text_("FN");
 	};
 
 	var draw_key_widget = { |widget_x, widget_y, text, key_held, focussed|
-		~screen.move_(widget_x, widget_y);
+		screen_global.move_(widget_x, widget_y);
 		if (key_held and: fine.not) {
-			~screen.level_(hi_level);
+			screen_global.level_(hi_level);
 		} {
 			if (focussed) {
-				~screen.level_((hi_level+lo_level)/2);
+				screen_global.level_((hi_level+lo_level)/2);
 			} {
-				~screen.level_(lo_level);
+				screen_global.level_(lo_level);
 			};
 		};
-		~screen.text_(text);
+		screen_global.text_(text);
 	};
 
 	var draw_key2_widget = {
@@ -476,12 +461,13 @@ var redraw = {
 		draw_key_widget.value(key3_x, key3_y, "NEXT", next_held, focus == 'key3');
 	};
 
-	~screen.font_size(16);
-	~screen.clear_(); // TODO: do this in redraw() ?
+	screen_global.clear_(); // TODO: do this in redraw() ?
+
+	screen_global.font_size(16);
 
 	draw_enc1_widget.value();
 
-	if (ui_event_indicator_is_shown.value()) {
+	if (device_manager_event_indicator_is_shown.value(state[\device_manager_instance])) {
 		draw_event_flash_widget.value();
 	};
 
@@ -497,10 +483,12 @@ var redraw = {
 	draw_key2_widget.value();
 	draw_key3_widget.value();
 
-	~screen.update_();
+	screen_global.update_();
 };
 
-var enc = { |n, delta|
+var enc = { |script_context, n, delta|
+	var params_global = script_context[\globals][\params];
+	var fine = script_context[\state][\fine];
 	var d;
 	if (fine) {
 		d = delta/5
@@ -508,20 +496,25 @@ var enc = { |n, delta|
 		d = delta
 	};
 	if (n == 1) {
-		~params.delta_("output_level", d);
-		ui_set_dirty.value();
+		params_global.delta_("output_level", d);
+		set_ui_dirty.value(script_context);
 	} {
-		~params.delta_(get_param_id_for_current_page.value(n-2), d); // TODO: zero based
+		params_global.delta_(get_param_id_for_current_page.value(script_context, n-2), d); // TODO: zero based
 	};
 };
 
-var key = { |n, z|
+var key = { |script_context, n, z|
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
+
+	var state = script_context[\state];
+	var target_page = state[\target_page];
 	var page;
 
 	if (target_page.notNil) {
 		page = target_page;
 	} {
-		page = get_active_page.value();
+		page = get_active_page.value(script_context);
 	};
 
 	case
@@ -532,13 +525,13 @@ var key = { |n, z|
 				page = pages.size-1; // TODO: zero based indexing
 			};
 
-			transition_to_page.value(page);
+			transition_to_page.value(script_context, page);
 
-			prev_held = true;
+			state[\prev_held] = true;
 		} {
-			prev_held = false;
+			state[\prev_held] = false;
 		};
-		ui_set_dirty.value();
+		set_ui_dirty.value(script_context);
 	}
 	{n == 3} {
 		if (z == 1) {
@@ -547,79 +540,61 @@ var key = { |n, z|
 				page = 0; // TODO: zero based indexing
 			};
 
-			transition_to_page.value(page);
+			transition_to_page.value(script_context, page);
 
-			next_held = true;
+			state[\next_held] = true;
 		} {
-			next_held = false
+			state[\next_held] = false
 		};
-		ui_set_dirty.value();
+		set_ui_dirty.value(script_context);
 	};
 
-	fine = (prev_held and: next_held);
+	state[\fine] = (state[\prev_held] and: state[\next_held]);
 };
 
-var default_arc_delta_handler = { |n, delta|
-	var d;
-	var id;
-	var val;
-	if (fine) {
-		d = delta/5;
-	} {
-		d = delta;
-	};
-	id = get_param_id_for_current_page.value(n);
-	val = ~params.get_raw_(id);
-	~params.set_raw_(id, val+d/500);
+var set_page = { |script_context, page|
+	script_context[\state][\current_page] = page;
 };
 
-var draw_arc = { |my_arc, value1, visual_values1, value2, visual_values2|
-	var draw_ring = { |ring, value, visual_values|
-		var led_levels = render_ring.value(value, visual_values);
-		led_levels.do { |led_level, i|
-			my_arc.led_(ring, i, led_level);
-		};
-	};
-	my_arc.all_(0);
-	draw_ring.value(1, value1, visual_values1);
-	draw_ring.value(2, value2, visual_values2);
+var get_active_page = { |script_context|
+	round(script_context[\state][\current_page]);
 };
 
-var set_page = { |page|
-	current_page = page;
-};
+var get_param_id_for_current_page = { |script_context, n|
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
 
-var get_active_page = {
-	round(current_page);
-};
-
-var get_param_id_for_current_page = { |n|
-	var page = get_active_page.value();
+	var page = get_active_page.value(script_context);
 	pages[page][n].id;
 };
 
-var transition_to_page = { |page|
-	target_page = page;
-	page_trans_frames = fps/5;
-	page_trans_div = (target_page - current_page) / page_trans_frames;
+var transition_to_page = { |script_context, page|
+	var state = script_context[\state];
+	var ui_spec = script_context[\ui_spec];
+	var refresh_rate = ui_spec[\refresh_rate];
+	var current_page = state[\current_page];
+
+	state[\target_page] = page;
+	state[\page_trans_frames] = refresh_rate/5;
+	state[\page_trans_div] = (state[\target_page] - current_page) / state[\page_trans_frames];
 };
 
 var load_settings = {
-	// TODO
-	\load_settings.debug;
+	"load_settings not implemented".inform; // TODO
 };
 
 var save_settings = {
-	// TODO
-	\save_settings.debug;
+	"save_settings not implemented".inform; // TODO
 };
 
-var default_arc_refresh_handler = { |my_arc|
-	render_active_page_on_arc.value(my_arc);
-};
+// arc_common - start
+var render_active_page_on_arc = { |script_context, my_arc|
+	var params_global = script_context[\globals][\params];
 
-var render_active_page_on_arc = { |my_arc|
-	var page = pages[get_active_page.value()];
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
+
+	var page = pages[get_active_page.value(script_context)];
 
 	var visual_values1, visual_values2;
 
@@ -635,158 +610,317 @@ var render_active_page_on_arc = { |my_arc|
 
 	draw_arc.value(
 		my_arc,
-		~params.get_raw_(get_param_id_for_current_page.value(0)), // TODO: zero-based indexing
+		params_global.get_raw_(get_param_id_for_current_page.value(script_context, 0)), // TODO: zero-based indexing
 		visual_values1,
-		~params.get_raw_(get_param_id_for_current_page.value(1)), // TODO: zero-based indexing
+		params_global.get_raw_(get_param_id_for_current_page.value(script_context, 1)), // TODO: zero-based indexing
 		visual_values2
 	);
 };
 
+var draw_arc = { |my_arc, value1, visual_values1, value2, visual_values2|
+	var draw_ring = { |ring, value, visual_values|
+		var led_levels = render_ring.value(value, visual_values);
+		led_levels.do { |led_level, i|
+			my_arc.led_(ring, i, led_level);
+		};
+	};
+	my_arc.all_(0);
+	draw_ring.value(1, value1, visual_values1);
+	draw_ring.value(2, value2, visual_values2);
+};
+// arc_common - finish
+
 var cleanup = { |settings_file|
 	save_settings.value(settings_file);
-	// ~params.write_();
+	// params_global.write_(); // TODO
 };
 
-var load_settings_and_params = { |settings_file|
+var load_settings_and_params = { |settings_file, params_global|
 	load_settings.value(settings_file);
-	// ~params.read_(); // TODO
-	~params.bang_();
+	// params_global.read_(); // TODO
+	params_global.bang_();
 };
 
-var start_script_polls = {
-	if (script_polls.notNil) {
-		script_polls.do { |script_poll|
+var create_and_start_polls = { |script_context, poll_specs, refresh_rate|
+	var polls = create_polls.value(script_context, poll_specs, refresh_rate);
+	start_polls.value(polls);
+};
+
+var create_polls = { |script_context, poll_specs, refresh_rate|
+	var poll_global = script_context[\globals][\poll];
+
+	poll_specs.collect { |poll_spec, i|
+		var script_poll = poll_global.set_("poll" ++ (i+1)) { |value|
+			poll_spec[\handler].value(value);
+			set_ui_dirty.value(script_context);
+		};
+		script_poll.time_ = 1/refresh_rate;
+		script_poll
+	};
+};
+
+var start_polls = { |polls|
+	if (polls.notNil) {
+		polls.do { |script_poll|
 			script_poll.start_();
 		};
 	};
 };
 
-var set_ui_dirty = {
-	ui_set_dirty.value();
+var set_ui_dirty = { |script_context|
+	device_manager_set_dirty.value(script_context[\state][\device_manager_instance]);
 };
 
-var mouse = { |what ... args|
-	[what, args].debug;
+var mouse = { |script_context, what ... args|
 	case
 	{ what == "leave" } {
-		var prev_focus = focus;
-		~mouse_over_pos = nil;
-		focus = nil;
-		if (prev_focus != focus) {
-			ui_set_dirty.value();
-		};
+		mouse_leave.value(script_context);
 	}
 	{ what == "over" } {
 		var x = args[0], y = args[1];
-		var prev_focus = focus;
-
-		~mouse_over_pos = x@y;
-
-		update_focus.value(~mouse_over_pos);
-
-		if (prev_focus != focus) {
-			ui_set_dirty.value();
-		};
+		mouse_over.value(script_context, x, y);
 	}
 	{ what == "down" } {
 		var x = args[0], y = args[1];
-		var prev_active = active;
-		~mouse_down_pos = x@y;
-
-		case
-		{ focus == 'key2' } {
-			key.value(2, 1);
-		}
-		{ focus == 'key3' } {
-			key.value(3, 1);
-		};
-
-		active = focus;
-
-		if (prev_active != active) {
-			ui_set_dirty.value();
-		};
+		mouse_down.value(script_context, x, y);
 	}
 	{ what == "move" } {
 		var x = args[0], y = args[1];
-		var mouse_move_delta;
-
-		~prev_mouse_move_pos = ~mouse_move_pos;
-		~mouse_move_pos = x@y;
-		mouse_move_delta = (~prev_mouse_move_pos ? ~mouse_down_pos) - (x@y);
-		if (mouse_move_delta.y != 0) {
-			case
-			{active == 'enc1'} {
-				enc.value(1, mouse_move_delta.y);
-			}
-			{active == 'enc2'} {
-				enc.value(2, mouse_move_delta.y);
-			}
-			{active == 'enc3'} {
-				enc.value(3, mouse_move_delta.y);
-			};
-		};
+		mouse_move.value(script_context, x, y);
 	}
 	{ what == "up" } {
 		var x = args[0], y = args[1];
-		var prev_active = active;
-
-		~mouse_move_pos = nil;
-
-		case
-		{ active == 'key2' } {
-			key.value(2, 0);
-		}
-		{ active == 'key3' } {
-			key.value(3, 0);
-		};
-
-		active = nil;
-
-		update_focus.value(x@y);
-
-		if (prev_active != active) {
-			ui_set_dirty.value();
-		};
+		mouse_up.value(script_context, x, y);
 	}
 	{ what == "wheel" } {
 		var x_delta = args[0], y_delta = args[1];
-
-		if (y_delta != 0) {
-			case
-			{focus == 'enc1'} {
-				enc.value(1, y_delta*(-1));
-			}
-			{focus == 'enc2'} {
-				enc.value(2, y_delta*(-1));
-			}
-			{focus == 'enc3'} {
-				enc.value(3, y_delta*(-1));
-			};
-		};
+		mouse_wheel.value(script_context, x_delta, y_delta);
 	}
 };
 
-var update_focus = { |pos|
+var mouse_leave = { |script_context|
+	var state = script_context[\state];
+	var prev_focus = state[\focus];
+	state[\focus] = nil;
+	if (prev_focus != state[\focus]) {
+		set_ui_dirty.value(script_context);
+	};
+};
+
+var mouse_over = { |script_context, x, y|
+	var state = script_context[\state];
+	var prev_focus = state[\focus];
+
+	var mouse_over_pos = x@y;
+
+	update_focus.value(script_context, mouse_over_pos); // TODO: only if mouse is not pressed(?)
+
+	if (prev_focus != state[\focus]) {
+		set_ui_dirty.value(script_context);
+	};
+};
+
+var mouse_down = { |script_context, x, y|
+	var state = script_context[\state];
+	var focus = state[\focus];
+	var prev_active = state[\active];
+	state[\mouse_down_pos] = x@y;
+
 	case
-	{ over_enc1_value.value(pos) } {
-		focus = 'enc1';
+	{ focus == 'key2' } {
+		key.value(script_context, 2, 1); // TODO: better handled not using key?
 	}
-	{ over_enc2_value.value(pos) } {
-		focus = 'enc2';
+	{ focus == 'key3' } {
+		key.value(script_context, 3, 1); // TODO: better handled not using key?
+	};
+
+	state[\active] = focus;
+
+	if (prev_active != state[\active]) {
+		set_ui_dirty.value(script_context);
+	};
+};
+
+var mouse_move = { |script_context, x, y|
+	var state = script_context[\state];
+	var active = state[\active];
+	var mouse_move_delta;
+
+	var prev_mouse_move_pos = state[\mouse_move_pos];
+	state[\mouse_move_pos] = x@y;
+	mouse_move_delta = (prev_mouse_move_pos ? state[\mouse_down_pos]) - (x@y);
+	if (mouse_move_delta.y != 0) {
+		case
+		{active == 'enc1'} {
+			enc.value(script_context, 1, mouse_move_delta.y); // TODO: better handled not using enc?
+		}
+		{active == 'enc2'} {
+			enc.value(script_context, 2, mouse_move_delta.y); // TODO: better handled not using enc?
+		}
+		{active == 'enc3'} {
+			enc.value(script_context, 3, mouse_move_delta.y); // TODO: better handled not using enc?
+		};
+	};
+};
+
+var mouse_up = { |script_context, x, y|
+	var state = script_context[\state];
+	var prev_active = state[\active];
+
+	state[\mouse_move_pos] = nil;
+
+	case
+	{ state[\active] == 'key2' } {
+		key.value(script_context, 2, 0); // TODO: better handled not using key?
 	}
-	{ over_enc3_value.value(pos) } {
-		focus = 'enc3';
+	{ state[\active] == 'key3' } {
+		key.value(script_context, 3, 0); // TODO: better handled not using key?
+	};
+
+	state[\active] = nil;
+
+	update_focus.value(script_context, x@y);
+
+	if (prev_active != state[\active]) {
+		set_ui_dirty.value(script_context);
+	};
+};
+
+var mouse_wheel = { |script_context, x_delta, y_delta|
+	var state = script_context[\state];
+	var focus = state[\focus];
+
+	if (y_delta != 0) {
+		case
+		{focus == 'enc1'} {
+			enc.value(script_context, 1, y_delta*(-1)); // TODO: better handled not using enc?
+		}
+		{focus == 'enc2'} {
+			enc.value(script_context, 2, y_delta*(-1)); // TODO: better handled not using enc?
+		}
+		{focus == 'enc3'} {
+			enc.value(script_context, 3, y_delta*(-1)); // TODO: better handled not using enc?
+		};
+	};
+};
+
+var update_focus = { |script_context, pos|
+	var state = script_context[\state];
+	case
+	{ over_enc1_value.value(script_context, pos) } { // TODO: refactor out over_enc1_value
+		state[\focus] = 'enc1';
 	}
-	{ over_key2.value(pos) } {
-		focus = 'key2';
+	{ over_enc2_value.value(script_context, pos) } { // TODO: refactor out over_enc2_value
+		state[\focus] = 'enc2';
 	}
-	{ over_key3.value(pos) } {
-		focus = 'key3';
+	{ over_enc3_value.value(script_context, pos) } { // TODO: refactor out over_enc3_value
+		state[\focus] = 'enc3';
+	}
+	{ over_key2.value(script_context, pos) } { // TODO: refactor out over_key2
+		state[\focus] = 'key2';
+	}
+	{ over_key3.value(script_context, pos) } { // TODO: refactor out over_key2
+		state[\focus] = 'key3';
 	}
 	{ true } {
-		focus = nil;
+		state[\focus] = nil;
 	};
+};
+
+var over_enc1_value = { |script_context, pos|
+	var bounds = get_enc1_value_bounds.value(script_context);
+	bounds.contains(pos);
+};
+
+var over_enc2_value = { |script_context, pos|
+	var bounds = get_enc2_value_bounds.value(script_context);
+	bounds.contains(pos);
+};
+
+// TODO: DRY
+var over_key2 = { |script_context, pos|
+	var screen_global = script_context[\globals][\screen];
+	var key2_x = 1;
+	var key2_y = 63;
+	var text_width = screen_global.text_extents_("PREV");
+	var bounds = Rect(key2_x, key2_y-12, text_width, 10);
+	bounds.contains(pos);
+};
+
+// TODO: DRY
+var over_key3 = { |script_context, pos|
+	var screen_global = script_context[\globals][\screen];
+	var key2_x = 1;
+	var key2_y = 63;
+	var key3_x = key2_x+65;
+	var key3_y = key2_y;
+	var text_width = screen_global.text_extents_("NEXT");
+	var bounds = Rect(key3_x, key3_y-12, text_width, 10);
+	bounds.contains(pos);
+};
+
+// TODO: DRY
+var get_enc1_value_bounds = { |script_context|
+	var screen_global = script_context[\globals][\screen];
+	var params_global = script_context[\globals][\params];
+	var enc1_x = 1;
+	var enc1_y = 12;
+	var the_value = round(params_global.get_raw_("output_level")*100).asString; // TODO: use formatter instead of raw
+	var value_x = enc1_x + screen_global.text_extents_("LEVEL") + 3;
+	var value_y = enc1_y;
+	var value_width = screen_global.text_extents_(the_value);
+	Rect(value_x, value_y-12, value_width, 12);
+};
+
+var over_enc3_value = { |script_context, pos|
+	var bounds = get_enc3_value_bounds.value(script_context);
+	bounds.contains(pos);
+};
+
+// TODO: DRY
+var get_enc2_value_bounds = { |script_context|
+	var current_page = script_context[\state][\current_page];
+
+	var enc2_x = 10; // TODO: DRY
+	var enc2_y = 29;
+
+	var left = floor(current_page);
+	// var right = ceil(current_page);
+	var offset = current_page - left;
+	var pixel_ofs = round(offset*128);
+
+	get_enc2_enc3_value_bounds.value(script_context, left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
+};
+
+// TODO: DRY
+var get_enc3_value_bounds = { |script_context|
+	var current_page = script_context[\state][\current_page];
+
+	var enc2_x = 10; // TODO: DRY
+	var enc2_y = 29;
+	var enc3_x = enc2_x + 65;
+	var enc3_y = enc2_y;
+
+	var left = floor(current_page);
+	//var right = ceil(current_page);
+	var offset = current_page - left;
+	var pixel_ofs = round(offset*128);
+
+	get_enc2_enc3_value_bounds.value(script_context, left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
+};
+
+var get_enc2_enc3_value_bounds = { |script_context, page, param_index, x, y|
+	var globals = script_context[\globals];
+	var screen_global = globals[\screen];
+	var params_global = globals[\params];
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
+	var page_param = pages[page][param_index];
+	var the_value = params_global.string_(page_param[\id]);
+	var value_x = x;
+	var value_y = y + 12;
+	var value_width = screen_global.text_extents_(the_value);
+	Rect(value_x, value_y-12, value_width, 10);
 };
 
 var module = IdentityDictionary[

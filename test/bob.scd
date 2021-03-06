@@ -17,103 +17,80 @@ start_script.value {
 	var r_bob = include_relative.value('lib/r_bob.scd');
 	var r_bob_init = r_bob[\init];
 
-	var formatters = include_relative.value("lib/formatters.scd");
-
 	var common = include_relative.value("lib/common.scd");
 	var common_init = common[\init];
-	var common_cleanup = common[\cleanup];
 	var common_redraw = common[\redraw];
-	var common_enc = common[\enc];
 	var common_key = common[\key];
 	var common_mouse = common[\mouse];
 
 	var settings_file = "bob.data";
-	var fps = 35;
+	var ui_refresh_rate = 35;
+
+	var script_context;
 
 	~engine.name = 'R';
 
 	~init = {
-		var r_polls, visual_values, r_params;
-		var ui;
-
-		# r_polls, visual_values, r_params = r_bob_init.value(round(fps/20));
-
-		ui = (
-			arc: ( device: ~arc.connect_() ),
-			pages: [
-				[
-					(
-						label: "CUTOFF",
-						id: "cutoff",
-						formatter: formatters[\adaptive_freq],
-						visual_values: visual_values[\cutoff]
-					),
-					(
-						label: "RES",
-						id: "resonance",
-						formatter: formatters[\percentage]
-					),
-				],
-				[
-					(
-						label: "LFO",
-						id: "lfo_rate",
-						formatter: formatters[\adaptive_freq],
-					),
-					(
-						label: "L>FRQ",
-						id: "lfo_to_cutoff",
-						formatter: formatters[\percentage]
-					),
-				],
-				[
-					(
-						label: "E.ATK",
-						id: "envf_attack",
-						formatter: formatters[\adaptive_time],
-					),
-					(
-						label: "E.DEC",
-						id: "envf_decay",
-						formatter: formatters[\adaptive_time],
-					),
-				],
-				[
-					(
-						label: "E.SNS",
-						id: "envf_sensitivity",
-						formatter: formatters[\percentage],
-					),
-					(
-						label: "E>FRQ",
-						id: "env_to_cutoff",
-						formatter: formatters[\percentage],
-					),
-				],
-			]
+		var r_bob_instance = r_bob_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: round(ui_refresh_rate/20)
+			)
 		);
 
-		common_init.value(r_polls, r_params, ui, settings_file, fps);
+		var ui_spec = (
+			arc: ( device: ~arc.connect_() ),
+			pages: [
+				[ (id: 'cutoff'), (id: 'resonance') ],
+				[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
+				[ (id: 'envf_attack'), (id: 'envf_decay') ],
+				[ (id: 'envf_sensitivity'), ( id: 'env_to_cutoff') ],
+			],
+			refresh_rate: ui_refresh_rate
+		);
+
+		script_context = common_init.value(
+			(
+				globals: (
+					screen: ~screen,
+					metro: ~metro,
+					params: ~params,
+					poll: ~poll,
+					redraw: ~redraw
+				),
+				param_specs: r_bob_instance[\param_specs],
+				poll_specs: r_bob_instance[\poll_specs],
+				visual_values: r_bob_instance[\visual_values],
+				ui_spec: ui_spec,
+				settings_file: settings_file,
+			)
+		);
 	};
 
+/*
+	TODO
 	~cleanup = {
 		common_cleanup.value(settings_file);
 	};
+*/
 
 	~redraw = {
-		common_redraw.value();
+		common_redraw.value(script_context);
 	};
 
+/*
+	TODO
 	~enc = { |n, delta|
 		common_enc.value(n, delta);
 	};
+*/
 
 	~key = { |n, z|
-		common_key.value(n, z);
+		common_key.value(script_context, n, z);
 	};
 
-	~mouse = { |... args|
-		common_mouse.value(*args);
+	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
+		common_mouse.value(*([script_context]++args)); // TODO: get away from using varargs for ~mouse
 	};
 };
 )

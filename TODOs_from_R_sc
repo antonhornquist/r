@@ -1,0 +1,574 @@
+// Abstract superclass
+RModule {
+	var synth;
+
+	*inputs { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted. <-- TODO, should be event
+
+	*outputs { ^nil } // specified as Array of name -> (Description: "A descriptive text", Range: [Integer, Integer]) associations where name correspond to SynthDef ugenGraphFunc argument suffix, Range is optional and set to whole range (-1 and 1 respectively) if omitted. <-- TODO, should be event
+
+	*params { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec, LagTime: Float) associations where name correspond to SynthDef ugenGraphFunc argument suffix <-- TODO: should be event
+
+	*visuals { ^nil } // specified as Array of name -> ControlSpec or name -> (Spec: ControlSpec) associations where name correspond to SynthDef ugenGraphFunc argument suffix
+
+	*sampleSlots { ^nil } // specified as name -> (Channels: [Integer, Integer]) associations where Channels depict supported number of channels and name correspond to SynthDef ugenGraphFunc argument suffix
+
+	*getParamControlSpec { |parameterName|
+		var paramAssoc = this.params.detect { |param|
+			param.key == parameterName
+		};
+		^paramAssoc !? { // TODO: DRY this up
+			var paramAssocValue = paramAssoc.value;
+			if (paramAssocValue.class == ControlSpec) {
+				paramAssocValue
+			} {
+				// TODO: Event assumed
+				paramAssocValue[\Spec]
+			}
+		}
+	}
+
+	*paramControlSpecs {
+		^this.params !? { |params|
+			// TODO: refactor to local asDict that takes an array of associations
+			IdentityDictionary.newFrom(
+				params.collect { |paramAssoc|
+					var paramAssocValue = paramAssoc.value;
+					[
+						("param_"++paramAssoc.key).asSymbol, // key
+						// value ...
+						if (paramAssocValue.class == ControlSpec) { // TODO: DRY this up
+							paramAssocValue
+						} {
+							// TODO: Event assumed
+							paramAssocValue[\Spec]
+						}
+					]
+				}.flatten
+			)
+		}
+	}
+
+	*paramLagTimes {
+		^this.params !? { |params|
+			// TODO: refactor to local asDict that takes an array of associations
+			IdentityDictionary.newFrom(
+				params.collect { |paramAssoc|
+					var paramAssocValue = paramAssoc.value;
+					[
+						("param_"++paramAssoc.key).asSymbol, // key
+						// value ...
+						if (paramAssocValue.class == Event) {
+							paramAssocValue[\LagTime]
+						} {
+							nil
+						}
+					];
+				}.flatten;
+			)
+		}
+	}
+
+	/*
+		ugenGraphFunc argument name prefixes must follow these naming conventions:
+			in_* - input (audio bus number)
+			out_* - output (audio bus number)
+			param_* - parameter
+			visual_* - visual feedback (control bus number)
+			numchannels_* - number of channels for sample currently loaded in sample slot
+			bufnums_* - array of buffer numbers for buffers for every channel count (mono, stereo) possible to load for sample slot
+			internal_ - internal arguments (ie. main in/out used for SoundIn/SoundOut)
+	*/
+	*ugenGraphFunc { ^this.subclassResponsibility(thisMethod) }
+
+	*defName { ^this.asSymbol }
+
+	*addDefs { |trace|
+		var defName = this.defName.asSymbol;
+		if (trace) {
+			"RModule %: spawning SynthDef %...".format(this.asString.quote, defName.asString.quote).inform;
+		};
+
+		SynthDef(
+			defName,
+			this.ugenGraphFunc,
+			this.prGetLagTimes,
+			metadata: (specs: this.paramControlSpecs)
+		).add;
+
+		if (trace) {
+			"...OK. SynthDef % was sent to server".format(defName.asString.quote).inform;
+			"".postln;
+		};
+	}
+
+	map { |parameter, bus|
+		this.class.params.detect { |param| param.key == parameter.asSymbol } !? { |param| // TODO: DRY
+			var name;
+			name = ("param_"++param.key.asString).asSymbol;
+			synth.map(name, bus);
+		}
+	}
+
+	set { |parameter, value| // TODO: rename to setParam
+		this.class.params.detect { |param| param.key == parameter.asSymbol } !? { |param| // TODO: DRY
+			var name, controlSpec, constrainedParamValue;
+			name = ("param_"++param.key.asString).asSymbol;
+			controlSpec = this.class.paramControlSpecs[name];
+			constrainedParamValue = controlSpec.constrain(value);
+			synth.set(name, constrainedParamValue);
+		}
+	}
+
+	setSampleSlotChannelCount { |sampleSlotName, channelCount|
+		var name;
+		name = ("numchannels_"++sampleSlotName.asString).asSymbol;
+		synth.set(name, channelCount.asInteger);
+	}
+
+	*new { |ioContext, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers|
+		^super.new.initRModule(ioContext, processingGroup, inbusses, outbusses, visualbusses, sampleSlotBuffers);
+	}
+
+	initRModule { |ioContext, group, inbusses, outbusses, visualbusses, sampleSlotBuffers|
+		synth = Synth(
+			this.class.defName.asSymbol,
+			this.class.prGetDefaultRModuleSynthArgs(inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers),
+			target: group
+		);
+	}
+
+	free {
+		synth.free;
+	}
+
+	*spec {
+		^(
+			inputs: this.prLookupArgNameSuffixesPrefixedBy('in_'),
+			outputs: this.prLookupArgNameSuffixesPrefixedBy('out_'),
+			parameters: this.prLookupArgNameSuffixesPrefixedBy('param_'),
+			visuals: this.prLookupArgNameSuffixesPrefixedBy('visual_'),
+			sampleSlots: this.prLookupArgNameSuffixesPrefixedBy('numchannels_').collect { |sampleSlotName|
+				var sampleSlotDict = this.sampleSlots.asDict; // TODO: ugly cast every time, fix, no need to repeat this
+				var spec = sampleSlotDict[sampleSlotName];
+				sampleSlotName -> spec
+			},
+		)
+	}
+
+	*prGetLagTimes {
+		^this.ugenGraphFunc.def.argNames.collect { |argName|
+			if ( argName.asString.beginsWith("param_") ) {
+				this.paramLagTimes[argName]
+			} { nil }
+		};
+	}
+
+	*prGetDefaultRModuleSynthArgs { |inbusses, outbusses, visualbusses, ioContext, sampleSlotBuffers|
+		^(
+			this.spec[\inputs].collect { |inputName|
+				[
+					("in_"++inputName.asString).asSymbol,
+					inbusses.detect { |busAssoc| busAssoc.key == inputName.asSymbol }.value
+				] // TODO: report error when busAssoc not found
+			} ++
+			this.spec[\outputs].collect { |outputName|
+				[
+					("out_"++outputName.asString).asSymbol,
+					outbusses.detect { |busAssoc| busAssoc.key == outputName.asSymbol }.value
+				] // TODO: report error when busAssoc not found
+			} ++
+			this.spec[\parameters].collect { |parameterName|
+				var name = ("param_"++parameterName.asString).asSymbol;
+				var controlSpec = this.paramControlSpecs[name]; // TODO: report error when controlSpec is not found / or rely on .asSpec
+				[name, controlSpec.default]
+			} ++
+			this.spec[\visuals].collect { |visualName|
+				var name = ("visual_"++visualName.asString).asSymbol;
+				[
+					name,
+					visualbusses.detect { |busAssoc| busAssoc.key == visualName.asSymbol }.value
+				]
+			}
+			++
+			sampleSlotBuffers.collect { |sampleSlotBuffersPerChannelAssoc|
+				var sampleSlotName = sampleSlotBuffersPerChannelAssoc.key;
+				var buffersPerChannel = sampleSlotBuffersPerChannelAssoc.value;
+				[
+					("bufnums_"++sampleSlotName.asString).asSymbol,
+					buffersPerChannel.collect { |channelCountBufferAssoc|
+						var buffer = channelCountBufferAssoc.value;
+						buffer
+					}
+				]
+			}
+		).flatten
+	}
+
+	*prLookupArgNameSuffixesPrefixedBy { |token|
+		token = token.asString;
+		^this.ugenGraphFunc.def.argNames.select { |argName|
+			argName.asString.beginsWith(token)
+		}.collect { |argName|
+			argName.asString[token.size..].asSymbol
+		}
+	}
+
+	*generateModuleDocs {
+		var inputs = this.spec[\inputs];
+		var outputs = this.spec[\outputs];
+		var params = this.spec[\parameters];
+
+		^[
+			"###" + this.shortName.asString,
+			this.generateModuleInputDocs(inputs),
+			this.generateModuleOutputDocs(outputs),
+			this.generateModuleParameterDocs(params)
+		].join($\n)
+	}
+
+	*generateModuleInputDocs { |inputs|
+		^"- Inputs:" ++
+		if (inputs.isEmpty) {
+			" None"
+		} {
+			"\n" ++
+			(
+				this.inputDocs ?
+				(
+					inputs.collect { |input|
+						"\t- `" ++ input ++ "`"
+					}.join($\n)
+				)
+			)
+		};
+	}
+
+	*generateModuleOutputDocs { |outputs|
+		^"- Outputs:" ++
+		if (outputs.isEmpty) {
+			" None"
+		} {
+			"\n" ++
+			(
+				this.outputDocs ?
+				(
+					outputs.collect { |output|
+						"\t- `" ++ output ++ "`"
+					}.join($\n)
+				)
+			)
+		};
+	}
+
+	*generateModuleParameterDocs { |params|
+		^"- Parameters:" ++
+		if (params.isEmpty) {
+			" None"
+		} {
+			"\n" ++
+			(
+				this.paramDocs ?
+				(
+					params.collect { |param|
+						"\t- `" ++ param ++ "`" // TODO: include description derived from ControlSpec
+					}.join($\n)
+				)
+			)
+		};
+	}
+
+	*inputDocs {
+		^nil
+	}
+
+	*outputDocs {
+		^nil
+	}
+
+	*paramDocs {
+		^nil
+	}
+
+	*shortName { ^this.subclassResponsibility(thisMethod) } // TODO: Preferable <= 8 chars
+}
+
+RrrrDSL {
+	*preProcessor {
+		^{ |code, interpreter| this.convert(code, interpreter) };
+	}
+
+	*convert { |code, interpreter|
+		var lines = code.split($\n);
+		^if (
+			lines.every { |line|
+				(line == "")
+				or:
+				(line == "(")
+				or:
+				(line == ")")
+				or:
+				(line.beginsWith("//"))
+				or:
+				#[
+					new,
+					connect,
+					set,
+					disconnect,
+					tapoutlet,
+					mapcc,
+					mapnote,
+					mapnotehz
+				].includes(line.split(Char.space).first.asSymbol)
+			}
+		) {
+			(
+				if (interpreter.r.isNil) {
+					[
+						"\"Hold on, booting server, then starting R...\".inform;",
+						"s.waitForBoot {",
+						Char.tab ++ "r = Rrrr.new;"
+					]
+				} ++ lines.collect { |line|
+					var words = line.split(Char.space);
+					var command = words.first;
+
+					case { (line == "") or: (line == "(") or: (line == ")") or: line.beginsWith("//")} {
+						""
+					}
+					{ command == "new" } {
+						"r.newCommand(" ++ words[1].quote ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "connect" } {
+						"r.connectCommand(" ++ words[1].quote ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "set" } {
+						"r.setCommand(" ++ words[1].quote ++ ", " ++ words[2] ++ ");"
+					}
+					{ command == "disconnect" } {
+						"r.disconnectCommand(" ++ words[1].quote ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "tapoutlet" } {
+						"r.tapoutletCommand(" ++ words[1] ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "mapcc" } {
+						"r.mapccCommand(" ++ words[1] ++ ", " ++ words[2].quote ++ ");"
+					}
+					{ command == "mapnote" } {
+						"r.mapnoteCommand(" ++ words[1].quote ++ ");"
+					}
+					{ command == "mapnotehz" } {
+						"r.mapnotehzCommand(" ++ words[1].quote ++ ");"
+					}
+				} ++ if (interpreter.r.isNil) {
+					[
+						"}"
+					]
+				}
+			).join($\n)
+		} {
+			code
+		};
+	}
+}
++ Rrrr {
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapccCommand { |cc, moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error; // TODO: if no modules at all, say "no modules" not just empty string
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.cc(("r_cc_"++cc.asString++"_map").asSymbol, { |val, ctl| // TODO: make this a MIDIfunc
+					if (ctl == cc) {
+						var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(val));
+						this.setCommand(moduleparam, mappedVal);
+						(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+					};
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapnoteCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_note_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = paramControlSpec.map(\midi.asSpec.unmap(note));
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapnotehzCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = note.midicps;
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+
+	// TODO: this is merely for testing in SuperCollider, no unmap available
+	mapnotegateCommand { |moduleparam|
+		var moduleRef, parameter, module;
+
+		# moduleRef, parameter = moduleparam.asString.split(moduleParameterRefDelimiter);
+
+		module = this.lookupModuleByName(moduleRef);
+		if (module.isNil) {
+			"module named % not found among modules %".format(moduleRef.quote, modules.collect { |module| module[\name].asString }.join(", ").quote).error;
+		} {
+			var spec, paramControlSpec;
+
+			spec = this.getModuleSpec(module[\kind]);
+
+			paramControlSpec = module[\instance].class.getParamControlSpec(parameter.asSymbol);
+
+			if (spec[\parameters].includes(parameter.asSymbol)) {
+				MIDIIn.connectAll;
+
+				MIDIdef.noteOn(("r_notehz_map").asSymbol, { |vel, note| // TODO: make this a MIDIfunc
+					var mappedVal = note.midicps;
+					this.setCommand(moduleparam, mappedVal);
+					(moduleparam.asString ++ ": " ++ mappedVal.asString).inform;
+				});
+			} {
+				"parameter % not valid for module named % (kind: %)".format(parameter.asString.quote, moduleRef.asString.quote, module[\kind].asString.quote).error;
+			}
+		}
+	}
+}
+/*
+
+work on some terminology
+
+what to call it - input or inlet, output or outlet?
+
+moduleRef = a module name: ie. "Filter", "Osc"
+moduleInputRef = a module name and input name joined with a "*": ie. "Filter*In", "Osc*FM"
+moduleOutputRef = a module name and output name joined with a "/": ie. "Filter/Lowpass", "Osc/Saw"
+moduleParameterRef = a module name and parameter name joined with a ".": ie. "Filter.Resonance", "Osc.Range"
+moduleVisualRef = a module name and visual name joined with a "=": ie. "Filter=Frequency", "Seq1=Position"
+moduleSampleSlotRef = a module name and sample slot name joined with a ":": ie. "Sampler:Sample"
+macroRef = a macro name: ie. "Tune"
+
+new ss <modulename> <moduletype> - creates a uniquely named module of given type (refer to section "Modules" for available types).
+Examples: new Osc MultiOsc, new Out SoundOut
+
+connect ss <modulename-output> <modulename*input> - connects a module output to a module input.
+Examples: connect Osc/Pulse Out*Left, connect Osc/Pulse Out*Right
+
+disconnect ss <modulename-output> <modulename*input> - disconnects a module output from a module input.
+Example: disconnect Osc/Out Out*Left
+
+set sf <modulename.parameter> <value> - sets a module parameter to the given value.
+Examples: set Osc.Tune -13, set Osc.PulseWidth 0.5
+
+delete s <modulename> - removes a module.
+Example: delete Osc
+
+pollvisual is <pollindex> <modulename=visual> - routes a visual to an indexed poll TODO: index starts from 0 or 1? 0 in SC!
+Example: pollvisual 0 Osc-Frequency
+
+TODO: rename to polloutput or pollout?
+polloutlet is <pollindex> <modulename-outlet> - routes a signal output to an indexed poll TODO: index starts from 0 or 1? 0 in SC!
+Example: polloutlet 0 LFO/InvSaw
+
+TODO: consider adding to pollinput or pollin?
+
+pollclear i <pollindex> - clears routing to an indexed poll TODO: index starts from 0 or 1? 0 in SC!
+Example: pollclear 0
+
+*/
+
+/*
+
+; scheme sketch
+
+(define new r/new)
+(define connect r/connect)
+(define set r/set)
+(define disconnect r/disconnect)
+(define delete r/delete)
+
+(new 'Sampler 'SPVoice)
+(new 'Out 'SoundOut)
+(connect 'Sampler/Left 'Out*Left)
+(connect 'Sampler/Right 'Out*Right)
+(readsample 'Sampler:Sample "C:/Users/AHorSE/OneDrive - IFS/Desktop/Life/XR-20/Hit/XR-20_510.wav")
+
+(define gate (lambda (on) (set 'Sampler.Gate on)))
+
+(gate 1) ; trigger sample
+(gate 0)
+
+(new 'Reverb 'Rev1)
+(connect 'Sampler/Left 'Reverb*Left)
+(connect 'Sampler/Right 'Reverb*Right)
+(connect 'Reverb/Left 'Out*Left)
+(connect 'Reverb/Right 'Out*Right)
+(set 'Reverb.Volume -15)
+
+*/
+
+// TODO: come to think of it - move all syntax out of Rrrr class
+// TODO: also refactor all midi map* commands out of main Rrrr class
+
+// TODO: add validation method that checks module metadata against a SynthDescLib populated with the ugen
+
+// TODO: move LagTimes to SynthDef ugenGraphFunc (\ir.control &c)

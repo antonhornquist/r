@@ -600,6 +600,28 @@ namespaces.screen = { // TODO: call this mock_screen?
 		);
 	};
 
+	var screen_text_right = { |instance, text|
+		var scale = instance[\scale];
+		var position = instance[\position];
+		var level = instance[\level];
+		var color = instance[\colors][level];
+
+		var x_pos = position.x - 1;
+		var y_pos = position.y - 1;
+
+		y_pos = y_pos - (instance[\font_size] * 0.8);
+
+		text = text.asString;
+
+		instance[\queued_screen_ops] = instance[\queued_screen_ops].add(
+			{
+				Pen.font = instance[\font];
+				Pen.color = color;
+				Pen.stringRightJustIn(text, Rect.newSides(0, round(scale * y_pos), round(scale * x_pos), round(scale * y_pos)+(instance[\font_size]*scale)));
+			}
+		);
+	};
+
 	var screen_font_size = { |instance, font_size|
 		var scale = instance[\scale];
 		instance[\font_size] = font_size;
@@ -682,6 +704,9 @@ namespaces.screen = { // TODO: call this mock_screen?
 		screen.text_ = { |self, text|
 			screen_text.value(screen_instance, text);
 		};
+		screen.text_right_ = { |self, text|
+			screen_text_right.value(screen_instance, text);
+		};
 		screen.text_extents_ = { |self, text|
 			screen_text_extents.value(screen_instance, text);
 		};
@@ -709,18 +734,17 @@ namespaces.screen = { // TODO: call this mock_screen?
 }.value;
 
 namespaces.paramset = {
-	var init_paramset = {
-		var params = [];
-
+	var init_paramset = { |script_env|
 		var paramset = (
-			name: "unnamed"
+			name: "unnamed",
+			params: []
 		);
 
 		paramset.add_separator_ = { |self|
 			var param;
 			param = ();
 			param[\type] = \separator;
-			params = params.add(param);
+			self[\params] = self[\params].add(param);
 		};
 		paramset.add_ = { |self, arg_param|
 			var type = arg_param[\type].asSymbol;
@@ -744,15 +768,19 @@ namespaces.paramset = {
 				param[\path] = "-";
 				param[\action] = action;
 				param.get_ = { |self|
-					self[\path]
+					self[\path];
 				};
 				param.set__ = { |self, value, silent|
+					value = value.asString;
 					if (self[\path] != value) {
 						self[\path] = value;
 					};
 					if (silent.asBoolean.not) {
 						self.bang_();
 					}
+				};
+				param.string_ = { |self|
+					PathName(self[\path]).fileName
 				};
 				param.bang_ = { |self|
 					self[\action].value(self[\path]);
@@ -772,7 +800,7 @@ namespaces.paramset = {
 					self[\raw];
 				};
 				param.set__ = { |self, value|
-					self.set_raw_(self[\controlspec].unmap(value));
+					self.set_raw_(self[\controlspec].unmap(value.asFloat));
 				};
 				param.set_raw_ = { |self, value|
 					self[\raw] = value.clip(0, 1);
@@ -781,20 +809,49 @@ namespaces.paramset = {
 				param.delta_ = { |self, delta|
 					self.set_raw_(self[\raw] + (delta/100));
 				};
+				param.string_ = { |self|
+					if (self[\formatter].notNil) {
+						self[\formatter].value(self);
+					} {
+						round(self.get_(), 0.01).asString ++ " " ++ (self[\controlspec].units ?? "")
+					};
+				};
 				param.bang_ = { |self|
 					self[\action].value(self.get_());
 				};
 			}
 			{ type == 'option' } {
 				var options = arg_param[\options];
+				var default = arg_param[\default];
 				param[\options] = options;
 				param[\action] = action;
-				param[\selected] = 1; // TODO: employ 1 based indexing
+				param[\selected] = default ? 1; // TODO: employ 1 based indexing
 				param.get_ = { |self|
 					self[\selected]
 				};
-				param.set__ = { |self, value|
+				param.set__ = { |self, value, silent|
+/*
+	TODO
+  local silent = silent or false
+  local c = util.clamp(math.floor(v),1,self.count)
+  if self.selected ~= c then
+    self.selected = c
+    if silent==false then self:bang() end
+  end
+*/
 					self[\selected] = value.asInteger; // TODO: constrain to options
+				};
+				param.delta_ = { |self, delta|
+/*
+	TODO
+  if d<0 then d = math.floor(d)
+  else d = math.ceil(d) end
+  self:set(self:get() + d)
+*/
+					self.set__(self.get_() + delta);
+				};
+				param.string_ = { |self|
+					self[\options][self[\selected]-1].asString
 				};
 				param.bang_ = { |self|
 					self[\action].value(self[\selected]);
@@ -804,26 +861,38 @@ namespaces.paramset = {
 				var min_ = arg_param[\min];
 				var max_ = arg_param[\max];
 				var default_ = arg_param[\default];
+				var formatter = arg_param[\formatter];
 				param[\min] = min_;
 				param[\max] = max_;
 				param[\default] = default_ ? 0;
 				param[\value] = param[\default];
 				param[\action] = action;
+				param[\formatter] = formatter;
 				param.get_ = { |self|
 					self[\value]
 				};
+				param.string_ = { |self|
+					if (self[\formatter].notNil) {
+						self[\formatter].value(self);
+					} {
+						self[\value]
+					};
+				};
 				param.set__ = { |self, value|
-					self[\value] = value.asInteger; // TODO: constrain to number spec
+					self[\value] = (value.asInteger min: self[\max]) max: self[\min]; // TODO: constrain to number spec
+				};
+				param.delta_ = { |self, delta|
+					self.set__(self.get_() + delta);
 				};
 				param.bang_ = { |self|
 					self[\action].value(self[\value]);
 				};
 			};
 
-			params = params.add(param);
+			self[\params] = self[\params].add(param);
 		};
 		paramset.lookup_param_ = { |self, id|
-			params.detect { |param| param[\id] == id.asSymbol };
+			self[\params].detect { |param| param[\id] == id.asSymbol };
 		};
 		paramset.get_name_ = { |self, id|
 			var param = self.lookup_param_(id);
@@ -850,19 +919,73 @@ namespaces.paramset = {
 			param.delta_(delta);
 		};
 		paramset.bang_ = { |self|
-			params.do { |param|
-				// TODO: remove var value = paramset.get_(param[\id]);
-				// TODO: remove param[\action].value(value);
+			self[\params].do { |param|
 				param.bang_();
 			};
 		};
-		paramset.write_ = { |self|
-			Error("not implemented yet").throw;
+		paramset.write_ = { |self, filename, name|
+			var file;
+			filename = filename = 1;
+			if (filename.class == Integer) {
+				filename = self.pr_resolve_number_pset_path_(filename);
+			};
+			postln("pset >> write: " ++ filename);
+			File.use(filename.standardizePath, "w") { |file|
+				if (name.notNil) {
+					file.write("-- " ++ name ++ "\n");
+				};
+				self[\params].do { |param|
+					if (param[\id].notNil and: (param[\type] != \trigger)) { // TODO: trigger?
+						var value = param.get_();
+						file.write("%: %\n".format(param[\id].asString.quote, value));
+					};
+				};
+			};
 		};
-		paramset.read_ = { |self|
-			Error("not implemented yet").throw;
+		paramset.read_ = { |self, filename|
+			var file;
+			var line;
+			filename = filename = 1;
+			if (filename.class == Integer) {
+				filename = self.pr_resolve_number_pset_path_(filename);
+			};
+			postln("pset >> read: " ++ filename);
+			if (File.exists(filename.standardizePath)) {
+				File.use(filename.standardizePath, "r") { |file|
+					while { (line = file.getLine).notNil } {
+						if (line.beginsWith("--")) {
+							self[\name] = line[3..];
+						} {
+							var colon_pos;
+							colon_pos = line.find($:);
+							if (colon_pos.notNil) {
+								var id, value;
+								id = line[..colon_pos-1];
+								value = line[colon_pos+2..];
+
+								if (id.notNil and: value.notNil) {
+									var unquoted_id = id[1..id.size-2];
+									var param = self.lookup_param_(unquoted_id);
+
+									if (param.notNil) {
+										param.set__(value);
+									} {
+										"no param name % in paramset!".format(unquoted_id).warn; 
+									};
+									value = value[1..];
+									param
+								};
+							};
+						};
+					};
+				};
+			} {
+				postln("pset :: " ++ filename ++ " not read.");
+			};
 		};
 		paramset.string_ = { |self, id|
+/*
+	TODO
 			var param = self.lookup_param_(id);
 			if (param[\formatter].notNil) {
 				param[\formatter].value(param);
@@ -870,14 +993,23 @@ namespaces.paramset = {
 				var a = round(paramset.get_(param[\id]), 0.01);
 				a.asString + param[\controlspec].units;
 			};
+*/
+			var param = self.lookup_param_(id);
+			param.string_();
 		};
 		paramset.list_ = { |self|
 			postln("paramset [" ++ self.name ++ "]");
-			params.do { |param|
+			self[\params].do { |param|
 				postln(param[\id]);
 			};
 		};
-
+		paramset.pr_resolve_number_pset_path_ = { |self, index|
+			script_env.use {
+				var data_folder = ~norns[\state][\data];
+				File.mkdir(data_folder);
+				data_folder +/+ index.asString ++ ".pset";
+			};
+		};
 		paramset;
 	};
 
@@ -1246,6 +1378,12 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var init_grid_device_manager = grid_device_manager[\init_grid_device_manager];
 		var free_grid_device_manager = grid_device_manager[\free_grid_device_manager];
 
+		var norns = (
+			state: (
+				data: Platform.userConfigDir +/+ "norns_engine_tester" +/+ "data" ++ Platform.pathSeparator;
+			)
+		);
+
 		var scale = 6;
 		var screen_width = 128 * scale;
 		var screen_height = 64 * scale;
@@ -1353,6 +1491,12 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 									};
 								}
 							;
+						})
+						.keyDownAction_({ |view, char, modifiers, unicode, keycode, key|
+							var ctrl_pressed = modifiers & 262144 == 262144;
+							if (ctrl_pressed and: (keycode == 32)) {
+								CmdPeriod.run;
+							};
 						});
 				};
 
@@ -1435,12 +1579,10 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 				};
 
 				script_env = Environment.make {
-					// ~engine = engine;
-
+					~norns = norns;
 					~screen = screen_api;
-
 					~metro = init_metro_manager.value;
-					~params = init_paramset.value;
+					~params = init_paramset.value(currentEnvironment);
 					~midi = init_midi_device_manager.value(currentEnvironment);
 					~arc = init_arc_device_manager.value(currentEnvironment);
 					~grid = init_grid_device_manager.value(currentEnvironment);
