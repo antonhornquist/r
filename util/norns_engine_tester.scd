@@ -825,7 +825,7 @@ namespaces.paramset = {
 				var default = arg_param[\default];
 				param[\options] = options;
 				param[\action] = action;
-				param[\selected] = default ? 1; // TODO: employ 1 based indexing
+				param[\selected] = default ? 1;
 				param.get_ = { |self|
 					self[\selected]
 				};
@@ -839,7 +839,10 @@ namespaces.paramset = {
     if silent==false then self:bang() end
   end
 */
-					self[\selected] = value.asInteger; // TODO: constrain to options
+					self[\selected] = value.asInteger.clip(1, param[\options].size); // TODO: constrain to options
+					if (silent.asBoolean.not) {
+						self[\action].value(self[\selected]);
+					}
 				};
 				param.delta_ = { |self, delta|
 /*
