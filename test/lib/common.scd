@@ -650,7 +650,7 @@ var create_polls = { |script_context, poll_specs, refresh_rate|
 	var poll_global = script_context[\globals][\poll];
 
 	poll_specs.collect { |poll_spec, i|
-		var script_poll = poll_global.set_("poll" ++ (i+1)) { |value|
+		var script_poll = poll_global.set__("poll" ++ (i+1)) { |value|
 			poll_spec[\handler].value(value);
 			set_ui_dirty.value(script_context);
 		};
