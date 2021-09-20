@@ -14,8 +14,8 @@ var start_script = norns_engine_tester['start_script'];
 start_script.value {
 	// scriptname: bob
 	// v1.3.0 @jah
-	var r_bob = include_relative.value('lib/r_bob.scd');
-	var r_bob_init = r_bob[\init];
+	var bob_spec = include_relative.value('lib/bob_spec.scd');
+	var bob_spec_init = bob_spec[\init];
 
 	var common = include_relative.value("lib/common.scd");
 	var common_init = common[\init];
@@ -31,7 +31,7 @@ start_script.value {
 	~engine.name = 'R';
 
 	~init = {
-		var r_bob_instance = r_bob_init.value(
+		var bob_spec_instance = bob_spec_init.value(
 			(
 				engine_global: ~engine,
 				visual_buf_size: round(ui_refresh_rate/20)
@@ -39,7 +39,7 @@ start_script.value {
 		);
 
 		var ui_spec = (
-			arc: ( device: ~arc.connect_() ),
+			arc_device: ~arc.connect_(),
 			pages: [
 				[ (id: 'cutoff'), (id: 'resonance') ],
 				[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
@@ -58,9 +58,9 @@ start_script.value {
 					poll: ~poll,
 					redraw: ~redraw
 				),
-				param_specs: r_bob_instance[\param_specs],
-				poll_specs: r_bob_instance[\poll_specs],
-				visual_values: r_bob_instance[\visual_values],
+				param_specs: bob_spec_instance[\param_specs],
+				poll_specs: bob_spec_instance[\poll_specs],
+				visual_values: bob_spec_instance[\visual_values],
 				ui_spec: ui_spec,
 				settings_file: settings_file,
 			)

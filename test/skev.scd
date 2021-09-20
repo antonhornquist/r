@@ -46,7 +46,7 @@ start_script.value {
 		);
 
 		var ui_spec = (
-			arc: ( device: ~arc.connect_() ),
+			arc_device: ~arc.connect_(),
 			pages: [
 				[ (id: 'freq_shift'), (id: 'pitch_ratio') ],
 				[ (id: 'pitch_dispersion'), ( id: 'time_dispersion') ],

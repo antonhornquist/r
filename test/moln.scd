@@ -51,7 +51,7 @@ start_script.value {
 		);
 
 		var ui_spec = (
-			arc: ( device: ~arc.connect_() ),
+			arc_device: ~arc.connect_(),
 			midi: (
 				device: ~midi.connect_(),
 				on_event: { |data|

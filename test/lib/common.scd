@@ -108,11 +108,10 @@ var init_ui = { |script_context|
 
 	var device_manager_config = ();
 
-	if (ui_spec.arc.notNil) {
-		/*
-			TODO
-		arc: (
-			device: ~arc.connect_(),
+	if (ui_spec.arc_device.notNil) {
+		// TODO device_manager_config[\arc] = ui_spec.arc;
+		device_manager_config[\arc] = (
+			device: ui_spec.arc_device,
 			on_delta: { |n, delta|
 				var d;
 				var id;
@@ -122,38 +121,28 @@ var init_ui = { |script_context|
 				} {
 					d = delta;
 				};
-				id = get_param_id_for_current_page.value(script_context, n);
+				id = get_param_id_for_current_page.value(script_context, n-1); // TODO: zero-based
 				val = params_global.get_raw_(id);
-				params_global.set_raw_(id, val+d/500);
+				params_global.set_raw_(id, val+(d/500));
 			},
 			on_refresh: { |my_arc|
 				render_active_page_on_arc.value(script_context, my_arc);
 			};
 		)
-		*/
-		device_manager_config[\arc] = ui_spec.arc;
 	};
-	if (ui_spec.grid.notNil) {
-		/*
-			TODO
-		grid: (
-			device: ~grid.connect_(),
+	if (ui_spec.grid_device.notNil) {
+		device_manager_config[\grid] = (
+			device: ui_spec.grid_device,
 			on_key: {
 			}
-		)
-		*/
-		device_manager_config[\grid] = ui_spec.grid;
+		);
 	};
-	if (ui_spec.midi.notNil) {
-		/*
-			TODO
-		midi: (
-			device: ~midi.connect_(),
+	if (ui_spec.midi_device.notNil) {
+		device_manager_config[\midi] = (
+			device: ui_spec.midi_device,
 			on_event: {
 			}
 		)
-		*/
-		device_manager_config[\midi] = ui_spec.midi;
 	};
 
 	device_manager_config[\screen] = (
@@ -621,10 +610,11 @@ var draw_arc = { |my_arc, value1, visual_values1, value2, visual_values2|
 	var draw_ring = { |ring, value, visual_values|
 		var led_levels = render_ring.value(value, visual_values);
 		led_levels.do { |led_level, i|
-			my_arc.led_(ring, i, led_level);
+			my_arc.led_(ring, i+1, led_level); // TODO: zero to one based
 		};
 	};
-	my_arc.all_(0);
+	my_arc.all_(1, 0);
+	my_arc.all_(2, 0);
 	draw_ring.value(1, value1, visual_values1);
 	draw_ring.value(2, value2, visual_values2);
 };
