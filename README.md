@@ -48,7 +48,7 @@ General purpose audio patching engine
 The engine has ten polls named `poll1` to `poll10`. Snapshots of module output signals can be routed to these polls. In addition, some modules expose feedback values typically used for visualization (ie. the `MMFilter` module feedback value `Frequency` which takes frequency modulation into account). These values - referred to as _visuals_ - can also be routed to the polls.
 
 - `polloutput is <modulename/output>` - routes an output signal of a named module to a poll.
-	- Examples: `pollvisual 1 LFO/Saw` routes the signal of the output named Saw of the LFO module to `poll1`.
+	- Examples: `polloutput 1 LFO/Saw` routes the signal of the output named Saw of the LFO module to `poll1`.
 
 - `pollvisual is <modulename=visual>` - routes a visual of a named module to a poll.
 	- Example: `pollvisual 2 Filter=Frequency` routes the feedback value of the visual named Frequency of the Filter module to `poll2`.
