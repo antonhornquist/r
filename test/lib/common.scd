@@ -17,11 +17,11 @@ var device_manager_refresh = device_manager[\refresh];
 var device_manager_set_dirty = device_manager[\set_dirty];
 var device_manager_event_indicator_is_shown = device_manager[\event_indicator_is_shown]; // TODO: event_received_recently
 
-// arc_common - start
+// TODO arc_common - start
 var bow = include_relative.value("bow.scd");
 var bob_spawn_render_ring_function = bow[\spawn_render_ring_function];
 var render_ring = bob_spawn_render_ring_function.value();
-// arc_common - finish
+// TODO arc_common - finish
 
 var hi_level = 15;
 var lo_level = 5; // TODO: 4 in lua
@@ -587,7 +587,7 @@ var save_settings = {
 	"save_settings not implemented".inform; // TODO
 };
 
-// arc_common - start
+// TODO arc_common - start
 var render_active_page_on_arc = { |script_context, my_arc|
 	var params_global = script_context[\globals][\params];
 
@@ -628,7 +628,7 @@ var draw_arc = { |my_arc, value1, visual_values1, value2, visual_values2|
 	draw_ring.value(1, value1, visual_values1);
 	draw_ring.value(2, value2, visual_values2);
 };
-// arc_common - finish
+// TODO arc_common - finish
 
 var cleanup = { |settings_file|
 	save_settings.value(settings_file);
