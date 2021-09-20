@@ -79,7 +79,7 @@ var init_arc = { |instance, config|
 	instance[\arc_device] = arc_device;
 	arc_delta_callback = config[\on_delta];
 	arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
-		flash_event.value();
+		flash_event.value(instance);
 		arc_delta_callback.value(n, delta);
 	};
 	instance[\arc_refresh_callback] = config[\on_refresh];
@@ -99,7 +99,7 @@ var init_grid = { |instance, config|
 	instance[\grid_device] = grid_device;
 	grid_key_callback = config[\on_key];
 	grid_device[\key] = { |x, y, s| // not .key notation to suppress self argument?
-		flash_event.value();
+		flash_event.value(instance);
 		grid_key_callback.value(x, y, s);
 	};
 	instance[\grid_refresh_callback] = config[\on_refresh];
@@ -119,7 +119,7 @@ var init_midi = { |instance, config|
 	instance[\midi_device] = midi_device;
 	midi_event_callback = config[\on_event];
 	midi_device[\event] = { |data| // not .event notation to suppress self argument?
-		flash_event.value();
+		flash_event.value(instance);
 		midi_event_callback.value(data);
 	};
 	instance[\midi_is_inited] = true;
@@ -194,11 +194,11 @@ var update_event_indicator = { |instance|
 		{ instance[\event_flash_frame_counter] == 0 } {
 			instance[\event_flash_frame_counter] = nil;
 			instance[\show_event_indicator] = false;
-			set_dirty.value();
+			set_dirty.value(instance);
 		}
 		{ instance[\show_event_indicator].not } {
 			instance[\show_event_indicator] = true;
-			set_dirty.value();
+			set_dirty.value(instance);
 		};
 	};
 };
