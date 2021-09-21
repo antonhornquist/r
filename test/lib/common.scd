@@ -215,7 +215,7 @@ var redraw = { |script_context|
 	var pages = ui_spec[\pages];
 
 	var state = script_context[\state];
-	var visual_values_arr = state[\visual_values]; // TODO
+	var visual_values_dict = state[\visual_values]; // TODO
 	var current_page = state[\current_page];
 	var fine = state[\fine];
 	var prev_held = state[\prev_held];
@@ -343,7 +343,7 @@ var redraw = { |script_context|
 			var widget_x = x + 1;
 			var widget_y = y + 14;
 			var id = page_param[\id];
-			var visual_values = visual_values_arr[id];
+			var visual_values = visual_values_dict[id];
 			var raw_value = params_global.get_raw_(id);
 
 			if (visual_values.notNil) {
@@ -579,29 +579,36 @@ var save_settings = {
 // TODO arc_common - start
 var render_active_page_on_arc = { |script_context, my_arc|
 	var params_global = script_context[\globals][\params];
+	var state = script_context[\state];
 
 	var ui_spec = script_context[\ui_spec];
 	var pages = ui_spec[\pages];
 
 	var page = pages[get_active_page.value(script_context)];
 
+	var param1_id = get_param_id_for_current_page.value(script_context, 0); // TODO: zero-based
+	var param2_id = get_param_id_for_current_page.value(script_context, 1); // TODO: zero-based
+
+	var visual_values_dict = state[\visual_values]; // TODO
+
+	var visual_values1_dict = visual_values_dict[param1_id];
+	var visual_values2_dict = visual_values_dict[param2_id];
+
 	var visual_values1, visual_values2;
 
-	// TODO: zero-based indexing
-	if (page[0][\visual_values].notNil) { // TODO: refactor to first_page
-		visual_values1 = page[0][\visual_values][\content]
+	if (visual_values1_dict.notNil) {
+		visual_values1 = visual_values1_dict[\content];
 	};
 
-	// TODO: zero-based indexing
-	if (page[1][\visual_values].notNil) { // TODO: refactor to second_page
-		visual_values2 = page[1][\visual_values][\content]
+	if (visual_values2_dict.notNil) {
+		visual_values2 = visual_values2_dict[\content];
 	};
 
 	draw_arc.value(
 		my_arc,
-		params_global.get_raw_(get_param_id_for_current_page.value(script_context, 0)), // TODO: zero-based indexing
+		params_global.get_raw_(param1_id), // TODO: zero-based indexing
 		visual_values1,
-		params_global.get_raw_(get_param_id_for_current_page.value(script_context, 1)), // TODO: zero-based indexing
+		params_global.get_raw_(param2_id), // TODO: zero-based indexing
 		visual_values2
 	);
 };

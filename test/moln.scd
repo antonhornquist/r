@@ -115,7 +115,7 @@ start_script.value {
 								};
 							}
 							;
-							common_set_ui_dirty.value();
+							common_set_ui_dirty.value(script_context);
 						};
 					}
 				}
@@ -164,7 +164,7 @@ start_script.value {
 		engine_init_delay_metro[\event] = {
 			engine_ready = true;
 
-			common_set_ui_dirty.value();
+			common_set_ui_dirty.value(script_context);
 
 			engine_init_delay_metro.stop_();
 		};
