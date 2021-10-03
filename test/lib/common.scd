@@ -96,14 +96,7 @@ var calculate_ui_label_widths = { |params_global, screen_global, pages|
 	};
 };
 
-var redraw = { |screen_global, script_context, show_event_indicator| // TODO: inject screen, params globals
-	var globals = script_context[\globals];
-	var params_global = globals[\params];
-
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
-
-	var state = script_context[\state];
+var redraw = { |params_global, screen_global, pages, state, show_event_indicator| // TODO: inject screen, params globals
 	var visual_values_dict = state[\visual_values]; // TODO
 	var current_page = state[\current_page];
 	var fine = state[\fine];

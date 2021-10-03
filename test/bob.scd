@@ -231,7 +231,11 @@ start_script.value {
 */
 
 	~redraw = {
-		common_redraw.value(~screen, script_context, show_event_indicator);
+		var ui_spec = script_context[\ui_spec];
+		var pages = ui_spec[\pages];
+
+		var state = script_context[\state];
+		common_redraw.value(~params, ~screen, pages, state, show_event_indicator);
 	};
 
 /*
