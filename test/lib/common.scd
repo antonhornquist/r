@@ -531,13 +531,23 @@ var load_settings_and_params = { |settings_file, params_global|
 };
 
 var mouse = { |script_context, what ... args|
+	var globals = script_context[\globals];
+	var screen_global = globals[\screen];
+	var params_global = globals[\params];
+
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
+
+	var state = script_context[\state];
+
+
 	case
 	{ what == "leave" } {
-		mouse_leave.value(script_context);
+		mouse_leave.value(state);
 	}
 	{ what == "over" } {
 		var x = args[0], y = args[1];
-		mouse_over.value(script_context, x, y);
+		mouse_over.value(params_global, screen_global, pages, state, x, y);
 	}
 	{ what == "down" } {
 		var x = args[0], y = args[1];
@@ -557,25 +567,18 @@ var mouse = { |script_context, what ... args|
 	}
 };
 
-var mouse_leave = { |script_context|
-	var state = script_context[\state];
-	var prev_focus = state[\focus];
+var mouse_leave = { |state|
 	state[\focus] = nil;
 };
 
-var mouse_over = { |script_context, x, y|
-	var state = script_context[\state];
-	var prev_focus = state[\focus];
-
+var mouse_over = { |params_global, screen_global, pages, state, x, y|
 	var mouse_over_pos = x@y;
-
-	update_focus.value(script_context, mouse_over_pos); // TODO: only if mouse is not pressed(?)
+	update_focus.value(params_global, screen_global, pages, state, mouse_over_pos); // TODO: only if mouse is not pressed(?)
 };
 
 var mouse_down = { |script_context, x, y|
 	var state = script_context[\state];
 	var focus = state[\focus];
-	var prev_active = state[\active];
 	state[\mouse_down_pos] = x@y;
 
 	case
@@ -613,7 +616,13 @@ var mouse_move = { |script_context, x, y|
 
 var mouse_up = { |script_context, x, y|
 	var state = script_context[\state];
-	var prev_active = state[\active];
+
+	var globals = script_context[\globals];
+	var screen_global = globals[\screen];
+	var params_global = globals[\params];
+
+	var ui_spec = script_context[\ui_spec];
+	var pages = ui_spec[\pages];
 
 	state[\mouse_move_pos] = nil;
 
@@ -627,7 +636,7 @@ var mouse_up = { |script_context, x, y|
 
 	state[\active] = nil;
 
-	update_focus.value(script_context, x@y);
+	update_focus.value(params_global, screen_global, pages, state, x@y);
 };
 
 var mouse_wheel = { |script_context, x_delta, y_delta|
@@ -648,22 +657,23 @@ var mouse_wheel = { |script_context, x_delta, y_delta|
 	};
 };
 
-var update_focus = { |script_context, pos|
-	var state = script_context[\state];
+var update_focus = { |params_global, screen_global, pages, state, pos|
+	var current_page = state[\current_page];
+
 	case
-	{ over_enc1_value.value(script_context, pos) } { // TODO: refactor out over_enc1_value
+	{ over_enc1_value.value(params_global, screen_global, pos) } { // TODO: refactor out over_enc1_value
 		state[\focus] = 'enc1';
 	}
-	{ over_enc2_value.value(script_context, pos) } { // TODO: refactor out over_enc2_value
+	{ over_enc2_value.value(params_global, screen_global, pages, current_page, pos) } { // TODO: refactor out over_enc2_value
 		state[\focus] = 'enc2';
 	}
-	{ over_enc3_value.value(script_context, pos) } { // TODO: refactor out over_enc3_value
+	{ over_enc3_value.value(params_global, screen_global, pages, current_page, pos) } { // TODO: refactor out over_enc3_value
 		state[\focus] = 'enc3';
 	}
-	{ over_key2.value(script_context, pos) } { // TODO: refactor out over_key2
+	{ over_key2.value(screen_global, pos) } { // TODO: refactor out over_key2
 		state[\focus] = 'key2';
 	}
-	{ over_key3.value(script_context, pos) } { // TODO: refactor out over_key2
+	{ over_key3.value(screen_global, pos) } { // TODO: refactor out over_key2
 		state[\focus] = 'key3';
 	}
 	{ true } {
@@ -671,19 +681,18 @@ var update_focus = { |script_context, pos|
 	};
 };
 
-var over_enc1_value = { |script_context, pos|
-	var bounds = get_enc1_value_bounds.value(script_context);
+var over_enc1_value = { |params_global, screen_global, pos|
+	var bounds = get_enc1_value_bounds.value(params_global, screen_global);
 	bounds.contains(pos);
 };
 
-var over_enc2_value = { |script_context, pos|
-	var bounds = get_enc2_value_bounds.value(script_context);
+var over_enc2_value = { |params_global, screen_global, pages, current_page, pos|
+	var bounds = get_enc2_value_bounds.value(params_global, screen_global, pages, current_page);
 	bounds.contains(pos);
 };
 
 // TODO: DRY
-var over_key2 = { |script_context, pos|
-	var screen_global = script_context[\globals][\screen];
+var over_key2 = { |screen_global, pos|
 	var key2_x = 1;
 	var key2_y = 63;
 	var text_width = screen_global.text_extents_("PREV");
@@ -692,8 +701,7 @@ var over_key2 = { |script_context, pos|
 };
 
 // TODO: DRY
-var over_key3 = { |script_context, pos|
-	var screen_global = script_context[\globals][\screen];
+var over_key3 = { |screen_global, pos|
 	var key2_x = 1;
 	var key2_y = 63;
 	var key3_x = key2_x+65;
@@ -704,9 +712,7 @@ var over_key3 = { |script_context, pos|
 };
 
 // TODO: DRY
-var get_enc1_value_bounds = { |script_context|
-	var screen_global = script_context[\globals][\screen];
-	var params_global = script_context[\globals][\params];
+var get_enc1_value_bounds = { |params_global, screen_global|
 	var enc1_x = 1;
 	var enc1_y = 12;
 	var the_value = round(params_global.get_raw_("output_level")*100).asString; // TODO: use formatter instead of raw
@@ -716,15 +722,13 @@ var get_enc1_value_bounds = { |script_context|
 	Rect(value_x, value_y-12, value_width, 12);
 };
 
-var over_enc3_value = { |script_context, pos|
-	var bounds = get_enc3_value_bounds.value(script_context);
+var over_enc3_value = { |params_global, screen_global, pages, current_page, pos|
+	var bounds = get_enc3_value_bounds.value(params_global, screen_global, pages, current_page);
 	bounds.contains(pos);
 };
 
 // TODO: DRY
-var get_enc2_value_bounds = { |script_context|
-	var current_page = script_context[\state][\current_page];
-
+var get_enc2_value_bounds = { |params_global, screen_global, pages, current_page|
 	var enc2_x = 10; // TODO: DRY
 	var enc2_y = 29;
 
@@ -733,13 +737,11 @@ var get_enc2_value_bounds = { |script_context|
 	var offset = current_page - left;
 	var pixel_ofs = round(offset*128);
 
-	get_enc2_enc3_value_bounds.value(script_context, left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
+	get_enc2_enc3_value_bounds.value(params_global, screen_global, pages, left, 0, enc2_x-pixel_ofs, enc2_y); // TODO: zero based
 };
 
 // TODO: DRY
-var get_enc3_value_bounds = { |script_context|
-	var current_page = script_context[\state][\current_page];
-
+var get_enc3_value_bounds = { |params_global, screen_global, pages, current_page|
 	var enc2_x = 10; // TODO: DRY
 	var enc2_y = 29;
 	var enc3_x = enc2_x + 65;
@@ -750,15 +752,10 @@ var get_enc3_value_bounds = { |script_context|
 	var offset = current_page - left;
 	var pixel_ofs = round(offset*128);
 
-	get_enc2_enc3_value_bounds.value(script_context, left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
+	get_enc2_enc3_value_bounds.value(params_global, screen_global, pages, left, 1, enc3_x-pixel_ofs, enc3_y); // TODO: zero based
 };
 
-var get_enc2_enc3_value_bounds = { |script_context, page, param_index, x, y|
-	var globals = script_context[\globals];
-	var screen_global = globals[\screen];
-	var params_global = globals[\params];
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
+var get_enc2_enc3_value_bounds = { |params_global, screen_global, pages, page, param_index, x, y|
 	var page_param = pages[page][param_index];
 	var the_value = params_global.string_(page_param[\id]);
 	var value_x = x;
