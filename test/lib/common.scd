@@ -4,18 +4,12 @@
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	if (File.exists(path)) {
-		this.executeFile(path);
+		var result = this.executeFile(path);
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result }; // TODO: adopt in other places too
 	} {
 		Error("include_relative: file % does not exist".format(path.quote)).throw;
 	};
 };
-
-var device_manager = include_relative.value("device_manager.scd");
-var device_manager_init = device_manager[\init];
-var device_manager_grid_width = device_manager[\grid_width];
-var device_manager_refresh = device_manager[\refresh];
-var device_manager_set_dirty = device_manager[\set_dirty];
-var device_manager_event_indicator_is_shown = device_manager[\event_indicator_is_shown]; // TODO: event_received_recently
 
 // TODO arc_common - start
 var bow = include_relative.value("bow.scd");
@@ -27,31 +21,22 @@ var hi_level = 15;
 var lo_level = 5; // TODO: 4 in lua
 
 var init = { |conf|
-	var globals = conf[\globals];
-	var param_specs = conf[\param_specs] ?? { Error("param specs are required").throw };
-	var poll_specs = conf[\poll_specs];
 	var visual_values = conf[\visual_values] ? ();
-	var settings_file = conf[\settings_file];
 	var ui_spec = conf[\ui_spec]; // TODO: ui_spec/pages can be made optional
 
+	var globals = conf[\globals];
 	var screen_global = globals[\screen] ?? { Error("screen global is required").throw };
-	var redraw_global = globals[\redraw] ?? { Error("redraw global is required").throw };
-	var metro_global = globals[\metro] ?? { Error("metro global is required").throw };
-	var params_global = globals[\params] ?? { Error("params global is required").throw }; // TODO: only required if there are param specs passed
-	var poll_global = globals[\poll] ?? { Error("poll global is required").throw }; // TODO: only required if there are poll specs passed
+	var params_global = globals[\params] ?? { Error("params global is required").throw };
 
 	var refresh_rate = ui_spec[\refresh_rate] ?? { Error("refresh rate is required").throw };
 
 	var script_context = (
 		globals: (
 			screen: screen_global,
-			redraw: redraw_global,
-			metro: metro_global,
 			params: params_global,
-			poll: poll_global
-		), // TODO: flatten into script context - for speed
+		),
 		ui_spec: ui_spec,
-		state: ( // TODO: flatten into script context - for speed
+		state: (
 			current_page: 0,
 			fine: false,
 			prev_held: false,
@@ -64,21 +49,16 @@ var init = { |conf|
 			mouse_move_pos: nil,
 			mouse_down_pos: nil,
 			visual_values: visual_values,
-			settings_file: settings_file,
-			ui_instance: nil // TODO: soon
 		)
 	);
 
-	add_params.value(script_context, param_specs, params_global);
 	init_ui.value(script_context);
-	load_settings_and_params.value(settings_file, params_global);
-	create_and_start_polls.value(script_context, poll_specs, refresh_rate);
-	start_ui.value(script_context);
 
 	script_context;
 };
 
-var add_params = { |script_context, param_specs, params_global|
+// TODO: move to script bacause of ui_dirty flag
+var add_params = { |param_specs, params_global|
 	param_specs.do { |param_spec|
 		params_global.add_(
 			(
@@ -89,7 +69,7 @@ var add_params = { |script_context, param_specs, params_global|
 				formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
 				action: { |value|
 					param_spec[\action].value(value);
-					set_ui_dirty.value(script_context);
+					// TODO set_ui_dirty.value(script_context);
 				}
 			)
 		);
@@ -100,59 +80,8 @@ var init_ui = { |script_context|
 	var globals = script_context[\globals];
 	var params_global = globals[\params];
 	var screen_global = globals[\screen];
-	var redraw_global = globals[\redraw];
 
 	var ui_spec = script_context[\ui_spec];
-
-	var state = script_context[\state];
-
-	var device_manager_config = ();
-
-	if (ui_spec.arc_device.notNil) {
-		// TODO device_manager_config[\arc] = ui_spec.arc;
-		device_manager_config[\arc] = (
-			device: ui_spec.arc_device,
-			on_delta: { |n, delta|
-				var d;
-				var id;
-				var val;
-				if (state[\fine]) {
-					d = delta/5;
-				} {
-					d = delta;
-				};
-				id = get_param_id_for_current_page.value(script_context, n-1); // TODO: zero-based
-				val = params_global.get_raw_(id);
-				params_global.set_raw_(id, val+(d/500));
-			},
-			on_refresh: { |my_arc|
-				render_active_page_on_arc.value(script_context, my_arc);
-			};
-		)
-	};
-	if (ui_spec.grid_device.notNil) {
-		device_manager_config[\grid] = (
-			device: ui_spec.grid_device,
-			on_key: {
-			}
-		);
-	};
-	if (ui_spec.midi_device.notNil) {
-		device_manager_config[\midi] = (
-			device: ui_spec.midi_device,
-			on_event: {
-			}
-		)
-	};
-
-	device_manager_config[\screen] = (
-		screen_global: screen_global,
-		on_refresh: {
-			redraw_global.value();
-		}
-	);
-
-	state[\device_manager_instance] = device_manager_init.value(device_manager_config);
 
 	calculate_ui_label_widths.value(params_global, screen_global, ui_spec[\pages]);
 };
@@ -167,48 +96,8 @@ var calculate_ui_label_widths = { |params_global, screen_global, pages|
 	};
 };
 
-var start_ui = { |script_context| // TODO: this could well be in the script?
-	var metro_global = script_context[\globals][\metro];
-	var state = script_context[\state];
-	var ui_spec = script_context[\ui_spec];
-	var refresh_rate = ui_spec[\refresh_rate];
-	var update_ui_metro = metro_global.init_();
-
-	update_ui_metro.event = {
-		var target_page = state[\target_page];
-		if (target_page.notNil) {
-			update_page_transition.value(script_context);
-		};
-		device_manager_refresh.value(state[\device_manager_instance]);
-	};
-
-	update_ui_metro.time = 1/refresh_rate;
-	update_ui_metro.start_();
-};
-
-var get_grid_width = { |script_context|
-	device_manager_grid_width.value(script_context[\state][\device_manager_instance]);
-};
-
-var update_page_transition = { |script_context|
-	var state = script_context[\state];
-	var current_page = state[\current_page];
-	var target_page = state[\target_page];
-	var page_trans_div = state[\page_trans_div];
-	var new_current_page;
-	new_current_page = current_page + page_trans_div;
-	state[\page_trans_frames] = state[\page_trans_frames] - 1;
-	if (state[\page_trans_frames] == 0) {
-		new_current_page = target_page;
-		state[\target_page] = nil;
-	};
-	state[\current_page] = new_current_page;
-	set_ui_dirty.value(script_context);
-};
-
-var redraw = { |script_context|
+var redraw = { |screen_global, script_context, show_event_indicator| // TODO: inject screen, params globals
 	var globals = script_context[\globals];
-	var screen_global = globals[\screen];
 	var params_global = globals[\params];
 
 	var ui_spec = script_context[\ui_spec];
@@ -456,7 +345,7 @@ var redraw = { |script_context|
 
 	draw_enc1_widget.value();
 
-	if (device_manager_event_indicator_is_shown.value(state[\device_manager_instance])) {
+	if (show_event_indicator) {
 		draw_event_flash_widget.value();
 	};
 
@@ -486,7 +375,7 @@ var enc = { |script_context, n, delta|
 	};
 	if (n == 1) {
 		params_global.delta_("output_level", d);
-		set_ui_dirty.value(script_context);
+		// TODO set_ui_dirty.value(script_context);
 	} {
 		params_global.delta_(get_param_id_for_current_page.value(script_context, n-2), d); // TODO: zero based
 	};
@@ -499,6 +388,8 @@ var key = { |script_context, n, z|
 	var state = script_context[\state];
 	var target_page = state[\target_page];
 	var page;
+
+	var ui_dirty = false;
 
 	if (target_page.notNil) {
 		page = target_page;
@@ -520,7 +411,7 @@ var key = { |script_context, n, z|
 		} {
 			state[\prev_held] = false;
 		};
-		set_ui_dirty.value(script_context);
+		ui_dirty = true;
 	}
 	{n == 3} {
 		if (z == 1) {
@@ -535,10 +426,11 @@ var key = { |script_context, n, z|
 		} {
 			state[\next_held] = false
 		};
-		set_ui_dirty.value(script_context);
+		ui_dirty = true;
 	};
 
 	state[\fine] = (state[\prev_held] and: state[\next_held]);
+	ui_dirty;
 };
 
 var set_page = { |script_context, page|
@@ -557,7 +449,7 @@ var get_param_id_for_current_page = { |script_context, n|
 	pages[page][n].id;
 };
 
-var transition_to_page = { |script_context, page|
+var transition_to_page = { |script_context, page| // TODO: inject refresh_rate
 	var state = script_context[\state];
 	var ui_spec = script_context[\ui_spec];
 	var refresh_rate = ui_spec[\refresh_rate];
@@ -577,7 +469,7 @@ var save_settings = {
 };
 
 // TODO arc_common - start
-var render_active_page_on_arc = { |script_context, my_arc|
+var render_arc = { |script_context, my_arc|
 	var params_global = script_context[\globals][\params];
 	var state = script_context[\state];
 
@@ -638,36 +530,6 @@ var load_settings_and_params = { |settings_file, params_global|
 	params_global.bang_();
 };
 
-var create_and_start_polls = { |script_context, poll_specs, refresh_rate|
-	var polls = create_polls.value(script_context, poll_specs, refresh_rate);
-	start_polls.value(polls);
-};
-
-var create_polls = { |script_context, poll_specs, refresh_rate|
-	var poll_global = script_context[\globals][\poll];
-
-	poll_specs.collect { |poll_spec, i|
-		var script_poll = poll_global.set__("poll" ++ (i+1)) { |value|
-			poll_spec[\handler].value(value);
-			set_ui_dirty.value(script_context);
-		};
-		script_poll.time_ = 1/refresh_rate;
-		script_poll
-	};
-};
-
-var start_polls = { |polls|
-	if (polls.notNil) {
-		polls.do { |script_poll|
-			script_poll.start_();
-		};
-	};
-};
-
-var set_ui_dirty = { |script_context|
-	device_manager_set_dirty.value(script_context[\state][\device_manager_instance]);
-};
-
 var mouse = { |script_context, what ... args|
 	case
 	{ what == "leave" } {
@@ -699,9 +561,6 @@ var mouse_leave = { |script_context|
 	var state = script_context[\state];
 	var prev_focus = state[\focus];
 	state[\focus] = nil;
-	if (prev_focus != state[\focus]) {
-		set_ui_dirty.value(script_context);
-	};
 };
 
 var mouse_over = { |script_context, x, y|
@@ -711,10 +570,6 @@ var mouse_over = { |script_context, x, y|
 	var mouse_over_pos = x@y;
 
 	update_focus.value(script_context, mouse_over_pos); // TODO: only if mouse is not pressed(?)
-
-	if (prev_focus != state[\focus]) {
-		set_ui_dirty.value(script_context);
-	};
 };
 
 var mouse_down = { |script_context, x, y|
@@ -732,10 +587,6 @@ var mouse_down = { |script_context, x, y|
 	};
 
 	state[\active] = focus;
-
-	if (prev_active != state[\active]) {
-		set_ui_dirty.value(script_context);
-	};
 };
 
 var mouse_move = { |script_context, x, y|
@@ -777,10 +628,6 @@ var mouse_up = { |script_context, x, y|
 	state[\active] = nil;
 
 	update_focus.value(script_context, x@y);
-
-	if (prev_active != state[\active]) {
-		set_ui_dirty.value(script_context);
-	};
 };
 
 var mouse_wheel = { |script_context, x_delta, y_delta|
@@ -926,10 +773,12 @@ var module = IdentityDictionary[
 	\enc -> enc,
 	\key -> key,
 	\cleanup -> cleanup,
-	\get_grid_width -> get_grid_width,
 	\get_active_page -> get_active_page,
-	\set_ui_dirty -> set_ui_dirty,
 	\mouse -> mouse,
+	\add_params -> add_params,
+	\load_settings_and_params -> load_settings_and_params,
+	\render_arc -> render_arc,
+	\get_param_id_for_current_page -> get_param_id_for_current_page
 ];
 
 module
