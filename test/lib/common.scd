@@ -20,7 +20,7 @@ var render_ring = bob_spawn_render_ring_function.value();
 var hi_level = 15;
 var lo_level = 5; // TODO: 4 in lua
 
-var init = { |conf|
+var init_script_state = { |conf|
 	var visual_values = conf[\visual_values] ? ();
 
 	var script_state = (
@@ -687,7 +687,7 @@ var get_enc2_enc3_value_bounds = { |params_global, screen_global, pages, page, p
 };
 
 var module = IdentityDictionary[
-	\init -> init,
+	\init_script_state -> init_script_state,
 	\redraw -> redraw,
 	\enc -> enc,
 	\key -> key,

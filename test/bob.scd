@@ -19,7 +19,7 @@ start_script.value {
 	var bob_spec_init = bob_spec[\init];
 
 	var common = include_relative.value("lib/common.scd");
-	var common_init = common[\init];
+	var common_init_script_state = common[\init_script_state];
 	var common_redraw = common[\redraw];
 	var common_key = common[\key];
 	var common_mouse = common[\mouse];
@@ -204,7 +204,7 @@ start_script.value {
 
 		common_add_params.value(bob_spec_instance[\param_specs], ~params);
 
-		script_state = common_init.value(
+		script_state = common_init_script_state.value(
 			(
 				visual_values: bob_spec_instance[\visual_values],
 			)
