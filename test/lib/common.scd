@@ -347,8 +347,6 @@ var key = { |pages, refresh_rate, state, n, z| // pages, refresh_rate, state
 	var target_page = state[\target_page];
 	var page;
 
-	var ui_dirty = false;
-
 	if (target_page.notNil) {
 		page = target_page;
 	} {
@@ -369,7 +367,6 @@ var key = { |pages, refresh_rate, state, n, z| // pages, refresh_rate, state
 		} {
 			state[\prev_held] = false;
 		};
-		ui_dirty = true;
 	}
 	{n == 3} {
 		if (z == 1) {
@@ -384,11 +381,9 @@ var key = { |pages, refresh_rate, state, n, z| // pages, refresh_rate, state
 		} {
 			state[\next_held] = false
 		};
-		ui_dirty = true;
 	};
 
 	state[\fine] = (state[\prev_held] and: state[\next_held]);
-	ui_dirty;
 };
 
 var get_active_page = { |state|

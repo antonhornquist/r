@@ -32,6 +32,13 @@ start_script.value {
 
 	var ui_dirty = false;
 
+	var pages = [
+		[ (id: 'cutoff'), (id: 'resonance') ],
+		[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
+		[ (id: 'envf_attack'), (id: 'envf_decay') ],
+		[ (id: 'envf_sensitivity'), (id: 'env_to_cutoff') ],
+	];
+
 	// arc
 
 	var arc_device;
@@ -181,31 +188,24 @@ start_script.value {
 		init_ui_refresh_metro.value();
 	};
 
-	var pages = [
-		[ (id: 'cutoff'), (id: 'resonance') ],
-		[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
-		[ (id: 'envf_attack'), (id: 'envf_decay') ],
-		[ (id: 'envf_sensitivity'), (id: 'env_to_cutoff') ],
-	];
-
 	~engine.name = 'R';
 
 	~init = {
-		var bob_spec_instance = bob_spec_init.value(
+		var spec_instance = bob_spec_init.value(
 			(
 				engine_global: ~engine,
 				visual_buf_size: round(ui_refresh_rate/20)
 			)
 		);
 
-		common_add_params.value(bob_spec_instance[\param_specs], ~params);
+		common_add_params.value(spec_instance[\param_specs], ~params);
 
-		script_state = common_init_script_state.value(bob_spec_instance[\visual_values]);
+		script_state = common_init_script_state.value(spec_instance[\visual_values]);
 
 		common_calculate_ui_page_label_widths.value(~params, ~screen, pages);
 
 		common_load_settings_and_params.value(settings_file, ~params);
-		create_and_start_polls.value(bob_spec_instance[\poll_specs], ui_refresh_rate);
+		create_and_start_polls.value(spec_instance[\poll_specs], ui_refresh_rate);
 
 		init_ui.value();
 	};
@@ -226,7 +226,8 @@ start_script.value {
 	};
 
 	~key = { |n, z|
-		ui_dirty = common_key.value(pages, ui_refresh_rate, script_state, n, z);
+		common_key.value(pages, ui_refresh_rate, script_state, n, z);
+		ui_dirty = true;
 	};
 
 	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
