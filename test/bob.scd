@@ -27,6 +27,7 @@ start_script.value {
 	var common_render_arc = common[\render_arc];
 	var common_get_param_id_for_current_page = common[\get_param_id_for_current_page];
 	var common_load_settings_and_params = common[\load_settings_and_params];
+	var common_calculate_ui_page_label_widths = common[\calculate_ui_page_label_widths];
 
 	var ui_dirty = false;
 
@@ -78,8 +79,7 @@ start_script.value {
 	};
 
 	// ui refresh logic
-	var update_page_transition = { |script_context|
-		var state = script_context[\state];
+	var update_page_transition = { |state| // TODO: state -> script_state ??
 		var current_page = state[\current_page];
 		var target_page = state[\target_page];
 		var page_trans_div = state[\page_trans_div];
@@ -95,10 +95,9 @@ start_script.value {
 	};
 
 	var refresh_ui = {
-		var state = script_context[\state];
-		var target_page = state[\target_page];
+		var target_page = script_state[\target_page];
 		if (target_page.notNil) {
-			update_page_transition.value(script_context);
+			update_page_transition.value(script_state);
 		};
 
 		update_event_indicator.value();
@@ -113,7 +112,7 @@ start_script.value {
 			grid_device.refresh_();
 */
 
-			common_render_arc.value(script_context, arc_device);
+			common_render_arc.value(~params, script_state, pages, arc_device);
 			arc_device.refresh_();
 
 			~redraw.value();
@@ -125,9 +124,9 @@ start_script.value {
 	var settings_file = "bob.data";
 	var ui_refresh_rate = 35;
 
-	var script_context;
+	var script_state;
 
-	var create_polls = { |script_context, poll_specs, refresh_rate|
+	var create_polls = { |poll_specs, refresh_rate|
 		poll_specs.collect { |poll_spec, i|
 			var script_poll = ~poll.set__("poll" ++ (i+1)) { |value|
 				poll_spec[\handler].value(value);
@@ -146,8 +145,8 @@ start_script.value {
 		};
 	};
 
-	var create_and_start_polls = { |script_context, poll_specs, refresh_rate|
-		var polls = create_polls.value(script_context, poll_specs, refresh_rate);
+	var create_and_start_polls = { |poll_specs, refresh_rate|
+		var polls = create_polls.value(poll_specs, refresh_rate);
 		start_polls.value(polls);
 	};
 
@@ -166,22 +165,32 @@ start_script.value {
 			var id;
 			var val;
 
-			var state = script_context[\state];
-
 			flash_event.value();
 
-			if (state[\fine]) {
+			if (script_state[\fine]) {
 				d = delta/5;
 			} {
 				d = delta;
 			};
-			id = common_get_param_id_for_current_page.value(script_context, n-1); // TODO: zero-based
+			id = common_get_param_id_for_current_page.value(pages, script_state, n-1); // TODO: zero-based
 			val = ~params.get_raw_(id);
 			~params.set_raw_(id, val+(d/500));
 		};
 
 		init_ui_refresh_metro.value();
 	};
+
+	var pages = [
+		[ (id: 'cutoff'), (id: 'resonance') ],
+		[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
+		[ (id: 'envf_attack'), (id: 'envf_decay') ],
+		[ (id: 'envf_sensitivity'), (id: 'env_to_cutoff') ],
+	];
+
+	var ui_spec = (
+		pages: pages,
+		refresh_rate: ui_refresh_rate
+	);
 
 	~engine.name = 'R';
 
@@ -193,32 +202,18 @@ start_script.value {
 			)
 		);
 
-		var ui_spec = (
-			// TODO arc_device: ~arc.connect_(),
-			pages: [
-				[ (id: 'cutoff'), (id: 'resonance') ],
-				[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
-				[ (id: 'envf_attack'), (id: 'envf_decay') ],
-				[ (id: 'envf_sensitivity'), (id: 'env_to_cutoff') ],
-			],
-			refresh_rate: ui_refresh_rate
-		);
-
 		common_add_params.value(bob_spec_instance[\param_specs], ~params);
 
-		script_context = common_init.value(
+		script_state = common_init.value(
 			(
-				globals: (
-					screen: ~screen,
-					params: ~params
-				),
 				visual_values: bob_spec_instance[\visual_values],
-				ui_spec: ui_spec,
 			)
 		);
 
+		common_calculate_ui_page_label_widths.value(~params, ~screen, pages);
+
 		common_load_settings_and_params.value(settings_file, ~params);
-		create_and_start_polls.value(script_context,  bob_spec_instance[\poll_specs], ui_refresh_rate);
+		create_and_start_polls.value(bob_spec_instance[\poll_specs], ui_refresh_rate);
 
 		init_ui.value();
 	};
@@ -231,26 +226,22 @@ start_script.value {
 */
 
 	~redraw = {
-		var ui_spec = script_context[\ui_spec];
-		var pages = ui_spec[\pages];
-
-		var state = script_context[\state];
-		common_redraw.value(~params, ~screen, pages, state, show_event_indicator);
+		common_redraw.value(~params, ~screen, pages, script_state, show_event_indicator);
 	};
 
 /*
 	TODO
 	~enc = { |n, delta|
-		common_enc.value(n, delta);
+		common_enc.value(~params, pages, script_state, n, delta);
 	};
 */
 
 	~key = { |n, z|
-		ui_dirty = common_key.value(script_context, n, z);
+		ui_dirty = common_key.value(pages, ui_refresh_rate, script_state, n, z);
 	};
 
 	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
-		common_mouse.value(*([script_context]++args)); // TODO: get away from using varargs for ~mouse
+		common_mouse.value(*([~params, ~screen, pages, ui_refresh_rate, script_state]++args)); // TODO: get away from using varargs for ~mouse
 		ui_dirty = true;
 	};
 };

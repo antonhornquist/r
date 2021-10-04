@@ -22,39 +22,23 @@ var lo_level = 5; // TODO: 4 in lua
 
 var init = { |conf|
 	var visual_values = conf[\visual_values] ? ();
-	var ui_spec = conf[\ui_spec]; // TODO: ui_spec/pages can be made optional
 
-	var globals = conf[\globals];
-	var screen_global = globals[\screen] ?? { Error("screen global is required").throw };
-	var params_global = globals[\params] ?? { Error("params global is required").throw };
-
-	var refresh_rate = ui_spec[\refresh_rate] ?? { Error("refresh rate is required").throw };
-
-	var script_context = (
-		globals: (
-			screen: screen_global,
-			params: params_global,
-		),
-		ui_spec: ui_spec,
-		state: (
-			current_page: 0,
-			fine: false,
-			prev_held: false,
-			next_held: false,
-			target_page: nil,
-			page_trans_div: nil,
-			page_trans_frames: nil,
-			focus: nil,
-			active: nil,
-			mouse_move_pos: nil,
-			mouse_down_pos: nil,
-			visual_values: visual_values,
-		)
+	var script_state = (
+		current_page: 0,
+		fine: false,
+		prev_held: false,
+		next_held: false,
+		target_page: nil,
+		page_trans_div: nil,
+		page_trans_frames: nil,
+		focus: nil,
+		active: nil,
+		mouse_move_pos: nil,
+		mouse_down_pos: nil,
+		visual_values: visual_values,
 	);
 
-	init_ui.value(script_context);
-
-	script_context;
+	script_state;
 };
 
 // TODO: move to script bacause of ui_dirty flag
@@ -69,24 +53,13 @@ var add_params = { |param_specs, params_global|
 				formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
 				action: { |value|
 					param_spec[\action].value(value);
-					// TODO set_ui_dirty.value(script_context);
 				}
 			)
 		);
 	};
 };
 
-var init_ui = { |script_context|
-	var globals = script_context[\globals];
-	var params_global = globals[\params];
-	var screen_global = globals[\screen];
-
-	var ui_spec = script_context[\ui_spec];
-
-	calculate_ui_label_widths.value(params_global, screen_global, ui_spec[\pages]);
-};
-
-var calculate_ui_label_widths = { |params_global, screen_global, pages|
+var calculate_ui_page_label_widths = { |params_global, screen_global, pages|
 	screen_global.font_size_(16);
 	pages.do { |page, index|
 		page.do { |page_param|
@@ -357,9 +330,8 @@ var redraw = { |params_global, screen_global, pages, state, show_event_indicator
 	screen_global.update_();
 };
 
-var enc = { |script_context, n, delta|
-	var params_global = script_context[\globals][\params];
-	var fine = script_context[\state][\fine];
+var enc = { |params_global, pages, state, n, delta|
+	var fine = state[\fine];
 	var d;
 	if (fine) {
 		d = delta/5
@@ -368,17 +340,12 @@ var enc = { |script_context, n, delta|
 	};
 	if (n == 1) {
 		params_global.delta_("output_level", d);
-		// TODO set_ui_dirty.value(script_context);
 	} {
-		params_global.delta_(get_param_id_for_current_page.value(script_context, n-2), d); // TODO: zero based
+		params_global.delta_(get_param_id_for_current_page.value(pages, state, n-2), d); // TODO: zero based
 	};
 };
 
-var key = { |script_context, n, z|
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
-
-	var state = script_context[\state];
+var key = { |pages, refresh_rate, state, n, z| // pages, refresh_rate, state
 	var target_page = state[\target_page];
 	var page;
 
@@ -387,7 +354,7 @@ var key = { |script_context, n, z|
 	if (target_page.notNil) {
 		page = target_page;
 	} {
-		page = get_active_page.value(script_context);
+		page = get_active_page.value(state);
 	};
 
 	case
@@ -398,7 +365,7 @@ var key = { |script_context, n, z|
 				page = pages.size-1; // TODO: zero based indexing
 			};
 
-			transition_to_page.value(script_context, page);
+			transition_to_page.value(state, refresh_rate, page);
 
 			state[\prev_held] = true;
 		} {
@@ -413,7 +380,7 @@ var key = { |script_context, n, z|
 				page = 0; // TODO: zero based indexing
 			};
 
-			transition_to_page.value(script_context, page);
+			transition_to_page.value(state, refresh_rate, page);
 
 			state[\next_held] = true;
 		} {
@@ -426,26 +393,16 @@ var key = { |script_context, n, z|
 	ui_dirty;
 };
 
-var set_page = { |script_context, page|
-	script_context[\state][\current_page] = page;
+var get_active_page = { |state|
+	round(state[\current_page]);
 };
 
-var get_active_page = { |script_context|
-	round(script_context[\state][\current_page]);
-};
-
-var get_param_id_for_current_page = { |script_context, n|
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
-
-	var page = get_active_page.value(script_context);
+var get_param_id_for_current_page = { |pages, state, n|
+	var page = get_active_page.value(state);
 	pages[page][n].id;
 };
 
-var transition_to_page = { |script_context, page| // TODO: inject refresh_rate
-	var state = script_context[\state];
-	var ui_spec = script_context[\ui_spec];
-	var refresh_rate = ui_spec[\refresh_rate];
+var transition_to_page = { |state, refresh_rate, page|
 	var current_page = state[\current_page];
 
 	state[\target_page] = page;
@@ -462,17 +419,11 @@ var save_settings = {
 };
 
 // TODO arc_common - start
-var render_arc = { |script_context, my_arc|
-	var params_global = script_context[\globals][\params];
-	var state = script_context[\state];
+var render_arc = { |params_global, state, pages, my_arc|
+	var page = pages[get_active_page.value(state)];
 
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
-
-	var page = pages[get_active_page.value(script_context)];
-
-	var param1_id = get_param_id_for_current_page.value(script_context, 0); // TODO: zero-based
-	var param2_id = get_param_id_for_current_page.value(script_context, 1); // TODO: zero-based
+	var param1_id = get_param_id_for_current_page.value(pages, state, 0); // TODO: zero-based
+	var param2_id = get_param_id_for_current_page.value(pages, state, 1); // TODO: zero-based
 
 	var visual_values_dict = state[\visual_values]; // TODO
 
@@ -523,17 +474,7 @@ var load_settings_and_params = { |settings_file, params_global|
 	params_global.bang_();
 };
 
-var mouse = { |script_context, what ... args|
-	var globals = script_context[\globals];
-	var screen_global = globals[\screen];
-	var params_global = globals[\params];
-
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
-
-	var state = script_context[\state];
-
-
+var mouse = { |params_global, screen_global, pages, refresh_rate, state, what ... args|
 	case
 	{ what == "leave" } {
 		mouse_leave.value(state);
@@ -544,19 +485,19 @@ var mouse = { |script_context, what ... args|
 	}
 	{ what == "down" } {
 		var x = args[0], y = args[1];
-		mouse_down.value(script_context, x, y);
+		mouse_down.value(pages, refresh_rate, state, x, y);
 	}
 	{ what == "move" } {
 		var x = args[0], y = args[1];
-		mouse_move.value(script_context, x, y);
+		mouse_move.value(params_global, pages, state, x, y);
 	}
 	{ what == "up" } {
 		var x = args[0], y = args[1];
-		mouse_up.value(script_context, x, y);
+		mouse_up.value(params_global, screen_global, pages, refresh_rate, state, x, y);
 	}
 	{ what == "wheel" } {
 		var x_delta = args[0], y_delta = args[1];
-		mouse_wheel.value(script_context, x_delta, y_delta);
+		mouse_wheel.value(params_global, pages, state, x_delta, y_delta);
 	}
 };
 
@@ -569,24 +510,22 @@ var mouse_over = { |params_global, screen_global, pages, state, x, y|
 	update_focus.value(params_global, screen_global, pages, state, mouse_over_pos); // TODO: only if mouse is not pressed(?)
 };
 
-var mouse_down = { |script_context, x, y|
-	var state = script_context[\state];
+var mouse_down = { |pages, refresh_rate, state, x, y|
 	var focus = state[\focus];
 	state[\mouse_down_pos] = x@y;
 
 	case
 	{ focus == 'key2' } {
-		key.value(script_context, 2, 1); // TODO: better handled not using key?
+		key.value(pages, refresh_rate, state, 2, 1); // TODO: better handled not using key?
 	}
 	{ focus == 'key3' } {
-		key.value(script_context, 3, 1); // TODO: better handled not using key?
+		key.value(pages, refresh_rate, state, 3, 1); // TODO: better handled not using key?
 	};
 
 	state[\active] = focus;
 };
 
-var mouse_move = { |script_context, x, y|
-	var state = script_context[\state];
+var mouse_move = { |params_global, pages, state, x, y|
 	var active = state[\active];
 	var mouse_move_delta;
 
@@ -596,35 +535,26 @@ var mouse_move = { |script_context, x, y|
 	if (mouse_move_delta.y != 0) {
 		case
 		{active == 'enc1'} {
-			enc.value(script_context, 1, mouse_move_delta.y); // TODO: better handled not using enc?
+			enc.value(params_global, pages, state, 1, mouse_move_delta.y); // TODO: better handled not using enc?
 		}
 		{active == 'enc2'} {
-			enc.value(script_context, 2, mouse_move_delta.y); // TODO: better handled not using enc?
+			enc.value(params_global, pages, state, 2, mouse_move_delta.y); // TODO: better handled not using enc?
 		}
 		{active == 'enc3'} {
-			enc.value(script_context, 3, mouse_move_delta.y); // TODO: better handled not using enc?
+			enc.value(params_global, pages, state, 3, mouse_move_delta.y); // TODO: better handled not using enc?
 		};
 	};
 };
 
-var mouse_up = { |script_context, x, y|
-	var state = script_context[\state];
-
-	var globals = script_context[\globals];
-	var screen_global = globals[\screen];
-	var params_global = globals[\params];
-
-	var ui_spec = script_context[\ui_spec];
-	var pages = ui_spec[\pages];
-
+var mouse_up = { |params_global, screen_global, pages, refresh_rate, state, x, y|
 	state[\mouse_move_pos] = nil;
 
 	case
 	{ state[\active] == 'key2' } {
-		key.value(script_context, 2, 0); // TODO: better handled not using key?
+		key.value(pages, refresh_rate, state, 2, 0); // TODO: better handled not using key?
 	}
 	{ state[\active] == 'key3' } {
-		key.value(script_context, 3, 0); // TODO: better handled not using key?
+		key.value(pages, refresh_rate, state, 3, 0); // TODO: better handled not using key?
 	};
 
 	state[\active] = nil;
@@ -632,20 +562,19 @@ var mouse_up = { |script_context, x, y|
 	update_focus.value(params_global, screen_global, pages, state, x@y);
 };
 
-var mouse_wheel = { |script_context, x_delta, y_delta|
-	var state = script_context[\state];
+var mouse_wheel = { |params_global, pages, state, x_delta, y_delta|
 	var focus = state[\focus];
 
 	if (y_delta != 0) {
 		case
 		{focus == 'enc1'} {
-			enc.value(script_context, 1, y_delta*(-1)); // TODO: better handled not using enc?
+			enc.value(params_global, pages, state, 1, y_delta*(-1)); // TODO: better handled not using enc?
 		}
 		{focus == 'enc2'} {
-			enc.value(script_context, 2, y_delta*(-1)); // TODO: better handled not using enc?
+			enc.value(params_global, pages, state, 2, y_delta*(-1)); // TODO: better handled not using enc?
 		}
 		{focus == 'enc3'} {
-			enc.value(script_context, 3, y_delta*(-1)); // TODO: better handled not using enc?
+			enc.value(params_global, pages, state, 3, y_delta*(-1)); // TODO: better handled not using enc?
 		};
 	};
 };
@@ -768,7 +697,8 @@ var module = IdentityDictionary[
 	\add_params -> add_params,
 	\load_settings_and_params -> load_settings_and_params,
 	\render_arc -> render_arc,
-	\get_param_id_for_current_page -> get_param_id_for_current_page
+	\get_param_id_for_current_page -> get_param_id_for_current_page,
+	\calculate_ui_page_label_widths -> calculate_ui_page_label_widths 
 ];
 
 module
