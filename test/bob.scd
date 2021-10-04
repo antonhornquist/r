@@ -183,6 +183,7 @@ start_script.value {
 			id = common_get_param_id_for_current_page.value(pages, script_state, n-1); // TODO: zero-based
 			val = ~params.get_raw_(id);
 			~params.set_raw_(id, val+(d/500));
+			ui_dirty = true;
 		};
 
 		init_ui_refresh_metro.value();
