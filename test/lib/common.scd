@@ -20,11 +20,9 @@ var render_ring = bob_spawn_render_ring_function.value();
 var hi_level = 15;
 var lo_level = 5; // TODO: 4 in lua
 
-var init_script_state = { |conf|
-	var visual_values = conf[\visual_values] ? ();
-
+var init_script_state = { |visual_values|
 	var script_state = (
-		current_page: 0,
+		current_page: 0, // TODO: zero based
 		fine: false,
 		prev_held: false,
 		next_held: false,
@@ -35,7 +33,7 @@ var init_script_state = { |conf|
 		active: nil,
 		mouse_move_pos: nil,
 		mouse_down_pos: nil,
-		visual_values: visual_values,
+		visual_values: (visual_values ? ()),
 	);
 
 	script_state;

@@ -21,6 +21,7 @@ start_script.value {
 	var common = include_relative.value("lib/common.scd");
 	var common_init_script_state = common[\init_script_state];
 	var common_redraw = common[\redraw];
+	var common_enc = common[\enc];
 	var common_key = common[\key];
 	var common_mouse = common[\mouse];
 	var common_add_params = common[\add_params];
@@ -187,11 +188,6 @@ start_script.value {
 		[ (id: 'envf_sensitivity'), (id: 'env_to_cutoff') ],
 	];
 
-	var ui_spec = (
-		pages: pages,
-		refresh_rate: ui_refresh_rate
-	);
-
 	~engine.name = 'R';
 
 	~init = {
@@ -204,11 +200,7 @@ start_script.value {
 
 		common_add_params.value(bob_spec_instance[\param_specs], ~params);
 
-		script_state = common_init_script_state.value(
-			(
-				visual_values: bob_spec_instance[\visual_values],
-			)
-		);
+		script_state = common_init_script_state.value(bob_spec_instance[\visual_values]);
 
 		common_calculate_ui_page_label_widths.value(~params, ~screen, pages);
 
@@ -229,12 +221,9 @@ start_script.value {
 		common_redraw.value(~params, ~screen, pages, script_state, show_event_indicator);
 	};
 
-/*
-	TODO
 	~enc = { |n, delta|
 		common_enc.value(~params, pages, script_state, n, delta);
 	};
-*/
 
 	~key = { |n, z|
 		ui_dirty = common_key.value(pages, ui_refresh_rate, script_state, n, z);
