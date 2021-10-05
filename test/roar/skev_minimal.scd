@@ -2,7 +2,8 @@
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	if (File.exists(path)) {
-		this.executeFile(path);
+		var result = this.executeFile(path);
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result }; // TODO: adopt in other places too
 	} {
 		Error("include_relative: file % does not exist".format(path.quote)).throw;
 	};

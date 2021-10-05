@@ -1,7 +1,12 @@
 (
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
-	this.executeFile(path);
+	if (File.exists(path)) {
+		var result = this.executeFile(path);
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result }; // TODO: adopt in other places too
+	} {
+		Error("include_relative: file % does not exist".format(path.quote)).throw;
+	};
 };
 
 var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");

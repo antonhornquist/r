@@ -39,7 +39,7 @@ var init_script_state = { |visual_values|
 	script_state;
 };
 
-// TODO: move to script bacause of ui_dirty flag
+// TODO: move to script bacause of ui_dirty flag ?
 var add_params = { |param_specs, params_global|
 	param_specs.do { |param_spec|
 		params_global.add_(
