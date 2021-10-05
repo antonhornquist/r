@@ -13,18 +13,37 @@ var norns_engine_tester = include_relative.value("../../util/norns_engine_tester
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	var r_skev = include_relative.value('lib/r_skev.scd');
-	var r_skev_init = r_skev[\init];
+	var skev_spec = include_relative.value('lib/skev_spec.scd');
+	var skev_spec_init = skev_spec[\init];
+
+	var add_params = { |param_specs|
+		param_specs.do { |param_spec|
+			~params.add_(
+				(
+					type: param_spec[\type],
+					id: param_spec[\id],
+					name: param_spec[\narrow_name] ? param_spec[\name],
+					controlspec: param_spec[\controlspec],
+					formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
+					action: { |value|
+						param_spec[\action].value(value);
+					}
+				)
+			);
+		};
+	};
 
 	~engine.name = 'R';
 
 	~init = {
-		var r_polls, visual_values, r_params;
-		# r_polls, visual_values, r_params = r_skev_init.value(5);
+		var spec = skev_spec_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: round(ui_refresh_rate/20)
+			)
+		);
 
-		r_params.do { |r_param|
-			~params.add_(r_param);
-		};
+		common_add_params.value(spec[\param_specs], ~params);
 
 		~params.bang_();
 	};

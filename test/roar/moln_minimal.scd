@@ -13,32 +13,40 @@ var norns_engine_tester = include_relative.value("../../util/norns_engine_tester
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	var r_moln = include_relative.value('lib/r_moln.scd');
-	var r_moln_init = r_moln[\init];
-	var r_moln_note_on = r_moln[\note_on];
-	var r_moln_note_off = r_moln[\note_off];
+	var moln_spec = include_relative.value('lib/moln_spec.scd');
+	var moln_spec_init = moln_spec[\init];
+	var moln_spec_note_on = moln_spec[\note_on];
+	var moln_spec_note_off = moln_spec[\note_off];
 
-	~engine.name = 'R';
-
-	~init = {
-		var r_polls, visual_values, r_params;
-		var midi_device;
-
-		# r_polls, visual_values, r_params = r_moln_init.value(5);
-
-		r_params.do { |r_param|
-			~params.add_(r_param);
+	var add_params = { |param_specs|
+		param_specs.do { |param_spec|
+			~params.add_(
+				(
+					type: param_spec[\type],
+					id: param_spec[\id],
+					name: param_spec[\narrow_name] ? param_spec[\name],
+					controlspec: param_spec[\controlspec],
+					formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
+					action: { |value|
+						param_spec[\action].value(value);
+					}
+				)
+			);
 		};
+	};
+
+	var init_midi = {
+		var midi_device;
 
 		midi_device = ~midi.connect_();
 		midi_device.event = { |data|
 			var msg = ~midi.to_msg_(data);
 			case
 			{msg['type'] == 'note_off'} {
-				r_moln_note_off.value(msg.note);
+				moln_spec_note_off.value(~engine, msg.note);
 			}
 			{msg['type'] == 'note_on'} {
-				r_moln_note_on.value(msg.note, msg.vel / 127);
+				moln_spec_note_on.value(~engine, msg.note, msg.vel / 127);
 
 			}
 			{msg['type'] == 'cc'} {
@@ -61,6 +69,22 @@ start_script.value {
 				}
 			}
 		};
+
+	};
+
+	~engine.name = 'R';
+
+	~init = {
+		var spec = moln_spec_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: 0
+			)
+		);
+
+		init_midi.value();
+
+		add_params.value(spec[\param_specs]);
 
 		~params.bang_();
 	};
@@ -94,28 +118,27 @@ start_script.value {
 		{n == 1} {
 			var note = 60;
 			if (z == 1) {
-				r_moln_note_on.value(note, 1);
+				moln_spec_note_on.value(~engine, note, 1);
 			} {
-				r_moln_note_off.value(note);
+				moln_spec_note_off.value(~engine, note);
 			};
 		}
 		{n == 2} {
 			var note = 63;
 			if (z == 1) {
-				r_moln_note_on.value(note, 1);
+				moln_spec_note_on.value(~engine, note, 1);
 			} {
-				r_moln_note_off.value(note);
+				moln_spec_note_off.value(~engine, note);
 			};
 		}
 		{n == 3} {
 			var note = 67;
 			if (z == 1) {
-				r_moln_note_on.value(note, 1);
+				moln_spec_note_on.value(~engine, note, 1);
 			} {
-				r_moln_note_off.value(note);
+				moln_spec_note_off.value(~engine, note);
 			};
 		}
 	};
-
 };
 )

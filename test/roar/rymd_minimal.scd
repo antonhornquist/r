@@ -13,18 +13,37 @@ var norns_engine_tester = include_relative.value("../../util/norns_engine_tester
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	var r_rymd = include_relative.value('lib/r_rymd.scd');
-	var r_rymd_init = r_rymd[\init];
+	var rymd_spec = include_relative.value('lib/rymd_spec.scd');
+	var rymd_spec_init = rymd_spec[\init];
+
+	var add_params = { |param_specs|
+		param_specs.do { |param_spec|
+			~params.add_(
+				(
+					type: param_spec[\type],
+					id: param_spec[\id],
+					name: param_spec[\narrow_name] ? param_spec[\name],
+					controlspec: param_spec[\controlspec],
+					formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
+					action: { |value|
+						param_spec[\action].value(value);
+					}
+				)
+			);
+		};
+	};
 
 	~engine.name = 'R';
 
 	~init = {
-		var r_polls, visual_values, r_params;
-		# r_polls, visual_values, r_params = r_rymd_init.value(5);
+		var spec = rymd_spec_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: 0
+			)
+		);
 
-		r_params.do { |r_param|
-			~params.add_(r_param);
-		};
+		add_params.value(spec[\param_specs]);
 
 		~params.bang_();
 	};

@@ -41,7 +41,7 @@ start_script.value {
 		var spec = bob_spec_init.value(
 			(
 				engine_global: ~engine,
-				visual_buf_size: round(ui_refresh_rate/20)
+				visual_buf_size: 0
 			)
 		);
 
