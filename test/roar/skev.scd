@@ -9,18 +9,14 @@ var include_relative = { |relative_path|
 	};
 };
 
-var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	// scriptname: moln
+	// scriptname: skev
 	// v1.3.0 @jah
-	var moln_spec = include_relative.value('lib/moln_spec.scd');
-	var moln_spec_init = moln_spec[\init];
-	var moln_spec_note_on = moln_spec[\note_on];
-	var moln_spec_note_off = moln_spec[\note_off];
-
-	var formatters = include_relative.value("lib/formatters.scd");
+	var skev_spec = include_relative.value('lib/skev_spec.scd');
+	var skev_spec_init = skev_spec[\init];
 
 	var common = include_relative.value("lib/common.scd");
 	var common_init_script_state = common[\init_script_state];
@@ -37,13 +33,10 @@ start_script.value {
 	var ui_dirty = false;
 
 	var pages = [
-		[ (id: "filter_frequency"), (id: "filter_resonance") ],
-		[ (id: "osc_a_range"), (id: "osc_b_range") ],
-		[ (id: "osc_a_pulsewidth"), (id: "osc_b_pulsewidth") ],
-		[ (id: "osc_detune"), (id: "lfo_frequency") ],
-		[ (id: "lfo_to_osc_pwm"), (id: "env_to_filter_fm") ],
-		[ (id: "env_attack"), (id: "env_decay") ],
-		[ (id: "env_sustain"), (id: "env_release") ],
+		[ (id: 'freq_shift'), (id: 'pitch_ratio') ],
+		[ (id: 'pitch_dispersion'), ( id: 'time_dispersion') ],
+		[ (id: 'lfo_rate'), (id: 'lfo_rate') ],
+		[ (id: 'lfo_to_freq_shift'), (id: 'lfo_to_pitch_ratio') ]
 	];
 
 	// arc
@@ -65,10 +58,6 @@ start_script.value {
 		};
 	};
 */
-
-	// midi
-
-	var midi_device;
 
 	// event flash
 
@@ -140,10 +129,34 @@ start_script.value {
 		};
 	};
 
-	var settings_file = "moln.data";
+	var settings_file = "skev.data";
 	var ui_refresh_rate = 35;
 
 	var script_state;
+
+	var create_polls = { |poll_specs, refresh_rate|
+		poll_specs.collect { |poll_spec, i|
+			var script_poll = ~poll.set__("poll" ++ (i+1)) { |value|
+				poll_spec[\handler].value(value);
+				ui_dirty = true;
+			};
+			script_poll.time_ = 1/refresh_rate;
+			script_poll
+		};
+	};
+
+	var start_polls = { |polls|
+		if (polls.notNil) {
+			polls.do { |script_poll|
+				script_poll.start_();
+			};
+		};
+	};
+
+	var create_and_start_polls = { |poll_specs, refresh_rate|
+		var polls = create_polls.value(poll_specs, refresh_rate);
+		start_polls.value(polls);
+	};
 
 	var init_ui_refresh_metro = {
 		var ui_refresh_metro = ~metro.init_();
@@ -173,87 +186,13 @@ start_script.value {
 			ui_dirty = true;
 		};
 
-		midi_device = ~midi.connect_();
-
-		midi_device[\event] = { |data|
-			if (engine_ready) {
-				var msg = ~midi.to_msg_(data);
-				case
-				{msg['type'] == 'note_off'} {
-					moln_spec_note_off.value(~engine, msg.note);
-				}
-				{msg['type'] == 'note_on'} {
-					moln_spec_note_on.value(~engine, msg.note, msg.vel / 127);
-
-				}
-				{msg['type'] == 'cc'} {
-					var num = msg['num'];
-					var val = msg['val'];
-					var rel_cc_delta = if (val > 64, val-128, val);
-					[num, val].debug;
-					case
-					{num == 1} {
-						// ~params.delta_( "lfo_frequency", rel_cc_delta);
-						common_enc.value(~params, pages, script_state, 2, rel_cc_delta);
-					}
-					{num == 2} {
-						//~params.delta_( "lfo_to_osc_pwm", rel_cc_delta);
-						//~params.delta_( "osc_detune", rel_cc_delta);
-						common_enc.value(~params, pages, script_state, 3, rel_cc_delta);
-					}
-					{num == 3} {
-						// ~params.delta_( "filter_frequency", rel_cc_delta);
-					}
-					{num == 4} {
-						//~params.delta_( "env_release", rel_cc_delta);
-						common_enc.value(~params, pages, script_state, 1, rel_cc_delta);
-					}
-					{num == 11} {
-						case
-						{val == 127} {
-							common_key.value(pages, ui_refresh_rate, script_state, 2, 1);
-						}
-						{val == 0} {
-							common_key.value(pages, ui_refresh_rate, script_state, 2, 0);
-						};
-					}
-					{num == 12} {
-						case
-						{val == 127} {
-							common_key.value(pages, ui_refresh_rate, script_state, 3, 1);
-						}
-						{val == 0} {
-							common_key.value(pages, ui_refresh_rate, script_state, 3, 0);
-						};
-					}
-					{num == 14} {
-						case
-						{val == 127} {
-							common_key.value(pages, ui_refresh_rate, script_state, 1, 1);
-						}
-						{val == 0} {
-							common_key.value(pages, ui_refresh_rate, script_state, 1, 0);
-						};
-					}
-					;
-					ui_dirty = true;
-				};
-			}
-		};
-
 		init_ui_refresh_metro.value();
 	};
-
-	var engine_ready = false;
-
-	var start_after_1_second_delay; // TODO: global in lua
-	var init_engine_init_delay_metro; // TODO: global in lua
-
 
 	~engine.name = 'R';
 
 	~init = {
-		var spec_instance = moln_spec_init.value(
+		var spec_instance = skev_spec_init.value(
 			(
 				engine_global: ~engine,
 				visual_buf_size: round(ui_refresh_rate/20)
@@ -262,32 +201,14 @@ start_script.value {
 
 		common_add_params.value(spec_instance[\param_specs], ~params);
 
-		script_state = common_init_script_state.value();
+		script_state = common_init_script_state.value(spec_instance[\visual_values]);
 
 		common_calculate_ui_page_label_widths.value(~params, ~screen, pages);
 
 		common_load_settings_and_params.value(settings_file, ~params);
+		create_and_start_polls.value(spec_instance[\poll_specs], ui_refresh_rate);
 
 		init_ui.value();
-
-		start_after_1_second_delay.value(spec_instance);
-	};
-
-	start_after_1_second_delay = {
-		init_engine_init_delay_metro.value();
-	};
-
-	init_engine_init_delay_metro = {
-		var engine_init_delay_metro = ~metro.init_();
-		engine_init_delay_metro[\event] = {
-			engine_ready = true;
-
-			ui_dirty = true;
-
-			engine_init_delay_metro.stop_();
-		};
-		engine_init_delay_metro.time = 1;
-		engine_init_delay_metro.start_();
 	};
 
 /*
@@ -307,19 +228,7 @@ start_script.value {
 	};
 
 	~key = { |n, z|
-		if (n == 1) {
-			if (z == 1) {
-				[60, 63, 67] do: { |note|
-					moln_spec_note_on.value(~engine, note, 1);
-				};
-			} {
-				[60, 63, 67] do: { |note|
-					moln_spec_note_off.value(~engine, note);
-				};
-			}
-		} {
-			common_key.value(pages, ui_refresh_rate, script_state, n, z);
-		};
+		common_key.value(pages, ui_refresh_rate, script_state, n, z);
 		ui_dirty = true;
 	};
 

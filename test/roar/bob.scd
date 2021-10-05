@@ -9,14 +9,14 @@ var include_relative = { |relative_path|
 	};
 };
 
-var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	// scriptname: rymd
+	// scriptname: bob
 	// v1.3.0 @jah
-	var rymd_spec = include_relative.value('lib/rymd_spec.scd');
-	var rymd_spec_init = rymd_spec[\init];
+	var bob_spec = include_relative.value('lib/bob_spec.scd');
+	var bob_spec_init = bob_spec[\init];
 
 	var common = include_relative.value("lib/common.scd");
 	var common_init_script_state = common[\init_script_state];
@@ -33,10 +33,10 @@ start_script.value {
 	var ui_dirty = false;
 
 	var pages = [
-		[ (id: 'direct'), (id: 'delay_send') ],
-		[ (id: 'delay_time_left'), ( id: 'delay_time_right') ],
-		[ (id: 'damping'), (id: 'feedback') ],
-		[ (id: 'mod_rate'), (id: 'delay_time_mod_depth') ]
+		[ (id: 'cutoff'), (id: 'resonance') ],
+		[ (id: 'lfo_rate'), (id: 'lfo_to_cutoff') ],
+		[ (id: 'envf_attack'), (id: 'envf_decay') ],
+		[ (id: 'envf_sensitivity'), (id: 'env_to_cutoff') ],
 	];
 
 	// arc
@@ -129,7 +129,7 @@ start_script.value {
 		};
 	};
 
-	var settings_file = "rymd.data";
+	var settings_file = "bob.data";
 	var ui_refresh_rate = 35;
 
 	var script_state;
@@ -192,7 +192,7 @@ start_script.value {
 	~engine.name = 'R';
 
 	~init = {
-		var spec_instance = rymd_spec_init.value(
+		var spec_instance = bob_spec_init.value(
 			(
 				engine_global: ~engine,
 				visual_buf_size: round(ui_refresh_rate/20)

@@ -8,7 +8,7 @@ var include_relative = { |relative_path|
 	};
 };
 
-var norns_engine_tester = include_relative.value("../util/norns_engine_tester.scd");
+var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
