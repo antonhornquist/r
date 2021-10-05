@@ -224,6 +224,7 @@ start_script.value {
 
 	~enc = { |n, delta|
 		common_enc.value(~params, pages, script_state, n, delta);
+		ui_dirty = true;
 	};
 
 	~key = { |n, z|
