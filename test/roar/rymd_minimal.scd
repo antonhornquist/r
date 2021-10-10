@@ -11,8 +11,9 @@ var include_relative = { |relative_path|
 
 var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
+var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
-start_script.value {
+start_script.value(script_name) {
 	var rymd_spec = include_relative.value('lib/rymd_spec.scd');
 	var rymd_spec_init = rymd_spec[\init];
 

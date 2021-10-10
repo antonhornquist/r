@@ -1,3 +1,5 @@
+
+
 (
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
@@ -11,8 +13,9 @@ var include_relative = { |relative_path|
 
 var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
+var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
-start_script.value {
+start_script.value(script_name) {
 	// scriptname: bob
 	// v1.3.0 @jah
 	var bob_spec = include_relative.value('lib/bob_spec.scd');
