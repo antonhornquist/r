@@ -928,7 +928,7 @@ namespaces.paramset = {
 		};
 		paramset.write_ = { |self, filename, name|
 			var file;
-			filename = filename = 1;
+			filename = filename ? 1;
 			if (filename.class == Integer) {
 				filename = self.pr_resolve_number_pset_path_(filename);
 			};
@@ -948,7 +948,7 @@ namespaces.paramset = {
 		paramset.read_ = { |self, filename|
 			var file;
 			var line;
-			filename = filename = 1;
+			filename = filename ? 1;
 			if (filename.class == Integer) {
 				filename = self.pr_resolve_number_pset_path_(filename);
 			};
@@ -1008,9 +1008,10 @@ namespaces.paramset = {
 		};
 		paramset.pr_resolve_number_pset_path_ = { |self, index|
 			script_env.use {
-				var data_folder = ~norns[\state][\data];
+				var data_folder = ~norns[\state][\data]; // TODO: script subfolder ?
+				var shortname = ~norns[\state][\shortname];
 				File.mkdir(data_folder);
-				data_folder +/+ index.asString ++ ".pset";
+				data_folder +/+ (shortname ++ "-" ++ index.asString ++ ".pset");
 			};
 		};
 		paramset;
@@ -1381,12 +1382,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 		var init_grid_device_manager = grid_device_manager[\init_grid_device_manager];
 		var free_grid_device_manager = grid_device_manager[\free_grid_device_manager];
 
-		var norns = (
-			state: (
-				data: Platform.userConfigDir +/+ "norns_engine_tester" +/+ "data" ++ Platform.pathSeparator;
-			)
-		);
-
 		var scale = 6;
 		var screen_width = 128 * scale;
 		var screen_height = 64 * scale;
@@ -1406,11 +1401,11 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 			[engine, init_poll_manager.value(polls)];
 		};
 
-		var start_script = { |script_func|
+		var start_script = { |script_name, script_func|
 			var script_env;
 
 			var window = Window.new(
-				"[Script Name]",
+				script_name,
 				Rect(
 					Window.screenBounds.width - window_width - 25,
 					Window.screenBounds.height - window_height - 50,
@@ -1582,7 +1577,14 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 				};
 
 				script_env = Environment.make {
-					~norns = norns;
+					~norns = (
+						state: (
+							data: Platform.userConfigDir +/+ "norns_engine_tester" +/+ "data" ++ Platform.pathSeparator,
+							name: script_name.asString,
+							shortname: script_name.asString
+						)
+					);
+
 					~screen = screen_api;
 					~metro = init_metro_manager.value;
 					~params = init_paramset.value(currentEnvironment);
