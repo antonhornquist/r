@@ -40,7 +40,7 @@ var init_script_state = { |visual_values|
 };
 
 // TODO: move to script bacause of ui_dirty flag ?
-var add_params = { |params_global, param_specs|
+var add_params = { |params_global, param_specs, set_ui_dirty_func|
 	param_specs.do { |param_spec|
 		params_global.add_(
 			(
@@ -51,7 +51,7 @@ var add_params = { |params_global, param_specs|
 				formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
 				action: { |value|
 					param_spec[\action].value(value);
-					// TODO: no ui_dirty flag - won't update UI properly when mapping midi ?
+					set_ui_dirty_func.value();
 				}
 			)
 		);
@@ -62,7 +62,6 @@ var create_polls = { |poll_specs, refresh_rate, set_ui_dirty_func|
 	poll_specs.collect { |poll_spec, i|
 		var script_poll = ~poll.set__("poll" ++ (i+1)) { |value|
 			poll_spec[\handler].value(value);
-			// TODO ui_dirty = true;
 			set_ui_dirty_func.value();
 		};
 		script_poll.time_ = 1/refresh_rate;

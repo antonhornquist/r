@@ -150,7 +150,7 @@ start_script.value {
 			)
 		);
 
-		common_add_params.value(~params, spec_instance[\param_specs]);
+		common_add_params.value(~params, spec_instance[\param_specs], { ui_dirty = true });
 
 		script_state = common_init_script_state.value(spec_instance[\visual_values]);
 

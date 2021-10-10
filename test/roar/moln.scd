@@ -224,7 +224,6 @@ start_script.value {
 	var start_after_1_second_delay; // TODO: global in lua
 	var init_engine_init_delay_metro; // TODO: global in lua
 
-
 	~engine.name = 'R';
 
 	~init = {
@@ -235,7 +234,7 @@ start_script.value {
 			)
 		);
 
-		common_add_params.value(~params, spec_instance[\param_specs]);
+		common_add_params.value(~params, spec_instance[\param_specs], { ui_dirty = true });
 
 		script_state = common_init_script_state.value();
 
