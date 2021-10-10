@@ -58,6 +58,20 @@ var add_params = { |params_global, param_specs, set_ui_dirty_func|
 	};
 };
 
+var update_page_transition = { |state|
+	var current_page = state[\current_page];
+	var target_page = state[\target_page];
+	var page_trans_div = state[\page_trans_div];
+	var new_current_page;
+	new_current_page = current_page + page_trans_div;
+	state[\page_trans_frames] = state[\page_trans_frames] - 1;
+	if (state[\page_trans_frames] == 0) {
+		new_current_page = target_page;
+		state[\target_page] = nil;
+	};
+	state[\current_page] = new_current_page;
+};
+
 var create_polls = { |poll_specs, refresh_rate, set_ui_dirty_func|
 	poll_specs.collect { |poll_spec, i|
 		var script_poll = ~poll.set__("poll" ++ (i+1)) { |value|
@@ -717,7 +731,8 @@ var module = IdentityDictionary[
 	\render_arc -> render_arc,
 	\get_param_id_for_current_page -> get_param_id_for_current_page,
 	\calculate_ui_page_label_widths -> calculate_ui_page_label_widths,
-	\create_and_start_polls -> create_and_start_polls 
+	\create_and_start_polls -> create_and_start_polls,
+	\update_page_transition -> update_page_transition 
 ];
 
 module

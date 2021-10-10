@@ -31,6 +31,7 @@ start_script.value {
 	var common_load_settings_and_params = common[\load_settings_and_params];
 	var common_calculate_ui_page_label_widths = common[\calculate_ui_page_label_widths];
 	var common_create_and_start_polls = common[\create_and_start_polls];
+	var common_update_page_transition = common[\update_page_transition];
 
 	var ui_dirty = false;
 
@@ -77,24 +78,10 @@ start_script.value {
 	};
 
 	// ui refresh logic
-	var update_page_transition = {
-		var current_page = script_state[\current_page];
-		var target_page = script_state[\target_page];
-		var page_trans_div = script_state[\page_trans_div];
-		var new_current_page;
-		new_current_page = current_page + page_trans_div;
-		script_state[\page_trans_frames] = script_state[\page_trans_frames] - 1;
-		if (script_state[\page_trans_frames] == 0) {
-			new_current_page = target_page;
-			script_state[\target_page] = nil;
-		};
-		script_state[\current_page] = new_current_page;
-		ui_dirty = true;
-	};
-
 	var refresh_ui = {
 		if (script_state[\target_page].notNil) {
-			update_page_transition.value();
+			common_update_page_transition.value(script_state);
+			ui_dirty = true;
 		};
 
 		update_event_indicator.value();
