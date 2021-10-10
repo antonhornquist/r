@@ -58,6 +58,31 @@ var add_params = { |params_global, param_specs|
 	};
 };
 
+var create_polls = { |poll_specs, refresh_rate, set_ui_dirty_func|
+	poll_specs.collect { |poll_spec, i|
+		var script_poll = ~poll.set__("poll" ++ (i+1)) { |value|
+			poll_spec[\handler].value(value);
+			// TODO ui_dirty = true;
+			set_ui_dirty_func.value();
+		};
+		script_poll.time_ = 1/refresh_rate;
+		script_poll
+	};
+};
+
+var start_polls = { |polls|
+	if (polls.notNil) {
+		polls.do { |script_poll|
+			script_poll.start_();
+		};
+	};
+};
+
+var create_and_start_polls = { |poll_specs, refresh_rate, set_ui_dirty_func|
+	var polls = create_polls.value(poll_specs, refresh_rate, set_ui_dirty_func);
+	start_polls.value(polls);
+};
+
 var calculate_ui_page_label_widths = { |params_global, screen_global, pages|
 	screen_global.font_size_(16);
 	pages.do { |page, index|
@@ -692,7 +717,8 @@ var module = IdentityDictionary[
 	\load_settings_and_params -> load_settings_and_params,
 	\render_arc -> render_arc,
 	\get_param_id_for_current_page -> get_param_id_for_current_page,
-	\calculate_ui_page_label_widths -> calculate_ui_page_label_widths 
+	\calculate_ui_page_label_widths -> calculate_ui_page_label_widths,
+	\create_and_start_polls -> create_and_start_polls 
 ];
 
 module

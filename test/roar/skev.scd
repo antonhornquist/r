@@ -30,6 +30,7 @@ start_script.value {
 	var common_get_param_id_for_current_page = common[\get_param_id_for_current_page];
 	var common_load_settings_and_params = common[\load_settings_and_params];
 	var common_calculate_ui_page_label_widths = common[\calculate_ui_page_label_widths];
+	var common_create_and_start_polls = common[\create_and_start_polls];
 
 	var ui_dirty = false;
 
@@ -108,30 +109,6 @@ start_script.value {
 		};
 	};
 
-	var create_polls = { |poll_specs, refresh_rate|
-		poll_specs.collect { |poll_spec, i|
-			var script_poll = ~poll.set__("poll" ++ (i+1)) { |value|
-				poll_spec[\handler].value(value);
-				ui_dirty = true;
-			};
-			script_poll.time_ = 1/refresh_rate;
-			script_poll
-		};
-	};
-
-	var start_polls = { |polls|
-		if (polls.notNil) {
-			polls.do { |script_poll|
-				script_poll.start_();
-			};
-		};
-	};
-
-	var create_and_start_polls = { |poll_specs, refresh_rate|
-		var polls = create_polls.value(poll_specs, refresh_rate);
-		start_polls.value(polls);
-	};
-
 	var init_ui_refresh_metro = {
 		var ui_refresh_metro = ~metro.init_();
 		ui_refresh_metro.event = refresh_ui;
@@ -180,7 +157,7 @@ start_script.value {
 		common_calculate_ui_page_label_widths.value(~params, ~screen, pages);
 
 		common_load_settings_and_params.value(~params, settings_file);
-		create_and_start_polls.value(spec_instance[\poll_specs], ui_refresh_rate);
+		common_create_and_start_polls.value(spec_instance[\poll_specs], ui_refresh_rate, { ui_dirty = true });
 
 		init_ui.value();
 	};
