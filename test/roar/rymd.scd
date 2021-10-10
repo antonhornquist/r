@@ -20,6 +20,7 @@ start_script.value {
 
 	var common = include_relative.value("lib/common.scd");
 	var common_init_script_state = common[\init_script_state];
+	var common_cleanup = common[\cleanup];
 	var common_redraw = common[\redraw];
 	var common_enc = common[\enc];
 	var common_key = common[\key];
@@ -32,6 +33,12 @@ start_script.value {
 
 	var ui_dirty = false;
 
+	var ui_refresh_rate = 35;
+
+	var settings_file = "rymd.data";
+
+	var script_state;
+
 	var pages = [
 		[ (id: 'direct'), (id: 'delay_send') ],
 		[ (id: 'delay_time_left'), ( id: 'delay_time_right') ],
@@ -40,30 +47,12 @@ start_script.value {
 	];
 
 	// arc
-
 	var arc_device;
 
-/*
-	TODO
-	// grid
-
-	var grid_device;
-	var grid_width = Ref.new; // TODO: do not wrap as Ref
-
-	var update_grid_width = {
-		if (grid_device.device_.notNil) {
-			if (grid_width.dereference != grid_device.cols_) {
-				grid_width.set(grid_device.cols_);
-			};
-		};
-	};
-*/
-
 	// event flash
-
 	var show_event_indicator = false;
 
-	var event_flash_frames = 5; // TODO: this ought to be initialized since it's refresh FPS rate affects time
+	var event_flash_frames = 5;
 	var event_flash_frame_counter = nil;
 
 	var flash_event = {
@@ -87,39 +76,29 @@ start_script.value {
 	};
 
 	// ui refresh logic
-	var update_page_transition = { |state| // TODO: state -> script_state ??
-		var current_page = state[\current_page];
-		var target_page = state[\target_page];
-		var page_trans_div = state[\page_trans_div];
+	var update_page_transition = {
+		var current_page = script_state[\current_page];
+		var target_page = script_state[\target_page];
+		var page_trans_div = script_state[\page_trans_div];
 		var new_current_page;
 		new_current_page = current_page + page_trans_div;
-		state[\page_trans_frames] = state[\page_trans_frames] - 1;
-		if (state[\page_trans_frames] == 0) {
+		script_state[\page_trans_frames] = script_state[\page_trans_frames] - 1;
+		if (script_state[\page_trans_frames] == 0) {
 			new_current_page = target_page;
-			state[\target_page] = nil;
+			script_state[\target_page] = nil;
 		};
-		state[\current_page] = new_current_page;
+		script_state[\current_page] = new_current_page;
 		ui_dirty = true;
 	};
 
 	var refresh_ui = {
-		var target_page = script_state[\target_page];
-		if (target_page.notNil) {
-			update_page_transition.value(script_state);
+		if (script_state[\target_page].notNil) {
+			update_page_transition.value();
 		};
 
 		update_event_indicator.value();
 
-		// TODO update_grid_width.value();
-
 		if (ui_dirty) {
-
-/*
-	TODO
-			refresh_grid.value(); // TODO: naming
-			grid_device.refresh_();
-*/
-
 			common_render_arc.value(~params, script_state, pages, arc_device);
 			arc_device.refresh_();
 
@@ -128,11 +107,6 @@ start_script.value {
 			ui_dirty = false;
 		};
 	};
-
-	var settings_file = "rymd.data";
-	var ui_refresh_rate = 35;
-
-	var script_state;
 
 	var create_polls = { |poll_specs, refresh_rate|
 		poll_specs.collect { |poll_spec, i|
@@ -211,12 +185,9 @@ start_script.value {
 		init_ui.value();
 	};
 
-/*
-	TODO
 	~cleanup = {
-		common_cleanup.value(settings_file);
+		common_cleanup.value(~params, settings_file);
 	};
-*/
 
 	~redraw = {
 		common_redraw.value(~params, ~screen, pages, script_state, show_event_indicator);
@@ -232,8 +203,8 @@ start_script.value {
 		ui_dirty = true;
 	};
 
-	~mouse = { |... args| // TODO: get away from using varargs for ~mouse
-		common_mouse.value(*([~params, ~screen, pages, ui_refresh_rate, script_state]++args)); // TODO: get away from using varargs for ~mouse
+	~mouse = { |... args|
+		common_mouse.value(*([~params, ~screen, pages, ui_refresh_rate, script_state]++args));
 		ui_dirty = true;
 	};
 };
