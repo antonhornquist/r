@@ -260,13 +260,13 @@ start_script.value {
 			)
 		);
 
-		common_add_params.value(spec_instance[\param_specs], ~params);
+		common_add_params.value(~params, spec_instance[\param_specs]);
 
 		script_state = common_init_script_state.value();
 
 		common_calculate_ui_page_label_widths.value(~params, ~screen, pages);
 
-		common_load_settings_and_params.value(settings_file, ~params);
+		common_load_settings_and_params.value(~params, settings_file);
 
 		init_ui.value();
 

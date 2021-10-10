@@ -18,7 +18,7 @@ start_script.value {
 	var bob_spec = include_relative.value('lib/bob_spec.scd');
 	var bob_spec_init = bob_spec[\init];
 
-	var add_params = { |param_specs|
+	var add_params = { |param_specs|
 		param_specs.do { |param_spec|
 			~params.add_(
 				(

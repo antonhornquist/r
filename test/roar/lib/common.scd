@@ -40,8 +40,8 @@ var init_script_state = { |visual_values|
 };
 
 // TODO: move to script bacause of ui_dirty flag ?
-var add_params = { |param_specs, params_global|
-	param_specs.do { |param_spec|
+var add_params = { |params_global, param_specs|
+	param_specs.do { |param_spec|
 		params_global.add_(
 			(
 				type: param_spec[\type],
@@ -51,6 +51,7 @@ var add_params = { |param_specs, params_global|
 				formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
 				action: { |value|
 					param_spec[\action].value(value);
+					// TODO: no ui_dirty flag - won't update UI properly when mapping midi ?
 				}
 			)
 		);
@@ -456,14 +457,14 @@ var draw_arc = { |my_arc, value1, visual_values1, value2, visual_values2|
 };
 // TODO arc_common - finish
 
-var cleanup = { |settings_file|
+var cleanup = { |params_global, settings_file|
 	save_settings.value(settings_file);
-	// params_global.write_(); // TODO
+	params_global.write_(); // TODO
 };
 
-var load_settings_and_params = { |settings_file, params_global|
+var load_settings_and_params = { |params_global, settings_file|
 	load_settings.value(settings_file);
-	// params_global.read_(); // TODO
+	params_global.read_(); // TODO
 	params_global.bang_();
 };
 

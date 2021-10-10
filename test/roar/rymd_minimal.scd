@@ -16,7 +16,7 @@ start_script.value {
 	var rymd_spec = include_relative.value('lib/rymd_spec.scd');
 	var rymd_spec_init = rymd_spec[\init];
 
-	var add_params = { |param_specs|
+	var add_params = { |param_specs|
 		param_specs.do { |param_spec|
 			~params.add_(
 				(

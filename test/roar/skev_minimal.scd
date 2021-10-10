@@ -16,7 +16,7 @@ start_script.value {
 	var skev_spec = include_relative.value('lib/skev_spec.scd');
 	var skev_spec_init = skev_spec[\init];
 
-	var add_params = { |param_specs|
+	var add_params = { |param_specs|
 		param_specs.do { |param_spec|
 			~params.add_(
 				(
@@ -43,7 +43,7 @@ start_script.value {
 			)
 		);
 
-		common_add_params.value(spec[\param_specs], ~params);
+		add_params.value(spec[\param_specs]);
 
 		~params.bang_();
 	};

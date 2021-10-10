@@ -18,7 +18,7 @@ start_script.value {
 	var moln_spec_note_on = moln_spec[\note_on];
 	var moln_spec_note_off = moln_spec[\note_off];
 
-	var add_params = { |param_specs|
+	var add_params = { |param_specs|
 		param_specs.do { |param_spec|
 			~params.add_(
 				(
