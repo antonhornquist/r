@@ -14,27 +14,12 @@ var start_script = norns_engine_tester['start_script'];
 var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
 start_script.value(script_name) {
+	// scriptname: moln_minimal
+	// v1.3.0 @jah
 	var moln_spec = include_relative.value('lib/moln_spec.scd');
 	var moln_spec_init = moln_spec[\init];
 	var moln_spec_note_on = moln_spec[\note_on];
 	var moln_spec_note_off = moln_spec[\note_off];
-
-	var add_params = { |param_specs|
-		param_specs.do { |param_spec|
-			~params.add_(
-				(
-					type: param_spec[\type],
-					id: param_spec[\id],
-					name: param_spec[\narrow_name] ? param_spec[\name],
-					controlspec: param_spec[\controlspec],
-					formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
-					action: { |value|
-						param_spec[\action].value(value);
-					}
-				)
-			);
-		};
-	};
 
 	var init_midi = {
 		var midi_device;
@@ -85,12 +70,27 @@ start_script.value(script_name) {
 
 		init_midi.value();
 
-		add_params.value(spec[\param_specs]);
+		spec[\param_specs].do { |param_spec|
+			~params.add_(
+				(
+					type: param_spec[\type],
+					id: param_spec[\id],
+					name: param_spec[\narrow_name] ? param_spec[\name],
+					controlspec: param_spec[\controlspec],
+					formatter: param_spec[\narrow_formatter] ? param_spec[\formatter],
+					action: { |value|
+						param_spec[\action].value(value);
+					}
+				)
+			);
+		};
 
+		~params.read_();
 		~params.bang_();
 	};
 
 	~cleanup = {
+		~params.write_();
 	};
 
 	~redraw = {

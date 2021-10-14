@@ -86,24 +86,13 @@ var note_slots = ();
 var voice_allocator;
 
 var init = { |config|
-	var engine_global = config[\engine_global] ?? { Error("engine global is required").throw }; // TODO: make this more declarative: do not invoke engine global here, only send back metadata
-
-	// TODO: visuals not used
-/*
-	var visual_buf_size = config[\visual_buf_size] ?? { Error("visual_buf_size is required").throw };
-	var visual_value_bufs = create_visual_values_bufs.value(visual_buf_size);
-*/
+	var engine_global = config[\engine_global] ?? { Error("engine global is required").throw };
 
 	voice_allocator = voice_new.value(polyphony);
 	init_r_modules.value(engine_global);
 
 	(
 		param_specs: get_param_specs.value(engine_global),
-/*
-	TODO
-		poll_specs: get_poll_specs.value(visual_value_bufs),
-		visual_values: visual_value_bufs // TODO: rename key to visual_value_bufs too
-*/
 	)
 };
 
@@ -124,7 +113,7 @@ var create_modules = { |engine_global|
 	r_engine.poly_new_("Amp", "Amp", polyphony);
 
 	engine_global.new_("Amplifier", "SGain");
-	engine_global.new_("SoundOut", "SoundOut")
+	engine_global.new_("SoundOut", "SoundOut");
 };
 
 var set_static_module_params = { |engine_global|
@@ -442,7 +431,9 @@ var get_output_level_param_spec = { |engine_global|
 		\name -> "Amplifier.Gain",
 		\controlspec -> spec,
 		\formatter -> formatters.round_(0.1),
-		\action -> { |value| engine_global.set_("Amplifier.Gain", value) }
+		\action -> { |value|
+			engine_global.set_("Amplifier.Gain", value);
+		}
 	];
 };
 
@@ -461,13 +452,11 @@ var note_on = { |engine_global, note, velocity|
 };
 
 var trig_voice = { |engine_global, voicenum, note|
-	engine_global.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps); // TODO
-	// TODO postln("FreqGate"++(voicenum+1)++".Gate 1 FreqGate"++(voicenum+1)++".Frequency "++note.midicps);
+	engine_global.bulkset_("FreqGate"++voicenum++".Gate 1 FreqGate"++voicenum++".Frequency "++note.midicps);
 };
 
 var release_voice = { |engine_global, voicenum|
-	engine_global.bulkset_("FreqGate"++voicenum++".Gate 0"); // TODO
-	// TODO postln("FreqGate"++(voicenum+1)++".Gate 0");
+	engine_global.bulkset_("FreqGate"++voicenum++".Gate 0");
 };
 
 var note_off = { |engine_global, note|

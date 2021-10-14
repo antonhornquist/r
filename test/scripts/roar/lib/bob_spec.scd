@@ -255,7 +255,9 @@ var get_output_level_param_spec = { |engine_global|
 		\name -> "Amplifier.Gain",
 		\controlspec -> spec,
 		\formatter -> formatters.round_(0.1),
-		\action -> { |value| engine_global.set_("Amplifier.Gain", value) }
+		\action -> { |value|
+			engine_global.set_("Amplifier.Gain", value);
+		}
 	];
 };
 

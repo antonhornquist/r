@@ -1,5 +1,3 @@
-
-
 (
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
@@ -16,13 +14,22 @@ var start_script = norns_engine_tester['start_script'];
 var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
 start_script.value(script_name) {
-	// scriptname: bob
+	// scriptname: skev_minimal
 	// v1.3.0 @jah
-	var bob_spec = include_relative.value('lib/bob_spec.scd');
-	var bob_spec_init = bob_spec[\init];
+	var skev_spec = include_relative.value('lib/skev_spec.scd');
+	var skev_spec_init = skev_spec[\init];
 
-	var add_params = { |param_specs|
-		param_specs.do { |param_spec|
+	~engine.name = 'R';
+
+	~init = {
+		var spec = skev_spec_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: 0
+			)
+		);
+
+		spec[\param_specs].do { |param_spec|
 			~params.add_(
 				(
 					type: param_spec[\type],
@@ -36,41 +43,33 @@ start_script.value(script_name) {
 				)
 			);
 		};
-	};
 
-	~engine.name = 'R';
-
-	~init = {
-		var spec = bob_spec_init.value(
-			(
-				engine_global: ~engine,
-				visual_buf_size: 0
-			)
-		);
-
-		add_params.value(spec[\param_specs]);
-
+		~params.read_();
 		~params.bang_();
 	};
 
 	~cleanup = {
+		~params.write_();
 	};
 
 	~redraw = {
 		~screen.clear_();
 		~screen.level_(15);
 		~screen.move_(1, 10);
-		~screen.text_("BOB (MINIMAL)");
+		~screen.text_("SKEV (MINIMAL)");
 		~screen.update_();
 	};
 
 	~enc = { |n, delta|
 		case
+		{n == 1} {
+			~params.delta_("pitch_ratio", delta);
+		}
 		{n == 2} {
-			~params.delta_("cutoff", delta);
+			~params.delta_("pitch_dispersion", delta);
 		}
 		{n == 3} {
-			~params.delta_("resonance", delta);
+			~params.delta_("time_dispersion", delta);
 		};
 	};
 

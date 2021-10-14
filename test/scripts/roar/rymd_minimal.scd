@@ -14,11 +14,22 @@ var start_script = norns_engine_tester['start_script'];
 var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
 start_script.value(script_name) {
+	// scriptname: rymd_minimal
+	// v1.3.0 @jah
 	var rymd_spec = include_relative.value('lib/rymd_spec.scd');
 	var rymd_spec_init = rymd_spec[\init];
 
-	var add_params = { |param_specs|
-		param_specs.do { |param_spec|
+	~engine.name = 'R';
+
+	~init = {
+		var spec = rymd_spec_init.value(
+			(
+				engine_global: ~engine,
+				visual_buf_size: 0
+			)
+		);
+
+		spec[\param_specs].do { |param_spec|
 			~params.add_(
 				(
 					type: param_spec[\type],
@@ -32,24 +43,13 @@ start_script.value(script_name) {
 				)
 			);
 		};
-	};
 
-	~engine.name = 'R';
-
-	~init = {
-		var spec = rymd_spec_init.value(
-			(
-				engine_global: ~engine,
-				visual_buf_size: 0
-			)
-		);
-
-		add_params.value(spec[\param_specs]);
-
+		~params.read_();
 		~params.bang_();
 	};
 
 	~cleanup = {
+		~params.write_();
 	};
 
 	~redraw = {
