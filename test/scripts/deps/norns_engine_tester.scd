@@ -1,4 +1,14 @@
 (
+var include_relative = { |relative_path|
+	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
+	if (File.exists(path)) {
+		var result = this.executeFile(path);
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result }; // TODO: adopt in other places too
+	} {
+		Error("include_relative: file % does not exist".format(path.quote)).throw;
+	};
+};
+
 var namespaces = ();
 
 var load_class_dynamically = { |classname|
@@ -1025,8 +1035,7 @@ namespaces.paramset = {
 }.value;
 
 namespaces.ack_engine = {
-	var ack_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ ".." +/+ "ack" +/+ "ack.scd").standardizePath;
-	var ack = this.executeFile(ack_path);
+	var ack = include_relative.value(".." +/+ ".." +/+ ".." +/+ ".." +/+ "ack" +/+ "ack.scd");
 
 	var init = ack[\init];
 	var free = ack[\free];
@@ -1194,8 +1203,7 @@ namespaces.ack_engine = {
 }.value;
 
 namespaces.r_engine = {
-	var r_path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ ".." +/+ "r.scd").standardizePath;
-	var rrrr = this.executeFile(r_path);
+	var rrrr = include_relative.value(".." +/+ ".." +/+ ".." +/+ "r.scd");
 
 	var init = rrrr[\init];
 	var free = rrrr[\free];

@@ -9,83 +9,24 @@ var include_relative = { |relative_path|
 	};
 };
 
-var norns_engine_tester = include_relative.value("../../util/norns_engine_tester.scd");
+var deps_root_relative = ".." +/+ "deps";
+var norns_engine_tester = include_relative.value(deps_root_relative +/+ "norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
 var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
-start_script.value(script_name"-original") {
+start_script.value(script_name++"-original") {
 	// scriptname: moln
 	// v1.3.0 @jah
 
 	// TODO: refactor to separate file (start)
-	var r_specs = include_relative.value("lib/r_specs.scd");
-	var r_util = (
-		// utility function to expand a moduleparam ref to #polyphony ones suffixed with 1..polyphony
-		poly_expand_: { |self, moduleparam, polyphony|
-			var module, param;
-			# module, param = r_util.split_ref_(moduleparam);
-
-			polyphony.collect { |i|
-				var voicenum = i + 1;
-				r_util.param_voice_ref_(module, param, voicenum);
-			}.join(" ");
-		},
-		param_voice_ref_: { |self, module, param, voicenum|
-			module ++ voicenum ++ "." ++ param
-		},
-		split_ref_: { |self, ref|
-			ref = ref.asString;
-
-			case
-			{ref.includes($/)} {
-				ref.split($/);
-			}
-			{ref.includes($*)} {
-				ref.split($*);
-			}
-			{ref.includes($.)} {
-				ref.split($.);
-			}
-		}
-	);
-	var r_engine = (
-		// utility function to create multiple modules suffixed 1..polyphony
-		poly_new_: { |self, name, kind, polyphony|
-			kind = kind.asSymbol;
-			if (r_specs[kind].notNil) {
-				polyphony.do { |i|
-					var voicenum = i + 1;
-					~engine.new_(name++voicenum, kind); // TODO
-				};
-			} {
-				Error(kind.asString ++ " not a valid module type").throw;
-			};
-		},
-		// utility function to set param of multiple modules suffixed 1..polyphony
-		poly_set_: { |self, ref, value, polyphony|
-			var module, param;
-			# module, param = r_util.split_ref_(ref);
-			polyphony.do { |i|
-				var voicenum = i + 1;
-				~engine.set_(r_util.param_voice_ref_(module, param, voicenum), value); // TODO
-			};
-		},
-		// utility function to connect modules suffixed with 1..polyphony
-		poly_connect_: { |self, output, input, polyphony|
-			var sourcemodule, outputref;
-			var destmodule, inputref;
-			# sourcemodule, outputref = r_util.split_ref_(output);
-			# destmodule, inputref = r_util.split_ref_(input);
-			polyphony.do { |i|
-				var voicenum = i + 1;
-				~engine.connect_(sourcemodule++voicenum++"/"++outputref, destmodule++voicenum++"*"++inputref); // TODO
-			};
-		},
-	);
+	var rrrr = include_relative.value(deps_root_relative +/+ "r.scd");
+	var r_specs = rrrr[\specs];
+	var r_util = rrrr[\util];
+	var r_engine = rrrr[\engine];
 	// TODO: refactor to separate file (fin)
 
-	var formatters = include_relative.value("lib/formatters.scd");
-	var voice = include_relative.value("lib/voice.scd");
+	var formatters = include_relative.value(deps_root_relative +/+ "formatters.scd");
+	var voice = include_relative.value(deps_root_relative +/+ "voice.scd");
 	var voice_new = voice[\voice_new];
 
 	var engine_ready = false;
