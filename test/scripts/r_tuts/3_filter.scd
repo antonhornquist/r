@@ -2,7 +2,8 @@
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	if (File.exists(path)) {
-		this.executeFile(path);
+		var result = this.executeFile(path);
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result }; // TODO: adopt in other places too
 	} {
 		Error("include_relative: file % does not exist".format(path.quote)).throw;
 	};
@@ -12,7 +13,7 @@ var norns_engine_tester = include_relative.value("../util/norns_engine_tester.sc
 var start_script = norns_engine_tester['start_script'];
 
 start_script.value {
-	// scriptname: 4_voice
+	// scriptname: 3_filter
 	// v1.1.0 @jah
 	var formatters = include_relative.value("lib/formatters.scd");
 	var r_specs = include_relative.value("lib/r_specs.scd");
@@ -20,34 +21,21 @@ start_script.value {
 	~engine.name = 'R';
 
 	~init = {
-		~engine.new_("FreqGate", "FreqGate");
 		~engine.new_("LFO", "MultiLFO");
-		~engine.new_("Env", "ADSREnv");
-		~engine.new_("FilterMod", "LinMixer");
 		~engine.new_("Osc", "PulseOsc");
 		~engine.new_("Filter", "MMFilter");
-		~engine.new_("Amp", "Amp");
 		~engine.new_("Amplifier", "MGain");
 		~engine.new_("SoundOut", "SoundOut");
 
-		~engine.set_("Osc.FM", 1);
-
-		~engine.connect_("FreqGate/Frequency", "Osc*FM");
-		~engine.connect_("FreqGate/Gate", "Env*Gate");
 		~engine.connect_("LFO/Sine", "Osc*PWM");
-		~engine.connect_("LFO/Sine", "FilterMod*In1");
-		~engine.connect_("Env/Out", "FilterMod*In2");
-		~engine.connect_("Env/Out", "Amp*Lin");
-		~engine.connect_("FilterMod/Out", "Filter*FM");
+		~engine.connect_("LFO/Sine", "Filter*FM");
 
 		~engine.connect_("Osc/Out", "Filter*In");
-		~engine.connect_("Filter/Lowpass", "Amp*In");
-		~engine.connect_("Amp/Out", "Amplifier*In");
+
+		~engine.connect_("Filter/Lowpass", "Amplifier*In");
 		~engine.connect_("Amplifier/Out", "SoundOut*Left");
 		~engine.connect_("Amplifier/Out", "SoundOut*Right");
 
-		~add_gate_param.value();
-		~add_note_param.value();
 		~add_osc_range_param.value();
 		~add_lfo_frequency_param.value();
 		~add_lfo_to_osc_pwm_param.value();
@@ -56,64 +44,9 @@ start_script.value {
 		~add_lfo_to_filter_fm_param.value();
 		~add_osc_tune_param.value();
 		~add_osc_pulsewidth_param.value();
-		~add_env_attack_param.value();
-		~add_env_decay_param.value();
-		~add_env_sustain_param.value();
-		~add_env_release_param.value();
-		~add_env_to_filter_fm_param.value();
 		~add_output_level_param.value();
 
-		~engine.set_("FilterMod.Out", 1);
-		~engine.set_("Filter.FM", 1);
-
 		~params.bang_();
-
-		// TODO: remove (start)
-		~midi_device = ~midi.connect_();
-		~midi_device.event = { |data|
-			case
-			{ data.type == 'note_on' } {
-				~params.set_("note", data.note);
-				~params.set_("gate", 1);
-			}
-			{ data.type == 'note_off' } {
-				~params.set_("gate", 0);
-			}
-			{ (data.type == 'cc') and: (data.num ==1) } {
-				~params.set_raw_("filter_frequency", data.val/127);
-			}
-			{ (data.type == 'cc') and: (data.num ==2) } {
-				~params.set_raw_("filter_resonance", data.val/127);
-			}
-			{ (data.type == 'cc') and: (data.num ==3) } {
-				~params.set_raw_("lfo_frequency", data.val/127);
-			};
-		};
-		// TODO: remove (finish)
-	};
-
-	~add_gate_param = {
-		~params.add_(
-			(
-				type: "control",
-				id: "gate",
-				name: "Gate",
-				controlspec: r_specs['FreqGate']['Gate'],
-				action: { |value| ~engine.set_("FreqGate.Gate", value) }
-			)
-		);
-	};
-
-	~add_note_param = {
-		~params.add_(
-			(
-				type: "control",
-				id: "note",
-				name: "Note",
-				controlspec: \midinote.asSpec,
-				action: { |value| ~engine.set_("FreqGate.Frequency", value.midicps) }
-			)
-		);
 	};
 
 	~add_osc_range_param = {
@@ -240,84 +173,6 @@ start_script.value {
 		);
 	};
 
-	~add_env_attack_param = {
-		var spec;
-		spec = r_specs['ADSREnv']['Attack'].copy();
-		spec.default = 1;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_attack",
-				name: "Env.Attack",
-				controlspec: spec,
-				action: { |value| ~engine.set_("Env.Attack", value) }
-			)
-		);
-	};
-
-	~add_env_decay_param = {
-		var spec;
-		spec = r_specs['ADSREnv']['Decay'].copy();
-		spec.default = 800;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_decay",
-				name: "Env.Decay",
-				controlspec: spec,
-				action: { |value| ~engine.set_("Env.Decay", value) }
-			)
-		);
-	};
-
-	~add_env_sustain_param = {
-		~params.add_(
-			(
-				type: "control",
-				id: "env_sustain",
-				name: "Env.Sustain",
-				controlspec: r_specs['ADSREnv']['Sustain'],
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("Env.Sustain", value) }
-			)
-		);
-	};
-
-	~add_env_release_param = {
-		var spec;
-		spec = r_specs['ADSREnv']['Release'].copy();
-		spec.default = 800;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_release",
-				name: "Env.Release",
-				controlspec: spec,
-				action: { |value| ~engine.set_("Env.Release", value) }
-			)
-		);
-	};
-
-	~add_env_to_filter_fm_param = {
-		var spec;
-		spec = r_specs['LinMixer']['In2'].copy();
-		spec.default = 0.3;
-
-		~params.add_(
-			(
-				type: "control",
-				id: "env_to_filter_fm",
-				name: "Env > Filter.FM",
-				controlspec: spec,
-				formatter: formatters['percentage'],
-				action: { |value| ~engine.set_("FilterMod.In2", value) }
-			)
-		);
-	};
-
 	~add_output_level_param = {
 		var spec = r_specs['MGain']['Gain'].copy;
 		spec.default = -10;
@@ -338,7 +193,7 @@ start_script.value {
 		~screen.clear_();
 		~screen.level_(15);
 		~screen.move_(1, 10);
-		~screen.text_("VOICE");
+		~screen.text_("FILTER");
 		~screen.move_(1, 30);
 		~screen.text_("See params in menu");
 		~screen.update_();
@@ -350,22 +205,10 @@ start_script.value {
 			~params.delta_("output_level", delta);
 		}
 		{n == 2} {
-			~params.delta_("note", delta);
+			~params.delta_("lfo_frequency", delta);
 		}
 		{n == 3} {
-			~params.delta_("filter_frequency", delta);
-		};
-	};
-
-	~key = { |n, z|
-		if (n == 3) {
-			case
-			{z == 1} {
-				~params.set_("gate", 1);
-			}
-			{z == 0} {
-				~params.set_("gate", 0);
-			};
+			~params.delta_("lfo_to_filter_fm", delta);
 		};
 	};
 };
