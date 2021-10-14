@@ -454,14 +454,6 @@ end
 
 	var ui_dirty = false;
 
-	// arc
-
-	var arc_device;
-
-	// midi
-
-	var midi_device;
-
 	// event flash
 	var show_event_indicator = false;
 
@@ -492,25 +484,27 @@ end
 	var refresh_ui = {
 		update_event_indicator.value();
 
+    	// TODO update_grid_width.value();
+
 		if (ui_dirty) {
+			~redraw.value();
+
 /*
 	TODO
-			arc_device.all_(0);
-			arc_device.led_(1, round(~params.get_raw_("filter_frequency")*64), 15);
-			arc_device.led_(2, round(~params.get_raw_("filter_resonance")*64), 15);
-			arc_device.refresh_();
+			~arc_device.all_(0);
+			~arc_device.led_(1, round(~params.get_raw_("filter_frequency")*64), 15);
+			~arc_device.led_(2, round(~params.get_raw_("filter_resonance")*64), 15);
+			~arc_device.refresh_();
 */
-
-			~redraw.value();
 
 			ui_dirty = false;
 		};
 	};
 
-	var init_ui = {
-		arc_device = ~arc.connect_();
+	var init_arc = {
+		~arc_device = ~arc.connect_();
 
-		arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
+		~arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
 			var d;
 
 			flash_event.value();
@@ -533,8 +527,10 @@ end
 
 			ui_dirty = true;
 		};
+	};
 
-		midi_device = ~midi.connect_();
+	var init_midi = {
+		var midi_device = ~midi.connect_();
 
 		midi_device[\event] = { |data|
 			if (engine_ready) {
@@ -598,7 +594,11 @@ end
 				};
 			}
 		};
+	};
 
+	var init_ui = {
+		init_arc.value();
+		init_midi.value();
 		init_60_fps_ui_refresh_metro.value();
 		init_engine_init_delay_metro.value();
 	};
