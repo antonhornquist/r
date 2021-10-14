@@ -480,30 +480,31 @@ end
 		};
 	};
 
-	// ui refresh logic
+	var refresh_arc = {
+		~arc_device.all_(0);
+		~arc_device.led_(1, round(~params.get_raw_("filter_frequency")*64), 15); // TODO: bug
+		~arc_device.led_(2, round(~params.get_raw_("filter_resonance")*64), 15); // TODO: bug
+		~arc_device.refresh_();
+	};
+
+	var refresh_grid = {
+		// TODO
+	};
+
 	var refresh_ui = {
 		update_event_indicator.value();
-
     	// TODO update_grid_width.value();
 
 		if (ui_dirty) {
 			~redraw.value();
-
-/*
-	TODO
-			~arc_device.all_(0);
-			~arc_device.led_(1, round(~params.get_raw_("filter_frequency")*64), 15);
-			~arc_device.led_(2, round(~params.get_raw_("filter_resonance")*64), 15);
-			~arc_device.refresh_();
-*/
-
+			refresh_arc.value();
+			refresh_grid.value();
 			ui_dirty = false;
 		};
 	};
 
 	var init_arc = {
 		~arc_device = ~arc.connect_();
-
 		~arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
 			var d;
 
@@ -529,9 +530,12 @@ end
 		};
 	};
 
+	var init_grid = {
+		// TODO
+	};
+
 	var init_midi = {
 		var midi_device = ~midi.connect_();
-
 		midi_device[\event] = { |data|
 			if (engine_ready) {
 				var msg = ~midi.to_msg_(data);
@@ -598,6 +602,7 @@ end
 
 	var init_ui = {
 		init_arc.value();
+		init_grid.value();
 		init_midi.value();
 		init_60_fps_ui_refresh_metro.value();
 		init_engine_init_delay_metro.value();

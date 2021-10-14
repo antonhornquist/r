@@ -48,9 +48,11 @@ namespaces.arc_device_manager = {
 				arc_device.led_ = { |self, ring, x, val|
 					self[("ring"++(ring-1)++"_map").asSymbol][x-1] = val;
 				};
-				arc_device.all_ = { |self, ring, val|
-					64.do { |index|
-						self[("ring"++(ring-1)++"_map").asSymbol][index] = val;
+				arc_device.all_ = { |self, val|
+					4.do { |ring|
+						64.do { |index|
+							self[("ring"++ring++"_map").asSymbol][index] = val;
+						};
 					};
 				};
 				arc_device.refresh_ = { |self|
