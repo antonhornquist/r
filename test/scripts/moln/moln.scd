@@ -13,7 +13,7 @@ var norns_engine_tester = include_relative.value("../../util/norns_engine_tester
 var start_script = norns_engine_tester['start_script'];
 var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
-start_script.value(script_name) {
+start_script.value(script_name"-original") {
 	// scriptname: moln
 	// v1.3.0 @jah
 
