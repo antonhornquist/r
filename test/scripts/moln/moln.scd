@@ -3,7 +3,7 @@ var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	if (File.exists(path)) {
 		var result = this.executeFile(path);
-		if (result.isNil) { Error("error importing %".format(path)).throw; } { result }; // TODO: adopt in other places too
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result };
 	} {
 		Error("include_relative: file % does not exist".format(path.quote)).throw;
 	};
@@ -18,12 +18,10 @@ start_script.value(script_name++"-original") {
 	// scriptname: moln
 	// v1.3.0 @jah
 
-	// TODO: refactor to separate file (start)
 	var rrrr = include_relative.value(deps_root_relative +/+ "r.scd");
 	var r_specs = rrrr[\specs];
 	var r_util = rrrr[\util];
 	var r_engine = rrrr[\engine];
-	// TODO: refactor to separate file (fin)
 
 	var formatters = include_relative.value(deps_root_relative +/+ "formatters.scd");
 	var voice = include_relative.value(deps_root_relative +/+ "voice.scd");
@@ -38,6 +36,8 @@ start_script.value(script_name++"-original") {
 	var note_downs = ();
 	var note_slots = ();
 
+	var grid_width;
+
 	var create_modules = {
 		r_engine.poly_new_("FreqGate", "FreqGate", polyphony);
 		r_engine.poly_new_("LFO", "SineLFO", polyphony);
@@ -47,7 +47,7 @@ start_script.value(script_name++"-original") {
 		r_engine.poly_new_("Filter", "LPFilter", polyphony);
 		r_engine.poly_new_("Amp", "Amp", polyphony);
 
-		~engine.new_("Amplifier", "SGain");
+		~engine.new_("OutputGain", "SGain");
 		~engine.new_("SoundOut", "SoundOut");
 	};
 
@@ -71,11 +71,11 @@ start_script.value(script_name++"-original") {
 		
 		polyphony.do { |i|
 			var voicenum = i + 1;
-			~engine.connect_("Amp"++voicenum++"/Out", "Amplifier*Left");
-			~engine.connect_("Amp"++voicenum++"/Out", "Amplifier*Right");
+			~engine.connect_("Amp"++voicenum++"/Out", "OutputGain*Left");
+			~engine.connect_("Amp"++voicenum++"/Out", "OutputGain*Right");
 		};
-		~engine.connect_("Amplifier/Left", "SoundOut*Left");
-		~engine.connect_("Amplifier/Right", "SoundOut*Right");
+		~engine.connect_("OutputGain/Left", "SoundOut*Left");
+		~engine.connect_("OutputGain/Right", "SoundOut*Right");
 	};
 
 	var create_macros = {
@@ -347,19 +347,19 @@ start_script.value(script_name++"-original") {
 		);
 	};
 
-	var init_output_level_param = {
-		var spec = r_specs['MGain']['Gain'].copy;
+	var init_moln_output_level_param = {
+		var spec = r_specs['SGain']['Gain'].copy;
 		spec.default = -10;
 
 		~params.add_(
 			(
 				type: "control",
-				id: "output_level",
+				id: "moln_output_level",
 				name: "Output Level",
 				controlspec: spec,
 				formatter: formatters.round_(0.1),
 				action: { |value|
-					~engine.set_("Amplifier.Gain", value);
+					~engine.set_("OutputGain.Gain", value);
 				}
 			)
 		);
@@ -380,7 +380,7 @@ start_script.value(script_name++"-original") {
 		init_env_decay_param.value();
 		init_env_sustain_param.value();
 		init_env_release_param.value();
-		init_output_level_param.value();
+		init_moln_output_level_param.value();
 	};
 
 	var release_voice = { |voicenum|
@@ -394,7 +394,7 @@ start_script.value(script_name++"-original") {
 	var note_on = { |note, velocity|
 		if (note_slots[note].isNil) {
 			var slot = ~voice_allocator.get__();
-			var voicenum = slot[\id__]; // TODO: + 1
+			var voicenum = slot[\id__]; // TODO: + 1 ---- 0 or 1 based?
 			trig_voice.value(voicenum, note);
 			slot[\on_release__] = {
 				release_voice.value(voicenum);
@@ -413,24 +413,21 @@ start_script.value(script_name++"-original") {
 		};
 	};
 
-/*
-	TODO
-local function gridkey_to_note(x, y, grid_width)
-  if grid_width == 16 then
-    return x * 8 + y
-  else
-    return (4+x) * 8 + y
-  end
-end
+	var gridkey_to_note = { |x, y, grid_width|
+		if (grid_width == 16) {
+			(x * 8) + y;
+		} {
+			((4 + x) * 8) + y;
+		};
+	};
 
-local function note_to_gridkey(note, grid_width)
-  if grid_width == 16 then
-    return math.floor(note/8), note % 8
-  else
-    return math.floor(note/8) - 4, note % 8
-  end
-end
-*/
+	var note_to_gridkey = { |note, grid_width|
+		if (grid_width == 16) {
+			[floor((note - 1) / 8), ((note - 1) % 8) + 1]
+		} {
+			[floor((note - 1) / 8) - 4, ((note - 1) % 8) + 1]
+		};
+	};
 
 	var init_engine_init_delay_metro = {
 		var engine_init_delay_metro = ~metro.init_();
@@ -454,7 +451,6 @@ end
 
 	var ui_dirty = false;
 
-	// event flash
 	var show_event_indicator = false;
 
 	var event_flash_frames = 5;
@@ -480,6 +476,14 @@ end
 		};
 	};
 
+	var update_grid_width = {
+		if (~grid_device.device_.notNil) {
+			if (grid_width != ~grid_device.cols_) {
+				grid_width = ~grid_device.cols_;
+			};
+		};
+	};
+
 	var refresh_arc = {
 		~arc_device.all_(0);
 		~arc_device.led_(1, round(~params.get_raw_("filter_frequency")*64), 15); // TODO: bug
@@ -488,12 +492,21 @@ end
 	};
 
 	var refresh_grid = {
-		// TODO
+		~grid_device.all_(0);
+		polyphony.do { |voicenum|
+			var note = note_downs[voicenum];
+			if (note.notNil) {
+				var x, y;
+				# x, y = note_to_gridkey.value(note, grid_width);
+				~grid_device.led_(x, y, 15);
+			}
+		};
+		~grid_device.refresh_();
 	};
 
 	var refresh_ui = {
 		update_event_indicator.value();
-    	// TODO update_grid_width.value();
+    	update_grid_width.value();
 
 		if (ui_dirty) {
 			~redraw.value();
@@ -531,7 +544,19 @@ end
 	};
 
 	var init_grid = {
-		// TODO
+		~grid_device = ~grid.connect_();
+		~grid_device[\key] = { |x, y, state|
+			if (engine_ready) {
+				var note = gridkey_to_note.value(x, y, grid_width);
+				if (state == 1) {
+					note_on.value(note, 5);
+				} {
+					note_off.value(note);
+				};
+				ui_dirty = true;
+			};
+			flash_event.value();
+		};
 	};
 
 	var init_midi = {
@@ -654,7 +679,7 @@ end
 			~screen.text_("LEVEL");
 			~screen.move_(enc1_x+45, enc1_y);
 			~screen.level_(hi_level);
-			~screen.text_(round(~params.get_raw_("output_level")*100).asInteger.asString);
+			~screen.text_(round(~params.get_raw_("moln_output_level")*100).asInteger.asString);
 		};
 
 		var redraw_event_flash_widget = {
@@ -730,7 +755,7 @@ end
 		};
 		case
 		{ n == 1 } {
-			~params.delta_("output_level", d); // TODO: Amplifier
+			~params.delta_("main_level", d);
 			ui_dirty = true;
 		}
 		{ n == 2 } {
