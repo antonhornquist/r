@@ -3,39 +3,36 @@
 var include_relative = { |relative_path|
 	var path = (PathName(thisProcess.nowExecutingPath).pathOnly +/+ relative_path).standardizePath;
 	if (File.exists(path)) {
-		this.executeFile(path);
+		var result = this.executeFile(path);
+		if (result.isNil) { Error("error importing %".format(path)).throw; } { result };
 	} {
 		Error("include_relative: file % does not exist".format(path.quote)).throw;
 	};
 };
 
-var norns_engine_tester = include_relative.value("../../r/util/norns_engine_tester.scd");
+var deps_root_relative = ".." +/+ "deps";
+var norns_engine_tester = include_relative.value(deps_root_relative +/+ "norns_engine_tester.scd");
 var start_script = norns_engine_tester['start_script'];
 var script_name = PathName(thisProcess.nowExecutingPath).fileNameWithoutExtension;
 
 start_script.value(script_name) {
+	// scriptname: step
+	// v1.x.x @jah
+
 	var ack = include_relative.value("lib/ack.scd");
 	var ack_add_params = ack[\add_params];
 
-	var specs = include_relative.value("lib/specs.scd");
-	var arc_led_x_spec = specs[\arc_led_x_spec];
-	var arc_led_l_spec = specs[\arc_led_l_spec];
+	var arc_led_x_spec = ControlSpec(1, 64, 'linear', 1, 0, "");
+	var arc_led_l_spec = ControlSpec(0, 15, 'linear', 1, 0, "");
 
 	var ui_dirty = false;
 
-	// arc
-
-	var arc_device;
-
-	// grid
-
-	var grid_device;
 	var grid_width;
 
 	var update_grid_width = {
-		if (grid_device.device_.notNil) {
-			if (grid_width != grid_device.cols_) {
-				grid_width = grid_device.cols_;
+		if (~grid_device.device_.notNil) {
+			if (grid_width != ~grid_device.cols_) {
+				grid_width = ~grid_device.cols_;
 			};
 		};
 	};
@@ -67,58 +64,57 @@ start_script.value(script_name) {
 		};
 	};
 
-	// ui refresh logic
+	var refresh_grid = {
+		var refresh_grid_button = { |x, y|
+			if (cutting_is_enabled.value() and: (y == 8)) {
+				if (x == playpos) {
+					~grid_device.led_(x, y, playpos_level);
+				} {
+					~grid_device.led_(x, y, clear_level);
+				};
+			} {
+				case
+				{trig_is_set.value(~params.get_("pattern"), x, y)} {
+					~grid_device.led_(x, y, trig_level)
+				}
+				{ x == playpos } {
+					~grid_device.led_(x, y, playpos_level)
+				}
+				{ true } {
+					~grid_device.led_(x, y, clear_level)
+				}
+			}
+		};
+
+		var refresh_grid_column = { |x|
+			(1..num_tracks).do { |y|
+				refresh_grid_button.value(x, y)
+			}
+		};
+
+		(1..steps_per_pattern).do { |stepnum|
+			refresh_grid_column.value(stepnum)
+		};
+
+		~grid_device.refresh_();
+	};
+
+	var refresh_arc = {
+		~arc_device.all_(1, 0);
+		~arc_device.all_(2, 0);
+		~arc_device.led_(1, arc_led_x_spec.map(~params.get_raw_("tempo")), arc_led_l_spec.maxval);
+		~arc_device.led_(2, arc_led_x_spec.map(~params.get_raw_("swing_amount")), arc_led_l_spec.maxval);
+		~arc_device.refresh_();
+	};
 
 	var refresh_ui = {
 		update_event_indicator.value();
-
 		update_grid_width.value();
 
 		if (ui_dirty) {
-			var refresh_grid_button = { |x, y|
-				if (cutting_is_enabled.value() and: (y == 8)) {
-					if (x == playpos) {
-						grid_device.led_(x, y, playpos_level);
-					} {
-						grid_device.led_(x, y, clear_level);
-					};
-				} {
-					case
-					{trig_is_set.value(~params.get_("pattern"), x, y)} {
-						grid_device.led_(x, y, trig_level)
-					}
-					{ x == playpos } {
-						grid_device.led_(x, y, playpos_level)
-					}
-					{ true } {
-						grid_device.led_(x, y, clear_level)
-					}
-				}
-			};
-
-			var refresh_grid_column = { |x|
-				(1..num_tracks).do { |y|
-					refresh_grid_button.value(x, y)
-				}
-			};
-
-			var refresh_grid = {
-				(1..steps_per_pattern).do { |stepnum|
-					refresh_grid_column.value(stepnum)
-				}
-			};
-
-			refresh_grid.value(); // TODO: naming
-			grid_device.refresh_();
-
-			arc_device.all_(1, 0);
-			arc_device.all_(2, 0);
-			arc_device.led_(1, arc_led_x_spec.map(~params.get_raw_("tempo")), arc_led_l_spec.maxval);
-			arc_device.led_(2, arc_led_x_spec.map(~params.get_raw_("swing_amount")), arc_led_l_spec.maxval);
-			arc_device.refresh_();
-
 			~redraw.value();
-
+			refresh_arc.value();
+			refresh_grid.value();
 			ui_dirty = false;
 		};
 	};
@@ -420,9 +416,9 @@ start_script.value(script_name) {
 	};
 
 	var init_ui = {
-		arc_device = ~arc.connect_();
+		~arc_device = ~arc.connect_();
 
-		arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
+		~arc_device[\delta] = { |n, delta| // not .delta notation to suppress self argument?
 			flash_event.value();
 			case
 			{ mode == 'main' } {
@@ -455,9 +451,9 @@ TODO
 			};
 		};
 
-		grid_device = ~grid.connect_();
+		~grid_device = ~grid.connect_();
 
-		grid_device[\key] = { |x, y, state| // not .key notation to suppress self argument? // TODO: x, y are single character
+		~grid_device[\key] = { |x, y, state| // not .key notation to suppress self argument? // TODO: x, y are single character
 			flash_event.value();
 			if (state == 1) {
 				if (cutting_is_enabled.value() and: (y == 8)) { // TODO: y == 8 should be y == 7 everywhere
@@ -1028,9 +1024,9 @@ TODO
 		save_patterns.value();
 /*
 	TODO
-		if (grid_device.device_.notNil) {
-			grid_device.all_(0);
-			grid_device.refresh_();
+		if (~grid_device.device_.notNil) {
+			~grid_device.all_(0);
+			~grid_device.refresh_();
 		};
 */
 	};
@@ -1046,7 +1042,7 @@ TODO
 		{ mode == 'params' } {
 			redraw_params_ui.value();
 		};
-		~screen.update_(); // norns global
+		~screen.update_();
 	};
 
 	~enc = { |n, delta|

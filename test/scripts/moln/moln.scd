@@ -27,6 +27,9 @@ start_script.value(script_name++"-original") {
 	var voice = include_relative.value(deps_root_relative +/+ "voice.scd");
 	var voice_new = voice[\voice_new];
 
+	var arc_led_x_spec = ControlSpec(1, 64, 'linear', 1, 0, "");
+	var arc_led_l_spec = ControlSpec(0, 15, 'linear', 1, 0, "");
+
 	var engine_ready = false;
 	var trigging = false;
 	var fine = false;
@@ -486,8 +489,8 @@ start_script.value(script_name++"-original") {
 
 	var refresh_arc = {
 		~arc_device.all_(0);
-		~arc_device.led_(1, round(~params.get_raw_("filter_frequency")*64), 15); // TODO: bug
-		~arc_device.led_(2, round(~params.get_raw_("filter_resonance")*64), 15); // TODO: bug
+		~arc_device.led_(1, arc_led_x_spec.map(~params.get_raw_("filter_frequency")), arc_led_l_spec.maxval); // TODO: bug
+		~arc_device.led_(2, arc_led_x_spec.map(~params.get_raw_("filter_resonance")), arc_led_l_spec.maxval); // TODO: bug
 		~arc_device.refresh_();
 	};
 
