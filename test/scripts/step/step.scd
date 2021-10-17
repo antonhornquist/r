@@ -19,7 +19,7 @@ start_script.value(script_name) {
 	// scriptname: step
 	// v1.x.x @jah
 
-	var ack = include_relative.value("lib/ack.scd");
+	var ack = include_relative.value(deps_root_relative +/+ "ack.scd");
 	var ack_add_params = ack[\add_params];
 
 	var arc_led_x_spec = ControlSpec(1, 64, 'linear', 1, 0, "");
