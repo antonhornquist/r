@@ -9,7 +9,7 @@ var include_relative = { |relative_path|
 	};
 };
 
-var r = include_relative.value(".." +/+ ".." +/+ ".." +/+ "r.scd");
+var r = include_relative.value(".." +/+ "r.scd");
 var getCoreStdModuleSpecs = r[\getCoreStdModuleSpecs];
 
 var specs = getCoreStdModuleSpecs.value;
