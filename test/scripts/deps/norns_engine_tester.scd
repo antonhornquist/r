@@ -1629,7 +1629,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 								# engine, poll_manager = setup_engine_globals.value(r_engine_instance[\commands], r_engine_instance[\polls]);
 								~engine = engine;
 								~poll = poll_manager;
-								// script_instance[\r_engine_instance] = r_engine_instance; // TODO: probably not needed
 								script_instance[\engine_free_func] = {
 									free_engine.value(r_engine_instance);
 								};
@@ -1648,7 +1647,6 @@ if (~include_nel_libraries.asBoolean) { // TODO: ugly hack, get around using glo
 								# engine, poll_manager = setup_engine_globals.value(ack_engine_instance[\commands], ack_engine_instance[\polls]);
 								~engine = engine;
 								~poll = poll_manager;
-								// script_instance[\ack_engine_instance] = ack_engine_instance; // TODO: probably not needed
 								script_instance[\engine_free_func] = {
 									free_engine.value(ack_engine_instance);
 								};
