@@ -6394,6 +6394,12 @@ var asDict = { |arrayOfAssociations|
 	IdentityDictionary.newFrom( arrayOfAssociations.collect { |assoc| [ assoc.key, assoc.value ] }.flatten );
 };
 
+// TODO: namespace
+
+var specs = getCoreStdModuleMetadata.value;
+
+var metadata = getCoreStdModuleMetadata.value;
+
 var util = (
 	// utility function to expand a moduleparam ref to #polyphony ones suffixed with 1..polyphony
 	poly_expand_: { |self, moduleparam, polyphony|
@@ -6458,6 +6464,7 @@ var engine = (
 		};
 	},
 );
+
 var module = IdentityDictionary[
 	\init -> init,
 	\free -> free,
@@ -6479,8 +6486,8 @@ var module = IdentityDictionary[
 	\getCoreStdModuleSpecs -> getCoreStdModuleSpecs,
 	\getCoreStdModuleMetadata -> getCoreStdModuleMetadata,
 	\lib -> IdentityDictionary[
-		\specs -> getCoreStdModuleMetadata.value,
-		\metadata -> getCoreStdModuleMetadata.value,
+		\specs -> specs,
+		\metadata -> metadata,
 		\util -> util,
 		\engine -> engine
 	]
