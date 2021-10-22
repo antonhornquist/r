@@ -6396,7 +6396,7 @@ var asDict = { |arrayOfAssociations|
 
 // TODO: namespace
 
-var specs = getCoreStdModuleMetadata.value;
+var specs = getCoreStdModuleSpecs.value;
 
 var metadata = getCoreStdModuleMetadata.value;
 
