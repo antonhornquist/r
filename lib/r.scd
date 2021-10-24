@@ -6402,7 +6402,7 @@ var metadata = getCoreStdModuleMetadata.value;
 
 var util = (
 	// utility function to expand a moduleparam ref to #polyphony ones suffixed with 1..polyphony
-	poly_expand_: { |self, moduleparam, polyphony|
+	poly_expand_: { |self, moduleparam, polyphony|
 		var module, param;
 		# module, param = util.split_ref_(moduleparam);
 
@@ -6411,10 +6411,10 @@ var util = (
 			util.param_voice_ref_(module, param, voicenum);
 		}.join(" ");
 	},
-	param_voice_ref_: { |self, module, param, voicenum|
+	param_voice_ref_: { |self, module, param, voicenum|
 		module ++ voicenum ++ "." ++ param
 	},
-	split_ref_: { |self, ref|
+	split_ref_: { |self, ref|
 		ref = ref.asString;
 
 		case
